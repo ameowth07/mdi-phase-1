@@ -484,6 +484,7 @@
 
 .simSplitClientWrap,
 .simSplitServerWrap {
+  position: relative;
   flex: 1 1 0;
   flex-basis: 0;
   min-width: 0;
@@ -491,6 +492,14 @@
   display: flex;
   flex-direction: column;
   background: var(--surface-100);
+}
+
+/** Play split: one column owns the white focus inset (not duplicated per viewport instance). */
+.simSplitClientWrap > .editWorkspaceInsetRing,
+.simSplitServerWrap > .editWorkspaceInsetRing {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
 }
 
 .simSplitDocumentTabRow {

@@ -50,6 +50,12 @@ export type InteractionSettingsPanelProps = {
   onPanelTitlesLeftAlignedChange: (value: boolean) => void
   /** When set, shows control to spawn another full Studio frame (stacked in the app shell). */
   onOpenAssetWindow?: () => void
+  /** Opens a Client Script document tab in the main workspace. */
+  onOpenClientScript?: () => void
+  /** Opens a Server Script document tab in the main workspace. */
+  onOpenServerScript?: () => void
+  /** Play / Testing mode — script tab actions are only enabled while simulating. */
+  testingMode?: boolean
   /** Bunny asset window — hide isolation toggle (layout is fixed). */
   bunnyAssetWindow?: boolean
 }
@@ -117,8 +123,12 @@ export default function InteractionSettingsPanel({
   panelTitlesLeftAligned,
   onPanelTitlesLeftAlignedChange,
   onOpenAssetWindow,
+  onOpenClientScript,
+  onOpenServerScript,
+  testingMode = false,
   bunnyAssetWindow,
 }: InteractionSettingsPanelProps) {
+  const [colorOperatorsOpen, setColorOperatorsOpen] = useState(false)
   const [miscOpen, setMiscOpen] = useState(false)
   const indicatorRowDisabled = !explorerFocusBadge
 
@@ -150,10 +160,11 @@ export default function InteractionSettingsPanel({
   }, [])
 
   useEffect(() => {
+    if (!colorOperatorsOpen) return undefined
     const elements = getSliderElements()
     if (!elements) return undefined
     return bindThemeColorOperators(elements)
-  }, [getSliderElements])
+  }, [getSliderElements, colorOperatorsOpen])
 
   const handleResetTheme = useCallback(() => {
     const elements = getSliderElements()
@@ -170,10 +181,30 @@ export default function InteractionSettingsPanel({
 
   return (
     <div className={css.root} data-name="ThemeSettings">
-      <section className={css.group} aria-labelledby="theme-color-operators-heading">
-        <h2 id="theme-color-operators-heading" className={css.groupLabel}>
-          Color operators
-        </h2>
+      <section className={css.collapsible}>
+        <button
+          type="button"
+          className={css.collapsibleHeader}
+          aria-expanded={colorOperatorsOpen}
+          aria-controls="theme-settings-color-operators"
+          id="theme-color-operators-heading"
+          onClick={() => setColorOperatorsOpen((open) => !open)}
+        >
+          <ChevronRight
+            size={12}
+            strokeWidth={2}
+            className={`${css.collapsibleChevron} ${colorOperatorsOpen ? css.collapsibleChevronOpen : ''}`}
+            aria-hidden
+          />
+          <span className={css.collapsibleTitle}>Color operators</span>
+        </button>
+        {colorOperatorsOpen ? (
+          <div
+            id="theme-settings-color-operators"
+            className={css.collapsibleBody}
+            role="region"
+            aria-labelledby="theme-color-operators-heading"
+          >
         <div className={css.sliders}>
           <div className={css.sliderRow}>
             <label className={css.sliderLabel} htmlFor="hueSlider">
@@ -303,6 +334,8 @@ export default function InteractionSettingsPanel({
             </button>
           </div>
         </div>
+          </div>
+        ) : null}
       </section>
 
       <section className={css.collapsible}>
@@ -320,7 +353,7 @@ export default function InteractionSettingsPanel({
             className={`${css.collapsibleChevron} ${miscOpen ? css.collapsibleChevronOpen : ''}`}
             aria-hidden
           />
-          <span className={css.collapsibleTitle}>Misc</span>
+          <span className={css.collapsibleTitle}>Focus interaction settings</span>
         </button>
         {miscOpen ? (
           <div
@@ -527,6 +560,33 @@ export default function InteractionSettingsPanel({
                 </div>
               </div>
             </section>
+
+            {onOpenClientScript || onOpenServerScript ? (
+              <div className={css.scriptTabActions}>
+                {onOpenClientScript ? (
+                  <button
+                    type="button"
+                    className={css.openAssetBtn}
+                    disabled={!testingMode}
+                    aria-disabled={!testingMode}
+                    onClick={onOpenClientScript}
+                  >
+                    Open Client Script
+                  </button>
+                ) : null}
+                {onOpenServerScript ? (
+                  <button
+                    type="button"
+                    className={css.openAssetBtn}
+                    disabled={!testingMode}
+                    aria-disabled={!testingMode}
+                    onClick={onOpenServerScript}
+                  >
+                    Open Server Script
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>

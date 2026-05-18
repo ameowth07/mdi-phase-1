@@ -1,4 +1,7 @@
 .root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   padding: 4px 12px 10px;
   font-size: 12px;
   line-height: 1.4;
@@ -271,4 +274,23 @@
 
 .openAssetBtn:active {
   background: rgba(208, 217, 251, 0.1);
+}
+
+.openAssetBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.openAssetBtn:disabled:hover,
+.openAssetBtn:disabled:active {
+  background: rgba(208, 217, 251, 0.14);
+}
+
+.scriptTabActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--stroke-muted, rgba(208, 217, 251, 0.08));
 }
