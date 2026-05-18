@@ -164,16 +164,16 @@
   font-weight: 500;
   color: var(--content-emphasis, #f7f7f8);
   cursor: pointer;
-  background: rgba(208, 217, 251, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(208, 217, 251, 0.22);
+  background: var(--action-standard-background, hsla(227, 84%, 90%, 0.12));
+  box-shadow: none;
 }
 
 .presetBtn:hover {
-  background: rgba(208, 217, 251, 0.2);
+  filter: brightness(1.15);
 }
 
 .presetBtn:active {
-  background: rgba(208, 217, 251, 0.1);
+  filter: brightness(0.9);
 }
 
 .groupLabel {

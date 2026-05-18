@@ -1,8 +1,16 @@
 /** `--surface-100` base (H₀, S₀, L₀) at default operators — Surface_100. */
 export const SURFACE_100_BASE = { h: 230, s: 11, l: 11 } as const
 
-/** Target appearance for Surface_250 preset (`hsl(223, 9%, 16%)` on `--surface-100`). */
-export const SURFACE_250_TARGET = { h: 223, s: 9, l: 16 } as const
+/** Target `--surface-100` HSL for each surface preset (contrast scale = 1). */
+export const SURFACE_PRESET_TARGETS = {
+  150: { h: 228, s: 10, l: 12 },
+  200: { h: 223, s: 10, l: 14 },
+  250: { h: 226, s: 9, l: 15 },
+  300: { h: 227, s: 10, l: 17 },
+  350: { h: 230, s: 10, l: 23 },
+} as const
+
+export type SurfacePresetId = keyof typeof SURFACE_PRESET_TARGETS
 
 /** Default operators — resets UI to Surface_100 baseline. */
 export const THEME_OPERATOR_DEFAULTS = {
@@ -19,12 +27,25 @@ export type ThemeOperatorPreset = {
   contrast: string
 }
 
-/** Operators so `--surface-100` ≈ `hsl(223, 9%, 16%)` with contrast at 1. */
-export const SURFACE_250_OPERATOR_PRESET: ThemeOperatorPreset = {
-  hue: String(SURFACE_250_TARGET.h - SURFACE_100_BASE.h),
-  sat: (SURFACE_250_TARGET.s / SURFACE_100_BASE.s).toFixed(2),
-  light: String(SURFACE_250_TARGET.l - SURFACE_100_BASE.l),
-  contrast: '1',
+export function computeSurfaceOperatorPreset(target: {
+  h: number
+  s: number
+  l: number
+}): ThemeOperatorPreset {
+  return {
+    hue: String(target.h - SURFACE_100_BASE.h),
+    sat: (target.s / SURFACE_100_BASE.s).toFixed(2),
+    light: String(target.l - SURFACE_100_BASE.l),
+    contrast: '1',
+  }
+}
+
+export const SURFACE_OPERATOR_PRESETS: Record<SurfacePresetId, ThemeOperatorPreset> = {
+  150: computeSurfaceOperatorPreset(SURFACE_PRESET_TARGETS[150]),
+  200: computeSurfaceOperatorPreset(SURFACE_PRESET_TARGETS[200]),
+  250: computeSurfaceOperatorPreset(SURFACE_PRESET_TARGETS[250]),
+  300: computeSurfaceOperatorPreset(SURFACE_PRESET_TARGETS[300]),
+  350: computeSurfaceOperatorPreset(SURFACE_PRESET_TARGETS[350]),
 }
 
 export type ThemeSliderElements = {
@@ -92,9 +113,9 @@ export function resetThemeColorOperators(elements: ThemeSliderElements): void {
   applyThemeOperatorPreset(elements, THEME_OPERATOR_DEFAULTS)
 }
 
-/** Set sliders so `--surface-100` → hsl(223, 9%, 16%) (Surface_250). */
-export function applySurface250Preset(elements: ThemeSliderElements): void {
-  applyThemeOperatorPreset(elements, SURFACE_250_OPERATOR_PRESET)
+/** Set sliders so `--surface-100` matches a surface preset target. */
+export function applySurfacePreset(elements: ThemeSliderElements, id: SurfacePresetId): void {
+  applyThemeOperatorPreset(elements, SURFACE_OPERATOR_PRESETS[id])
 }
 
 /** Bind sliders to global CSS operators on `:root`. */

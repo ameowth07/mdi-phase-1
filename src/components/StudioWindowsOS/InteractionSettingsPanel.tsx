@@ -2,11 +2,20 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import css from './InteractionSettingsPanel.module.css'
 import {
-  applySurface250Preset,
+  applySurfacePreset,
   bindThemeColorOperators,
   resetThemeColorOperators,
+  type SurfacePresetId,
   type ThemeSliderElements,
 } from './themeColorOperators'
+
+const SURFACE_PRESET_BUTTONS: { id: SurfacePresetId; label: string }[] = [
+  { id: 150, label: 'Surface_150' },
+  { id: 200, label: 'Surface_200' },
+  { id: 250, label: 'Surface_250' },
+  { id: 300, label: 'Surface_300' },
+  { id: 350, label: 'Surface_350' },
+]
 
 export type InteractionSettingsPanelProps = {
   /** Inset focus ring on client / server viewports while simulating. */
@@ -151,10 +160,13 @@ export default function InteractionSettingsPanel({
     if (elements) resetThemeColorOperators(elements)
   }, [getSliderElements])
 
-  const handleSurface250 = useCallback(() => {
-    const elements = getSliderElements()
-    if (elements) applySurface250Preset(elements)
-  }, [getSliderElements])
+  const handleSurfacePreset = useCallback(
+    (id: SurfacePresetId) => {
+      const elements = getSliderElements()
+      if (elements) applySurfacePreset(elements, id)
+    },
+    [getSliderElements],
+  )
 
   return (
     <div className={css.root} data-name="ThemeSettings">
@@ -276,11 +288,18 @@ export default function InteractionSettingsPanel({
             </span>
           </div>
           <div className={css.presetRow}>
-            <button type="button" className={css.presetBtn} onClick={handleSurface250}>
-              Surface_250
-            </button>
+            {SURFACE_PRESET_BUTTONS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                className={css.presetBtn}
+                onClick={() => handleSurfacePreset(id)}
+              >
+                {label}
+              </button>
+            ))}
             <button type="button" className={css.presetBtn} onClick={handleResetTheme}>
-              Reset (Surface_100)
+              Default (Surface_100)
             </button>
           </div>
         </div>

@@ -337,6 +337,10 @@
   gap: 0;
 }
 
+.toggleColActive .toggleBtn {
+  background: var(--shift-300);
+}
+
 .toggleBtn {
   width: 32px;
   height: 32px;
@@ -348,6 +352,33 @@
   align-items: center;
   justify-content: center;
   cursor: default;
+}
+
+.toggleBtn:hover,
+.splitMain:hover,
+.splitDrop:hover,
+.spinBoxCtrl:hover {
+  background: var(--shift-200);
+}
+
+.toggleBtn:active,
+.splitMain:active,
+.splitDrop:active,
+.spinBoxCtrl:active,
+.toggleBtn.ribbonToolActive,
+.splitMain.ribbonToolActive,
+.toggleBtn[aria-pressed='true'],
+.splitMain[aria-pressed='true'] {
+  background: var(--shift-300);
+}
+
+.toggleBtn[aria-pressed='true']:hover,
+.splitMain[aria-pressed='true']:hover {
+  background: var(--shift-300);
+}
+
+.ribbonToolActive {
+  background: var(--shift-300);
 }
 
 .toggleLabel {

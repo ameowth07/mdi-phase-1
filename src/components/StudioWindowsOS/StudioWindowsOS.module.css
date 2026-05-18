@@ -55,6 +55,13 @@
     calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
     0.12
   );
+  /** Action/Standard/Background */
+  --action-standard-background: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.12
+  );
   --shift-400: hsla(
     calc(227 + var(--delta-hue)),
     calc(84% * var(--sat-multiplier)),

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   Anchor,
   Box,
@@ -26,6 +26,8 @@ import {
 import css from './ribbon.module.css'
 
 const ic = { size: 15 as const, strokeWidth: 1.5 as const }
+
+const DEFAULT_ACTIVE_RIBBON_TOOL = 'select' as const
 
 function G24({ children }: { children: ReactNode }) {
   return (
@@ -60,10 +62,27 @@ function VDiv() {
   return <div className={css.vDivider} aria-hidden />
 }
 
-function ToggleTool({ label, children }: { label: string; children: ReactNode }) {
+function ToggleTool({
+  toolId,
+  label,
+  active,
+  onPress,
+  children,
+}: {
+  toolId: string
+  label: string
+  active: boolean
+  onPress: (toolId: string) => void
+  children: ReactNode
+}) {
   return (
-    <div className={css.toggleCol}>
-      <button type="button" className={css.toggleBtn}>
+    <div className={`${css.toggleCol} ${active ? css.toggleColActive : ''}`}>
+      <button
+        type="button"
+        className={`${css.toggleBtn} ${active ? css.ribbonToolActive : ''}`}
+        aria-pressed={active}
+        onClick={() => onPress(toolId)}
+      >
         {children}
       </button>
       <div className={css.toggleLabel}>
@@ -73,14 +92,31 @@ function ToggleTool({ label, children }: { label: string; children: ReactNode })
   )
 }
 
-function SplitTool({ label, main }: { label: string; main: ReactNode }) {
+function SplitTool({
+  toolId,
+  label,
+  active,
+  onPress,
+  main,
+}: {
+  toolId: string
+  label: string
+  active: boolean
+  onPress: (toolId: string) => void
+  main: ReactNode
+}) {
   return (
     <div className={css.splitTool}>
       <div className={css.splitTop}>
-        <button type="button" className={css.splitMain}>
+        <button
+          type="button"
+          className={`${css.splitMain} ${active ? css.ribbonToolActive : ''}`}
+          aria-pressed={active}
+          onClick={() => onPress(toolId)}
+        >
           {main}
         </button>
-        <button type="button" className={css.splitDrop} aria-label="More options">
+        <button type="button" className={css.splitDrop} aria-label={`${label} options`}>
           <ChevSm />
         </button>
       </div>
@@ -146,30 +182,36 @@ function SpinPair() {
 
 /** Lower ribbon row (Figma node 3841:115043). Icons use Lucide vectors (Figma MCP raster URLs expire). */
 export function RibbonToolbar() {
+  const [activeTool, setActiveTool] = useState<string>(DEFAULT_ACTIVE_RIBBON_TOOL)
+  const isActive = (toolId: string) => activeTool === toolId
+  const pressTool = (toolId: string) => {
+    setActiveTool((current) => (current === toolId ? '' : toolId))
+  }
+
   return (
     <div className={css.toolbar} data-node-id="3841:115043">
       <div className={css.toolGroup} data-node-id="3841:115045">
-        <ToggleTool label="Select">
+        <ToggleTool toolId="select" label="Select" active={isActive('select')} onPress={pressTool}>
           <G24>
             <MousePointer2 {...ic} aria-hidden />
           </G24>
         </ToggleTool>
-        <ToggleTool label="Move">
+        <ToggleTool toolId="move" label="Move" active={isActive('move')} onPress={pressTool}>
           <G24>
             <Move {...ic} aria-hidden />
           </G24>
         </ToggleTool>
-        <ToggleTool label="Scale">
+        <ToggleTool toolId="scale" label="Scale" active={isActive('scale')} onPress={pressTool}>
           <G24>
             <Maximize2 {...ic} aria-hidden />
           </G24>
         </ToggleTool>
-        <ToggleTool label="Rotate">
+        <ToggleTool toolId="rotate" label="Rotate" active={isActive('rotate')} onPress={pressTool}>
           <G24>
             <RotateCw {...ic} aria-hidden />
           </G24>
         </ToggleTool>
-        <ToggleTool label="Transform">
+        <ToggleTool toolId="transform" label="Transform" active={isActive('transform')} onPress={pressTool}>
           <G24>
             <Layers2 {...ic} aria-hidden />
           </G24>
@@ -180,7 +222,10 @@ export function RibbonToolbar() {
 
       <div className={css.toolGroup} data-node-id="3841:115052">
         <SplitTool
+          toolId="geometric"
           label="Geometric"
+          active={isActive('geometric')}
+          onPress={pressTool}
           main={
             <G24>
               <Shapes {...ic} aria-hidden />
@@ -194,20 +239,26 @@ export function RibbonToolbar() {
 
       <div className={css.toolGroup} data-node-id="3841:115115">
         <SplitTool
+          toolId="part"
           label="Part"
+          active={isActive('part')}
+          onPress={pressTool}
           main={
             <G24>
               <Box {...ic} aria-hidden />
             </G24>
           }
         />
-        <ToggleTool label="Terrain">
+        <ToggleTool toolId="terrain" label="Terrain" active={isActive('terrain')} onPress={pressTool}>
           <G24>
             <Mountain {...ic} aria-hidden />
           </G24>
         </ToggleTool>
         <SplitTool
+          toolId="character"
           label="Character"
+          active={isActive('character')}
+          onPress={pressTool}
           main={
             <G24>
               <UserCircle2 {...ic} aria-hidden />
@@ -215,7 +266,10 @@ export function RibbonToolbar() {
           }
         />
         <SplitTool
+          toolId="gui"
           label="GUI"
+          active={isActive('gui')}
+          onPress={pressTool}
           main={
             <G24>
               <Monitor {...ic} aria-hidden />
@@ -223,14 +277,17 @@ export function RibbonToolbar() {
           }
         />
         <SplitTool
+          toolId="script"
           label="Script"
+          active={isActive('script')}
+          onPress={pressTool}
           main={
             <G24>
               <FileCode2 {...ic} aria-hidden />
             </G24>
           }
         />
-        <ToggleTool label="Import 3D">
+        <ToggleTool toolId="import-3d" label="Import 3D" active={isActive('import-3d')} onPress={pressTool}>
           <G24>
             <PackagePlus {...ic} aria-hidden />
           </G24>
@@ -241,7 +298,10 @@ export function RibbonToolbar() {
 
       <div className={css.toolGroup} data-node-id="3841:115123">
         <SplitTool
+          toolId="material"
           label="Material"
+          active={isActive('material')}
+          onPress={pressTool}
           main={
             <G24>
               <Paintbrush {...ic} aria-hidden />
@@ -249,20 +309,26 @@ export function RibbonToolbar() {
           }
         />
         <SplitTool
+          toolId="color"
           label="Color"
+          active={isActive('color')}
+          onPress={pressTool}
           main={
             <G24>
               <Palette {...ic} aria-hidden />
             </G24>
           }
         />
-        <ToggleTool label="Group">
+        <ToggleTool toolId="group" label="Group" active={isActive('group')} onPress={pressTool}>
           <G24>
             <Group {...ic} aria-hidden />
           </G24>
         </ToggleTool>
         <SplitTool
+          toolId="lock"
           label="Lock"
+          active={isActive('lock')}
+          onPress={pressTool}
           main={
             <G24>
               <Lock {...ic} aria-hidden />
@@ -270,7 +336,10 @@ export function RibbonToolbar() {
           }
         />
         <SplitTool
+          toolId="anchor"
           label="Anchor"
+          active={isActive('anchor')}
+          onPress={pressTool}
           main={
             <G24>
               <Anchor {...ic} aria-hidden />
@@ -282,22 +351,22 @@ export function RibbonToolbar() {
       <VDiv />
 
       <div className={css.toolGroup} data-node-id="3841:115131">
-        <ToggleTool label="Toolbox">
+        <ToggleTool toolId="toolbox" label="Toolbox" active={isActive('toolbox')} onPress={pressTool}>
           <G24>
             <Wrench {...ic} aria-hidden />
           </G24>
         </ToggleTool>
-        <ToggleTool label="Explorer">
+        <ToggleTool toolId="explorer" label="Explorer" active={isActive('explorer')} onPress={pressTool}>
           <G24>
             <FolderTree {...ic} aria-hidden />
           </G24>
         </ToggleTool>
-        <ToggleTool label="Properties">
+        <ToggleTool toolId="properties" label="Properties" active={isActive('properties')} onPress={pressTool}>
           <G24>
             <SlidersHorizontal {...ic} aria-hidden />
           </G24>
         </ToggleTool>
-        <ToggleTool label="Assets">
+        <ToggleTool toolId="assets" label="Assets" active={isActive('assets')} onPress={pressTool}>
           <G24>
             <Boxes {...ic} aria-hidden />
           </G24>
