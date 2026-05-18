@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ComponentProps, CSSProperties, Ref } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import type { ComponentProps, Ref } from 'react'
 import { CircleHelp, Monitor, Server, SquareArrowOutUpRight } from 'lucide-react'
 import ClientSim from './ClientSim'
 import LegacyRibbon from './LegacyRibbon'
@@ -384,8 +384,6 @@ function ExplorerTree({
   bunnyFlatExplorer,
   explorerWhileScriptFocus,
   droneDocumentFocused,
-  simViewportFocus,
-  simExplorerTintColorsActive,
   simSelectedRowId,
   onSimExplorerSelectRow,
 }: {
@@ -399,39 +397,10 @@ function ExplorerTree({
   explorerWhileScriptFocus: ExplorerRetentionKind | null
   /** Drone isolation document focused — minimal Explorer (edit or test with asset in isolation). */
   droneDocumentFocused: boolean
-  /** Sim: Client vs Server focus — used when sim Explorer uses viewport hues. */
-  simViewportFocus: SimViewportFocus
-  /** Sim + Selection tint: Explorer row tints match Client/Server; off → Edit-mode explorer blue. */
-  simExplorerTintColorsActive: boolean
   /** Sim: selected Explorer row for the current sim focus (client vs server); null until user picks. */
   simSelectedRowId: string | null
   onSimExplorerSelectRow: (rowId: string) => void
 }) {
-  const tintViewportFocus: SimViewportFocus =
-    clientSim && explorerWhileScriptFocus
-      ? explorerWhileScriptFocus === 'sim-server'
-        ? 'server'
-        : explorerWhileScriptFocus === 'sim-client'
-          ? 'client'
-          : simViewportFocus
-      : simViewportFocus
-
-  const explorerTreeTintStyle = useMemo((): CSSProperties | undefined => {
-    if (!simExplorerTintColorsActive) return undefined
-    if (tintViewportFocus === 'client') {
-      return {
-        ['--explorer-tint-hover' as string]: 'rgba(37, 99, 235, 0.2)',
-        ['--explorer-tint-child' as string]: 'rgba(37, 99, 235, 0.28)',
-        ['--explorer-tint-selected' as string]: 'rgba(37, 99, 235, 0.4)',
-      }
-    }
-    return {
-      ['--explorer-tint-hover' as string]: 'rgba(12, 155, 90, 0.2)',
-      ['--explorer-tint-child' as string]: 'rgba(12, 155, 90, 0.28)',
-      ['--explorer-tint-selected' as string]: 'rgba(12, 155, 90, 0.4)',
-    }
-  }, [simExplorerTintColorsActive, tintViewportFocus])
-
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
   const [selectedEditRowId, setSelectedEditRowId] = useState<string | null>(null)
 
@@ -479,7 +448,7 @@ function ExplorerTree({
   if (bunnyFlatExplorer) {
     const rowId = 'bunnyExplorerRow' as const
     return (
-      <div className={styles.tree} style={explorerTreeTintStyle}>
+      <div className={styles.tree}>
         <div
           className={editRowClass(rowId)}
           onMouseEnter={() => setHoveredRowId(rowId)}
@@ -497,7 +466,7 @@ function ExplorerTree({
   if (showDroneIsolationExplorer) {
     const rowClass = [styles.treeRow, styles.treeRowInteractive].join(' ')
     return (
-      <div className={styles.tree} style={explorerTreeTintStyle}>
+      <div className={styles.tree}>
         <div
           className={rowClass}
         >
@@ -516,7 +485,7 @@ function ExplorerTree({
 
   if (clientSim && explorerWhileScriptFocus === 'edit-drone') {
     return (
-      <div className={styles.tree} style={explorerTreeTintStyle}>
+      <div className={styles.tree}>
         <div
           className={simRowClass('workspace')}
           onMouseEnter={() => setHoveredRowId('workspace')}
@@ -566,7 +535,7 @@ function ExplorerTree({
   }
 
   return (
-    <div className={styles.tree} style={explorerTreeTintStyle}>
+    <div className={styles.tree}>
       <div
         className={editRowClass('workspace')}
         onMouseEnter={() => setHoveredRowId('workspace')}
@@ -1834,10 +1803,6 @@ export default function StudioWindowsOS({
                 explorerWhileScriptFocus={explorerWhileScriptFocus}
                 droneDocumentFocused={
                   showAssetInIsolation && editWorkspaceDocumentFocus !== 'main'
-                }
-                simViewportFocus={simViewportFocus}
-                simExplorerTintColorsActive={
-                  clientSimActive && playModeSelectionTint
                 }
                 simSelectedRowId={simExplorerSelectedRowId}
                 onSimExplorerSelectRow={onSimExplorerSelectRow}

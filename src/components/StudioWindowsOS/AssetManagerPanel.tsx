@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import {
   ArrowDownUp,
   ChevronDown,
@@ -17,7 +18,6 @@ type TreeRow = {
   id: string
   label: string
   bold?: boolean
-  selected?: boolean
   depth?: number
   expanded?: boolean
   hasChildren?: boolean
@@ -38,7 +38,7 @@ const SIDEBAR_TREE: TreeRow[] = [
   { id: 'project', label: 'Project', bold: true, expanded: true, hasChildren: true },
   { id: 'recent', label: 'Recently Imported', depth: 1, icon: 'globe' },
   { id: 'experience', label: 'Experience Name', depth: 1, expanded: true, hasChildren: true },
-  { id: 'folder-selected', label: 'Folder Name', depth: 2, selected: true, icon: 'folder' },
+  { id: 'folder-selected', label: 'Folder Name', depth: 2, icon: 'folder' },
   { id: 'folder-2', label: 'Folder Name', depth: 2, icon: 'folder' },
   { id: 'folder-3', label: 'Folder Name', depth: 2, icon: 'folder' },
   { id: 'folder-4', label: 'Folder Name', depth: 2, icon: 'folder' },
@@ -108,6 +108,46 @@ function TreeRowIcon({ icon }: { icon?: TreeRow['icon'] }) {
   return <Folder size={size} strokeWidth={stroke} aria-hidden />
 }
 
+function buildTreeParentMap(rows: TreeRow[]): Record<string, string | null> {
+  const parent: Record<string, string | null> = {}
+  const ancestors: { id: string; depth: number }[] = []
+
+  for (const row of rows) {
+    const depth = row.depth ?? 0
+    while (ancestors.length > 0 && ancestors[ancestors.length - 1].depth >= depth) {
+      ancestors.pop()
+    }
+    parent[row.id] = ancestors.length > 0 ? ancestors[ancestors.length - 1].id : null
+    if (row.hasChildren) {
+      ancestors.push({ id: row.id, depth })
+    }
+  }
+  return parent
+}
+
+const SIDEBAR_TREE_PARENT = buildTreeParentMap(SIDEBAR_TREE)
+
+function sidebarRowClass(
+  rowId: string,
+  hoveredId: string | null,
+  selectedId: string | null,
+  parentMap: Record<string, string | null>,
+): string {
+  const hovered = hoveredId === rowId
+  const selected = selectedId === rowId
+  const childOfSelected = selectedId !== null && parentMap[rowId] === selectedId
+  if (selected) return `${css.treeRow} ${css.treeRowSelected}`
+  if (hovered) return `${css.treeRow} ${css.treeRowHover}`
+  if (childOfSelected) return `${css.treeRow} ${css.treeRowChildOfSelected}`
+  return css.treeRow
+}
+
+function assetRowClass(rowId: string, hoveredId: string | null, selectedId: string | null): string {
+  if (selectedId === rowId) return `${css.tableRow} ${css.tableRowSelected}`
+  if (hoveredId === rowId) return `${css.tableRow} ${css.tableRowHover}`
+  return css.tableRow
+}
+
 function AssetThumb({ row }: { row: AssetRow }) {
   if (row.thumbUrl) {
     return (
@@ -124,6 +164,13 @@ function AssetThumb({ row }: { row: AssetRow }) {
 }
 
 export default function AssetManagerPanel() {
+  const [selectedSidebarId, setSelectedSidebarId] = useState('folder-selected')
+  const [hoveredSidebarId, setHoveredSidebarId] = useState<string | null>(null)
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>('barrier')
+  const [hoveredAssetId, setHoveredAssetId] = useState<string | null>(null)
+
+  const sidebarParentMap = useMemo(() => SIDEBAR_TREE_PARENT, [])
+
   return (
     <section
       className={css.root}
@@ -161,9 +208,14 @@ export default function AssetManagerPanel() {
               return (
                 <div
                   key={row.id}
-                  className={`${css.treeRow} ${row.selected ? css.treeRowSelected : ''} ${
+                  role="treeitem"
+                  aria-selected={selectedSidebarId === row.id}
+                  className={`${sidebarRowClass(row.id, hoveredSidebarId, selectedSidebarId, sidebarParentMap)} ${
                     row.bold ? css.treeRowBold : ''
                   }`}
+                  onMouseEnter={() => setHoveredSidebarId(row.id)}
+                  onMouseLeave={() => setHoveredSidebarId(null)}
+                  onClick={() => setSelectedSidebarId(row.id)}
                 >
                   <div className={css.treeRowInner}>
                     {depth > 0 ? (
@@ -256,7 +308,15 @@ export default function AssetManagerPanel() {
             <div className={css.tableHeadDivider} aria-hidden />
             <div className={css.tableBody}>
               {ASSET_ROWS.map((row) => (
-                <div key={row.id} className={css.tableRow} role="row">
+                <div
+                  key={row.id}
+                  role="row"
+                  aria-selected={selectedAssetId === row.id}
+                  className={assetRowClass(row.id, hoveredAssetId, selectedAssetId)}
+                  onMouseEnter={() => setHoveredAssetId(row.id)}
+                  onMouseLeave={() => setHoveredAssetId(null)}
+                  onClick={() => setSelectedAssetId(row.id)}
+                >
                   <div className={css.cellName} role="cell">
                     <AssetThumb row={row} />
                     <span className={`${css.cellText} ${css.cellTextEmphasis}`}>{row.name}</span>

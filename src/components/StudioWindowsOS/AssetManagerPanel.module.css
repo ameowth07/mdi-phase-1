@@ -1,11 +1,6 @@
 /* Asset Manager — Figma 3994:57525; theme tokens inherit from `.frame` */
 .root {
   --am-sidebar-width: 240px;
-  --am-tree-selection: hsl(
-    calc(229 + var(--delta-hue)),
-    calc(23% * var(--sat-multiplier)),
-    calc((18% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
-  );
   --am-toolbar-divider: hsla(
     calc(0 + var(--delta-hue)),
     calc(0% * var(--sat-multiplier)),
@@ -163,16 +158,19 @@
   margin: 0 8px;
   border-radius: 4px;
   color: var(--content-default, #d5d7dd);
-  cursor: default;
+  cursor: pointer;
 }
 
-.treeRowSelected::before {
-  content: '';
-  position: absolute;
-  inset: 0 -8px;
-  border-radius: 4px;
-  background: var(--am-tree-selection);
-  z-index: 0;
+.treeRowHover {
+  background: var(--shift-200);
+}
+
+.treeRowChildOfSelected {
+  background: var(--highlight-200);
+}
+
+.treeRowSelected {
+  background: var(--highlight-300);
 }
 
 .treeRowInner {
@@ -366,6 +364,16 @@
   padding: 4px 8px;
   border-bottom: 1px solid var(--stroke-muted, rgba(208, 217, 251, 0.08));
   gap: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tableRowHover {
+  background: var(--shift-200);
+}
+
+.tableRowSelected {
+  background: var(--highlight-300);
 }
 
 .cellName {

@@ -68,6 +68,10 @@
     calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
     0.16
   );
+  /** Selection highlight — #657bf4 */
+  --highlight-400: rgba(101, 123, 244, 0.4);
+  --highlight-300: rgba(101, 123, 244, 0.32);
+  --highlight-200: rgba(101, 123, 244, 0.2);
   --overmedia-100: hsla(
     calc(230 + var(--delta-hue)),
     calc(11% * var(--sat-multiplier)),
@@ -947,15 +951,15 @@
 }
 
 .treeRowHover {
-  background: var(--explorer-tint-hover, rgba(43, 68, 161, 0.2));
+  background: var(--shift-200);
 }
 
 .treeRowChildOfSelected {
-  background: var(--explorer-tint-child, rgba(43, 68, 161, 0.28));
+  background: var(--highlight-200);
 }
 
 .treeRow.selected {
-  background: var(--explorer-tint-selected, rgba(43, 68, 161, 0.4));
+  background: var(--highlight-300);
 }
 
 .treeNested {
