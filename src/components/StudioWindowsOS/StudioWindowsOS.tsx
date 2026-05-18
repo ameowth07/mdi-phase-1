@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentProps, Ref } from 'react'
 import { CircleHelp, Monitor, Server, SquareArrowOutUpRight } from 'lucide-react'
 import ClientSim from './ClientSim'
@@ -17,6 +17,9 @@ const FOOTER_QUESTIONS: readonly string[] = []
 
 /** Drone isolation document tab label — Explorer badge uses the same text when that column is focused. */
 const DRONE_WORKSPACE_TAB_LABEL = 'Drone' as const
+
+/** Single Explorer row when the Drone isolation document is focused. */
+const DRONE_ISOLATION_EXPLORER_ROW_ID = 'drone-isolation-root' as const
 
 const HOVER_SCRIPT_TAB_LABEL = 'HoverScript' as const
 
@@ -70,6 +73,33 @@ type MainDocumentEditorTab = 'droneRacer' | 'scriptA' | 'scriptB'
 
 /** Snapshot for Explorer while a Script tab is open — sim side, edit hierarchy, or Drone isolation tree. */
 type ExplorerRetentionKind = 'sim-client' | 'sim-server' | 'edit-drone' | 'drone-isolation'
+
+type ExplorerSelectionTintFocus = 'client' | 'server' | 'drone'
+
+function resolveExplorerSelectionTintFocus(
+  selectionTintActive: boolean,
+  clientSim: boolean,
+  simViewportFocus: SimViewportFocus,
+  explorerWhileScriptFocus: ExplorerRetentionKind | null,
+  droneDocumentFocused: boolean,
+): ExplorerSelectionTintFocus | null {
+  if (!selectionTintActive) return null
+
+  if (droneDocumentFocused) return 'drone'
+  if (
+    explorerWhileScriptFocus === 'drone-isolation' ||
+    explorerWhileScriptFocus === 'edit-drone'
+  ) {
+    return 'drone'
+  }
+
+  if (explorerWhileScriptFocus === 'sim-server') return 'server'
+  if (explorerWhileScriptFocus === 'sim-client') return 'client'
+
+  if (clientSim) return simViewportFocus
+
+  return null
+}
 
 /** Edit / test: main sim document vs asset isolation column (Drone preview vs HoverScript). */
 type EditDocumentFocus = 'main' | 'isolation' | 'hoverScript'
@@ -384,6 +414,8 @@ function ExplorerTree({
   bunnyFlatExplorer,
   explorerWhileScriptFocus,
   droneDocumentFocused,
+  selectionTintActive,
+  simViewportFocus,
   simSelectedRowId,
   onSimExplorerSelectRow,
 }: {
@@ -397,12 +429,47 @@ function ExplorerTree({
   explorerWhileScriptFocus: ExplorerRetentionKind | null
   /** Drone isolation document focused — minimal Explorer (edit or test with asset in isolation). */
   droneDocumentFocused: boolean
+  /** Testing UI: Selection tint — Explorer row hues follow client / server / drone focus. */
+  selectionTintActive: boolean
+  simViewportFocus: SimViewportFocus
   /** Sim: selected Explorer row for the current sim focus (client vs server); null until user picks. */
   simSelectedRowId: string | null
   onSimExplorerSelectRow: (rowId: string) => void
 }) {
+  const explorerTintFocus = useMemo(
+    () =>
+      resolveExplorerSelectionTintFocus(
+        selectionTintActive,
+        clientSim,
+        simViewportFocus,
+        explorerWhileScriptFocus,
+        droneDocumentFocused,
+      ),
+    [
+      selectionTintActive,
+      clientSim,
+      simViewportFocus,
+      explorerWhileScriptFocus,
+      droneDocumentFocused,
+    ],
+  )
+
+  const explorerTreeProps = explorerTintFocus
+    ? ({ 'data-explorer-tint': explorerTintFocus } as const)
+    : undefined
+
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
   const [selectedEditRowId, setSelectedEditRowId] = useState<string | null>(null)
+  const [hoveredSimRowClient, setHoveredSimRowClient] = useState<string | null>(null)
+  const [hoveredSimRowServer, setHoveredSimRowServer] = useState<string | null>(null)
+
+  const simHoveredRowId =
+    simViewportFocus === 'client' ? hoveredSimRowClient : hoveredSimRowServer
+
+  const setSimHoveredRow = (rowId: string | null) => {
+    if (simViewportFocus === 'client') setHoveredSimRowClient(rowId)
+    else setHoveredSimRowServer(rowId)
+  }
 
   const editRowClass = (rowId: string) => {
     const hovered = hoveredRowId === rowId
@@ -423,11 +490,11 @@ function ExplorerTree({
     return [styles.treeRow, styles.treeRowInteractive].join(' ')
   }
 
-  const simRowClass = (rowId: string) => {
-    const hovered = hoveredRowId === rowId
+  const buildSimRowClass = (parentMap: Record<string, string | null>) => (rowId: string) => {
+    const hovered = simHoveredRowId === rowId
     const selected = simSelectedRowId !== null && simSelectedRowId === rowId
     const childOfSelected =
-      simSelectedRowId !== null && EXPLORER_SIM_PARENT[rowId] === simSelectedRowId
+      simSelectedRowId !== null && parentMap[rowId] === simSelectedRowId
     if (selected) {
       return [styles.treeRow, styles.treeRowInteractive, styles.selected].filter(Boolean).join(' ')
     }
@@ -442,13 +509,58 @@ function ExplorerTree({
     return [styles.treeRow, styles.treeRowInteractive].join(' ')
   }
 
+  const flatSimRowClass = buildSimRowClass(EXPLORER_SIM_PARENT)
+  const hierarchySimRowClass = buildSimRowClass(EXPLORER_EDIT_PARENT)
+
+  const bindFlatSimRow = (rowId: string) => ({
+    className: flatSimRowClass(rowId),
+    onMouseEnter: () => setSimHoveredRow(rowId),
+    onMouseLeave: () => setSimHoveredRow(null),
+    onClick: () => onSimExplorerSelectRow(rowId),
+  })
+
+  const bindEditExplorerRow = (rowId: string) => ({
+    className: editRowClass(rowId),
+    onMouseEnter: () => setHoveredRowId(rowId),
+    onMouseLeave: () => setHoveredRowId(null),
+    onClick: () => setSelectedEditRowId(rowId),
+  })
+
+  /** Play-mode full hierarchy — per-viewport selection + child-of-selected. */
+  const bindPlayHierarchyRow = (rowId: string) => ({
+    className: hierarchySimRowClass(rowId),
+    onMouseEnter: () => setSimHoveredRow(rowId),
+    onMouseLeave: () => setSimHoveredRow(null),
+    onClick: () => onSimExplorerSelectRow(rowId),
+  })
+
+  const bindMainExplorerRow = (rowId: string) =>
+    clientSim ? bindPlayHierarchyRow(rowId) : bindEditExplorerRow(rowId)
+
   const showDroneIsolationExplorer =
     droneDocumentFocused || explorerWhileScriptFocus === 'drone-isolation'
+
+  useEffect(() => {
+    if (showDroneIsolationExplorer) {
+      setSelectedEditRowId(DRONE_ISOLATION_EXPLORER_ROW_ID)
+      setHoveredRowId(null)
+    }
+  }, [showDroneIsolationExplorer])
+
+  useEffect(() => {
+    if (
+      clientSim &&
+      explorerWhileScriptFocus === 'edit-drone' &&
+      simSelectedRowId === null
+    ) {
+      onSimExplorerSelectRow('workspace')
+    }
+  }, [clientSim, explorerWhileScriptFocus, simSelectedRowId, onSimExplorerSelectRow])
 
   if (bunnyFlatExplorer) {
     const rowId = 'bunnyExplorerRow' as const
     return (
-      <div className={styles.tree}>
+      <div className={styles.tree} {...explorerTreeProps}>
         <div
           className={editRowClass(rowId)}
           onMouseEnter={() => setHoveredRowId(rowId)}
@@ -464,11 +576,13 @@ function ExplorerTree({
   }
 
   if (showDroneIsolationExplorer) {
-    const rowClass = [styles.treeRow, styles.treeRowInteractive].join(' ')
     return (
-      <div className={styles.tree}>
+      <div className={styles.tree} {...explorerTreeProps}>
         <div
-          className={rowClass}
+          className={editRowClass(DRONE_ISOLATION_EXPLORER_ROW_ID)}
+          onMouseEnter={() => setHoveredRowId(DRONE_ISOLATION_EXPLORER_ROW_ID)}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId(DRONE_ISOLATION_EXPLORER_ROW_ID)}
         >
           <TreeChevron mode="closed" />
           <img
@@ -485,47 +599,27 @@ function ExplorerTree({
 
   if (clientSim && explorerWhileScriptFocus === 'edit-drone') {
     return (
-      <div className={styles.tree}>
-        <div
-          className={simRowClass('workspace')}
-          onMouseEnter={() => setHoveredRowId('workspace')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => onSimExplorerSelectRow('workspace')}
-        >
+      <div className={styles.tree} {...explorerTreeProps}>
+        <div {...bindFlatSimRow('workspace')}>
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon} style={{ color: '#4a9eff' }}>
             ●
           </span>
           <span className={styles.treeLabel}>Workspace</span>
         </div>
-        <div
-          className={simRowClass('players')}
-          onMouseEnter={() => setHoveredRowId('players')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => onSimExplorerSelectRow('players')}
-        >
+        <div {...bindFlatSimRow('players')}>
           <TreeChevron mode="spacer" />
           <span className={styles.treeIcon} style={{ color: '#e8944a' }}>
             ☺
           </span>
           <span className={styles.treeLabel}>Players</span>
         </div>
-        <div
-          className={simRowClass('lighting')}
-          onMouseEnter={() => setHoveredRowId('lighting')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => onSimExplorerSelectRow('lighting')}
-        >
+        <div {...bindFlatSimRow('lighting')}>
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon}>💡</span>
           <span className={styles.treeLabel}>Lighting</span>
         </div>
-        <div
-          className={simRowClass('materialservice')}
-          onMouseEnter={() => setHoveredRowId('materialservice')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => onSimExplorerSelectRow('materialservice')}
-        >
+        <div {...bindFlatSimRow('materialservice')}>
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon}>⌗</span>
           <span className={styles.treeLabel}>MaterialService</span>
@@ -535,50 +629,27 @@ function ExplorerTree({
   }
 
   return (
-    <div className={styles.tree}>
-      <div
-        className={editRowClass('workspace')}
-        onMouseEnter={() => setHoveredRowId('workspace')}
-        onMouseLeave={() => setHoveredRowId(null)}
-        onClick={() => setSelectedEditRowId('workspace')}
-      >
+    <div className={styles.tree} {...explorerTreeProps}>
+      <div {...bindMainExplorerRow('workspace')}>
         <TreeChevron mode="open" />
         <span className={styles.treeIcon} style={{ color: '#4a9eff' }}>
           ●
         </span>
         <span className={styles.treeLabel}>Workspace</span>
       </div>
-      <div
-        className={editRowClass('camera')}
-        style={{ paddingLeft: 22 }}
-        onMouseEnter={() => setHoveredRowId('camera')}
-        onMouseLeave={() => setHoveredRowId(null)}
-        onClick={() => setSelectedEditRowId('camera')}
-      >
+      <div {...bindMainExplorerRow('camera')} style={{ paddingLeft: 22 }}>
         <TreeChevron mode="spacer" />
         <span className={styles.treeIcon}>▣</span>
         <span className={styles.treeLabel}>Camera</span>
       </div>
-      <div
-        className={editRowClass('terrain')}
-        style={{ paddingLeft: 22 }}
-        onMouseEnter={() => setHoveredRowId('terrain')}
-        onMouseLeave={() => setHoveredRowId(null)}
-        onClick={() => setSelectedEditRowId('terrain')}
-      >
+      <div {...bindMainExplorerRow('terrain')} style={{ paddingLeft: 22 }}>
         <TreeChevron mode="spacer" />
         <span className={styles.treeIcon} style={{ color: '#6b4' }}>
           ▲
         </span>
         <span className={styles.treeLabel}>Terrain</span>
       </div>
-      <div
-        className={editRowClass('billboard')}
-        style={{ paddingLeft: 22 }}
-        onMouseEnter={() => setHoveredRowId('billboard')}
-        onMouseLeave={() => setHoveredRowId(null)}
-        onClick={() => setSelectedEditRowId('billboard')}
-      >
+      <div {...bindMainExplorerRow('billboard')} style={{ paddingLeft: 22 }}>
         <TreeChevron mode="closed" />
         <span className={styles.treeIcon} style={{ color: '#e8d44d' }}>
           ■
@@ -586,12 +657,7 @@ function ExplorerTree({
         <span className={styles.treeLabel}>Billboard</span>
       </div>
       <div className={`${styles.treeNested} ${styles.guide}`}>
-        <div
-          className={editRowClass('shop')}
-          onMouseEnter={() => setHoveredRowId('shop')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => setSelectedEditRowId('shop')}
-        >
+        <div {...bindMainExplorerRow('shop')}>
           <TreeChevron mode="open" />
           <span className={styles.treeIcon} style={{ color: '#e8d44d' }}>
             ■
@@ -599,92 +665,59 @@ function ExplorerTree({
           <span className={styles.treeLabel}>Shop</span>
         </div>
         <div
-          className={editRowClass('shopkeeper')}
+          {...bindMainExplorerRow('shopkeeper')}
           style={{ paddingLeft: 20 }}
-          onMouseEnter={() => setHoveredRowId('shopkeeper')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => setSelectedEditRowId('shopkeeper')}
         >
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon}>◇</span>
           <span className={styles.treeLabel}>Shopkeeper</span>
         </div>
         <div
-          className={editRowClass('counter')}
+          {...bindMainExplorerRow('counter')}
           style={{ paddingLeft: 20 }}
-          onMouseEnter={() => setHoveredRowId('counter')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => setSelectedEditRowId('counter')}
         >
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon}>◇</span>
           <span className={styles.treeLabel}>Counter</span>
         </div>
         <div
-          className={editRowClass('shelves')}
+          {...bindMainExplorerRow('shelves')}
           style={{ paddingLeft: 20 }}
-          onMouseEnter={() => setHoveredRowId('shelves')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => setSelectedEditRowId('shelves')}
         >
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon}>◇</span>
           <span className={styles.treeLabel}>Shelves</span>
         </div>
         <div
-          className={editRowClass('register')}
+          {...bindMainExplorerRow('register')}
           style={{ paddingLeft: 20 }}
-          onMouseEnter={() => setHoveredRowId('register')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => setSelectedEditRowId('register')}
         >
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon}>◇</span>
           <span className={styles.treeLabel}>Register</span>
         </div>
         <div
-          className={editRowClass('door')}
+          {...bindMainExplorerRow('door')}
           style={{ paddingLeft: 20 }}
-          onMouseEnter={() => setHoveredRowId('door')}
-          onMouseLeave={() => setHoveredRowId(null)}
-          onClick={() => setSelectedEditRowId('door')}
         >
           <TreeChevron mode="closed" />
           <span className={styles.treeIcon}>◇</span>
           <span className={styles.treeLabel}>Door</span>
         </div>
       </div>
-      <div
-        className={editRowClass('players')}
-        style={{ paddingLeft: 22 }}
-        onMouseEnter={() => setHoveredRowId('players')}
-        onMouseLeave={() => setHoveredRowId(null)}
-        onClick={() => setSelectedEditRowId('players')}
-      >
+      <div {...bindMainExplorerRow('players')} style={{ paddingLeft: 22 }}>
         <TreeChevron mode="spacer" />
         <span className={styles.treeIcon} style={{ color: '#e8944a' }}>
           ☺
         </span>
         <span className={styles.treeLabel}>Players</span>
       </div>
-      <div
-        className={editRowClass('lighting')}
-        style={{ paddingLeft: 22 }}
-        onMouseEnter={() => setHoveredRowId('lighting')}
-        onMouseLeave={() => setHoveredRowId(null)}
-        onClick={() => setSelectedEditRowId('lighting')}
-      >
+      <div {...bindMainExplorerRow('lighting')} style={{ paddingLeft: 22 }}>
         <TreeChevron mode="closed" />
         <span className={styles.treeIcon}>💡</span>
         <span className={styles.treeLabel}>Lighting</span>
       </div>
-      <div
-        className={editRowClass('materialservice')}
-        style={{ paddingLeft: 22 }}
-        onMouseEnter={() => setHoveredRowId('materialservice')}
-        onMouseLeave={() => setHoveredRowId(null)}
-        onClick={() => setSelectedEditRowId('materialservice')}
-      >
+      <div {...bindMainExplorerRow('materialservice')} style={{ paddingLeft: 22 }}>
         <TreeChevron mode="closed" />
         <span className={styles.treeIcon}>⌗</span>
         <span className={styles.treeLabel}>MaterialService</span>
@@ -1804,6 +1837,8 @@ export default function StudioWindowsOS({
                 droneDocumentFocused={
                   showAssetInIsolation && editWorkspaceDocumentFocus !== 'main'
                 }
+                selectionTintActive={playModeSelectionTint}
+                simViewportFocus={explorerHeaderSimFocus}
                 simSelectedRowId={simExplorerSelectedRowId}
                 onSimExplorerSelectRow={onSimExplorerSelectRow}
               />

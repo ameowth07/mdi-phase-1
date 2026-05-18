@@ -962,6 +962,31 @@
   background: var(--highlight-300);
 }
 
+/* Testing UI → Selection tint: Explorer-only focus hues */
+.tree[data-explorer-tint='client'] .treeRow.selected {
+  background: rgba(51, 95, 255, 0.32);
+}
+
+.tree[data-explorer-tint='client'] .treeRowChildOfSelected {
+  background: rgba(51, 95, 255, 0.2);
+}
+
+.tree[data-explorer-tint='server'] .treeRow.selected {
+  background: rgba(57, 197, 130, 0.32);
+}
+
+.tree[data-explorer-tint='server'] .treeRowChildOfSelected {
+  background: rgba(57, 197, 130, 0.2);
+}
+
+.tree[data-explorer-tint='drone'] .treeRow.selected {
+  background: rgba(218, 93, 149, 0.32);
+}
+
+.tree[data-explorer-tint='drone'] .treeRowChildOfSelected {
+  background: rgba(218, 93, 149, 0.2);
+}
+
 .treeNested {
   padding-bottom: 4px;
 }
