@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import css from './InteractionSettingsPanel.module.css'
 import {
+  applySurface250Preset,
   bindThemeColorOperators,
   resetThemeColorOperators,
   type ThemeSliderElements,
@@ -44,12 +45,43 @@ export type InteractionSettingsPanelProps = {
   bunnyAssetWindow?: boolean
 }
 
-function SliderTickMarks() {
+const SLIDER_TICK_VALUES = {
+  hue: [-180, -108, -36, 36, 108, 180],
+  sat: [0, 0.4, 0.8, 1.2, 1.6, 2],
+  light: [-10, -6, -2, 2, 6, 10],
+  contrast: [0.5, 0.7, 0.9, 1.1, 1.3, 1.5],
+} as const
+
+function SliderTickMarks({
+  values,
+  sliderRef,
+  getLabel,
+}: {
+  values: readonly number[]
+  sliderRef: RefObject<HTMLInputElement | null>
+  getLabel?: (value: number) => string
+}) {
+  const setSliderValue = (value: number) => {
+    const slider = sliderRef.current
+    if (!slider) return
+    slider.value = String(value)
+    slider.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+
   return (
-    <div className={css.sliderTicks} aria-hidden>
-      {Array.from({ length: 6 }, (_, i) => (
-        <span key={i} className={css.sliderTick} />
-      ))}
+    <div className={css.sliderTicks} role="group">
+      {values.map((value) => {
+        const label = getLabel?.(value) ?? String(value)
+        return (
+          <button
+            key={value}
+            type="button"
+            className={css.sliderTick}
+            aria-label={label}
+            onClick={() => setSliderValue(value)}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -119,6 +151,11 @@ export default function InteractionSettingsPanel({
     if (elements) resetThemeColorOperators(elements)
   }, [getSliderElements])
 
+  const handleSurface250 = useCallback(() => {
+    const elements = getSliderElements()
+    if (elements) applySurface250Preset(elements)
+  }, [getSliderElements])
+
   return (
     <div className={css.root} data-name="ThemeSettings">
       <section className={css.group} aria-labelledby="theme-color-operators-heading">
@@ -143,14 +180,11 @@ export default function InteractionSettingsPanel({
                 defaultValue={0}
               />
               <datalist id="hue-ticks">
-                <option value="-180" />
-                <option value="-108" />
-                <option value="-36" />
-                <option value="36" />
-                <option value="108" />
-                <option value="180" />
+                {SLIDER_TICK_VALUES.hue.map((v) => (
+                  <option key={v} value={v} />
+                ))}
               </datalist>
-              <SliderTickMarks />
+              <SliderTickMarks values={SLIDER_TICK_VALUES.hue} sliderRef={hueSliderRef} getLabel={(v) => `${v}°`} />
             </div>
             <span ref={hueReadoutRef} id="hueReadout" className={css.sliderReadout}>
               0°
@@ -173,14 +207,11 @@ export default function InteractionSettingsPanel({
                 defaultValue={1}
               />
               <datalist id="sat-ticks">
-                <option value="0" />
-                <option value="0.4" />
-                <option value="0.8" />
-                <option value="1.2" />
-                <option value="1.6" />
-                <option value="2.0" />
+                {SLIDER_TICK_VALUES.sat.map((v) => (
+                  <option key={v} value={v} />
+                ))}
               </datalist>
-              <SliderTickMarks />
+              <SliderTickMarks values={SLIDER_TICK_VALUES.sat} sliderRef={satSliderRef} getLabel={(v) => `${v}x`} />
             </div>
             <span ref={satReadoutRef} id="satReadout" className={css.sliderReadout}>
               1x
@@ -203,14 +234,15 @@ export default function InteractionSettingsPanel({
                 defaultValue={0}
               />
               <datalist id="light-ticks">
-                <option value="-10" />
-                <option value="-6" />
-                <option value="-2" />
-                <option value="2" />
-                <option value="6" />
-                <option value="10" />
+                {SLIDER_TICK_VALUES.light.map((v) => (
+                  <option key={v} value={v} />
+                ))}
               </datalist>
-              <SliderTickMarks />
+              <SliderTickMarks
+                values={SLIDER_TICK_VALUES.light}
+                sliderRef={lightSliderRef}
+                getLabel={(v) => `${v > 0 ? '+' : ''}${v}%`}
+              />
             </div>
             <span ref={lightReadoutRef} id="lightReadout" className={css.sliderReadout}>
               0%
@@ -233,22 +265,24 @@ export default function InteractionSettingsPanel({
                 defaultValue={1}
               />
               <datalist id="contrast-ticks">
-                <option value="0.5" />
-                <option value="0.7" />
-                <option value="0.9" />
-                <option value="1.1" />
-                <option value="1.3" />
-                <option value="1.5" />
+                {SLIDER_TICK_VALUES.contrast.map((v) => (
+                  <option key={v} value={v} />
+                ))}
               </datalist>
-              <SliderTickMarks />
+              <SliderTickMarks values={SLIDER_TICK_VALUES.contrast} sliderRef={contrastSliderRef} getLabel={(v) => `${v}x`} />
             </div>
             <span ref={contrastReadoutRef} id="contrastReadout" className={css.sliderReadout}>
               1x
             </span>
           </div>
-          <button type="button" className={css.resetBtn} onClick={handleResetTheme}>
-            Reset
-          </button>
+          <div className={css.presetRow}>
+            <button type="button" className={css.presetBtn} onClick={handleSurface250}>
+              Surface_250
+            </button>
+            <button type="button" className={css.presetBtn} onClick={handleResetTheme}>
+              Reset (Surface_100)
+            </button>
+          </div>
         </div>
       </section>
 

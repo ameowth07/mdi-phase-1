@@ -82,19 +82,47 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  height: 8px;
-  margin-top: 4px;
-  padding: 0 7px;
-  pointer-events: none;
+  height: 16px;
+  margin-top: 0;
+  padding: 0 4px;
 }
 
 .sliderTick {
-  flex: 0 0 1px;
+  position: relative;
+  flex: 0 0 12px;
+  width: 12px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sliderTick::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
   width: 1px;
   height: 5px;
   border-radius: 1px;
+  transform: translateX(-50%);
   background: var(--content-muted, #bcbec8);
   opacity: 0.7;
+}
+
+.sliderTick:hover::after,
+.sliderTick:focus-visible::after {
+  opacity: 1;
+  height: 6px;
+}
+
+.sliderTick:focus-visible {
+  outline: none;
+}
+
+.sliderTick:focus-visible::after {
+  box-shadow: 0 0 0 1px var(--content-emphasis, #f7f7f8);
 }
 
 .slider {
@@ -119,9 +147,15 @@
   white-space: nowrap;
 }
 
-.resetBtn {
-  width: 100%;
+.presetRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 4px;
+}
+
+.presetBtn {
+  width: 100%;
   padding: 8px 10px;
   border: none;
   border-radius: 6px;
@@ -134,11 +168,11 @@
   box-shadow: inset 0 0 0 1px rgba(208, 217, 251, 0.22);
 }
 
-.resetBtn:hover {
+.presetBtn:hover {
   background: rgba(208, 217, 251, 0.2);
 }
 
-.resetBtn:active {
+.presetBtn:active {
   background: rgba(208, 217, 251, 0.1);
 }
 
