@@ -1,0 +1,26 @@
+:root {
+  --delta-hue: 0;
+  --sat-multiplier: 1;
+  --lightness-offset: 0%;
+  --contrast-scale: 1; /* Default baseline multiplier (0.5 to 1.5) */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0a0a0b;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12px;
+}

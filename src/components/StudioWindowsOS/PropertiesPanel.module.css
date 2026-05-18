@@ -1,0 +1,469 @@
+/* Properties panel content — Figma 3841:115199 */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface-100, #191a1f);
+  color: var(--content-default, #d5d7dd);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.emptyState {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.emptyHint {
+  margin: 0;
+  max-width: 220px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--content-muted, #bcbec8);
+}
+
+/* Frontmatter: Mypart row + toggles */
+.frontmatter {
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+
+.titleRow {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 2px 4px 2px 4px;
+  border-bottom: 1px solid rgba(208, 217, 251, 0.16);
+  border-radius: 4px;
+}
+
+.partIcon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.partIcon svg {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.titleText {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--content-emphasis, #f7f7f8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toggles {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.toggleIcon {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.toggleIcon svg {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.moreDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 16px;
+  height: 16px;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.moreDots svg {
+  flex-shrink: 0;
+}
+
+/* Facets chips */
+.facets {
+  flex: 0 0 32px;
+  display: flex;
+  align-items: flex-start;
+  padding: 4px 6px 4px 8px;
+  box-sizing: border-box;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  max-height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.chipInactive {
+  background: rgba(208, 217, 251, 0.12);
+  color: #f7f7f8;
+}
+
+.chipActive {
+  background: #fff;
+  color: #202227;
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  min-height: 24px;
+}
+
+.sectionChevron {
+  width: 12px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sectionChevron img {
+  width: 10px;
+  height: 6px;
+  display: block;
+  opacity: 0.95;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 8px 2px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.labelCol {
+  flex: 0 1 160px;
+  max-width: 160px;
+  min-width: 16px;
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.labelSpacer {
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  padding-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--content-default, #d5d7dd);
+  line-height: 1.4;
+}
+
+.valueCol {
+  flex: 1 1 auto;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.inputShell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: rgba(208, 217, 251, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.inputShellDropdown {
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.inputShellTight {
+  padding: 0 0 0 6px;
+}
+
+.mono {
+  font-family: 'Builder Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+  line-height: 12px;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.leadSwatch {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px 0 0 4px;
+}
+
+.leadSwatchInner {
+  width: 12px;
+  height: 12px;
+  border-radius: 17px;
+  overflow: hidden;
+  position: relative;
+}
+
+.materialSwatchLucide {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: radial-gradient(
+      60% 60% at 30% 25%,
+      rgba(255, 255, 255, 0.55),
+      transparent 70%
+    ),
+    linear-gradient(145deg, #8b8a8f 0%, #5c5b60 45%, #3a3940 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.swatchSq {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: #a3a2a5;
+  border: 1px solid rgba(208, 217, 251, 0.12);
+  flex-shrink: 0;
+}
+
+.inputText {
+  flex: 1;
+  min-width: 30px;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--content-emphasis, #f7f7f8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inputMuted {
+  opacity: 0.5;
+  color: var(--content-muted, #bcbec8);
+  font-size: 12px;
+}
+
+.trailChev {
+  width: 12px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 2px;
+}
+
+.vDiv {
+  align-self: stretch;
+  width: 1px;
+  background: rgba(208, 217, 251, 0.12);
+  flex-shrink: 0;
+}
+
+.colorSwatchSeg {
+  width: 24px;
+  min-height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(208, 217, 251, 0.08);
+  border-radius: 4px 0 0 4px;
+}
+
+.rgbRow {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-width: 0;
+  gap: 2px;
+}
+
+.numCellMid {
+  border-radius: 0;
+}
+
+.numCell {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 6px;
+  background: rgba(208, 217, 251, 0.08);
+}
+
+.numCellFirst {
+  border-radius: 4px 0 0 4px;
+}
+
+.numCellLast {
+  border-radius: 0 4px 4px 0;
+}
+
+.axisLine {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 12px;
+}
+
+.axisX {
+  background: #df281f;
+}
+
+.axisY {
+  background: #39c582;
+}
+
+.axisZ {
+  background: #335fff;
+}
+
+.sectionRule {
+  height: 12px;
+  width: 100%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sectionRuleLine {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(208, 217, 251, 0.12);
+}
+
+.originHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  min-height: 24px;
+}
+
+.originTitle {
+  margin: 0;
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.checkboxCell {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 4px;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: #f7f7f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checkboxMark {
+  color: #202227;
+  flex-shrink: 0;
+}

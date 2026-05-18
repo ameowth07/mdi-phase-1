@@ -1,0 +1,11 @@
+.root {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 24px);
+}
+
+.slot {
+  position: absolute;
+  left: 50%;
+  top: 0;
+}

@@ -1,0 +1,409 @@
+/* Asset Manager — Figma 3994:57525; theme tokens inherit from `.frame` */
+.root {
+  --am-sidebar-width: 240px;
+  --am-tree-selection: hsl(
+    calc(229 + var(--delta-hue)),
+    calc(23% * var(--sat-multiplier)),
+    calc((18% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --am-toolbar-divider: hsla(
+    calc(0 + var(--delta-hue)),
+    calc(0% * var(--sat-multiplier)),
+    calc((94% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.1
+  );
+
+  flex: 0 0 352px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100, #191a1f);
+  border: 1px solid var(--surface-100, #191a1f);
+  overflow: hidden;
+}
+
+.header {
+  flex: 0 0 24px;
+  position: relative;
+  background: rgba(208, 217, 251, 0.04);
+}
+
+.title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  width: 279px;
+  max-width: calc(100% - 52px);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--panel-chrome-title, #bcbec8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headerActions {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.headerBtn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--content-emphasis, #f7f7f8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  opacity: 0.85;
+}
+
+.headerBtn img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.sidebar {
+  flex: 0 0 var(--am-sidebar-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.searchRow {
+  flex: 0 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+}
+
+.iconBtn {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--content-default, #d5d7dd);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.searchField {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--shift-200);
+  color: var(--content-default, #d5d7dd);
+}
+
+.searchField svg {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.searchPlaceholder {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--content-default, #d5d7dd);
+}
+
+.tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+}
+
+.treeSection {
+  display: flex;
+  flex-direction: column;
+}
+
+.treeRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 4px;
+  margin: 0 8px;
+  border-radius: 4px;
+  color: var(--content-default, #d5d7dd);
+  cursor: default;
+}
+
+.treeRowSelected::before {
+  content: '';
+  position: absolute;
+  inset: 0 -8px;
+  border-radius: 4px;
+  background: var(--am-tree-selection);
+  z-index: 0;
+}
+
+.treeRowInner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.treeRowBold .treeLabel {
+  font-weight: 600;
+}
+
+.treeIndent {
+  flex: 0 0 16px;
+  width: 16px;
+}
+
+.treeToggle {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-muted, #bcbec8);
+}
+
+.treeToggleSpacer {
+  flex: 0 0 16px;
+  width: 16px;
+}
+
+.treeIcon {
+  flex: 0 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-default, #d5d7dd);
+}
+
+.treeLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dividerV {
+  flex: 0 0 1px;
+  align-self: stretch;
+  background: var(--stroke-muted, rgba(208, 217, 251, 0.08));
+}
+
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.toolbar {
+  flex: 0 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.toolbarNav {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.toolbarBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 4px;
+  color: var(--content-default, #d5d7dd);
+}
+
+.toolbarBreadcrumb svg {
+  flex-shrink: 0;
+}
+
+.breadcrumbLabel {
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbarTools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+}
+
+.toolbarIconGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbarDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--am-toolbar-divider);
+}
+
+.importBtn {
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 4px;
+  background: var(--shift-300, rgba(208, 217, 251, 0.12));
+  color: var(--content-emphasis, #f7f7f8);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.tableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableHead {
+  flex: 0 0 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  padding: 4px 0;
+}
+
+.colHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--content-muted, #bcbec8);
+}
+
+.colHeadName {
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.colHead:not(:first-child) {
+  border-left: 1px solid var(--am-toolbar-divider);
+}
+
+.tableHeadDivider {
+  flex: 0 0 1px;
+  background: var(--am-toolbar-divider);
+}
+
+.tableBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  min-height: 40px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--stroke-muted, rgba(208, 217, 251, 0.08));
+  gap: 16px;
+}
+
+.cellName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.thumb {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--content-default, #d5d7dd);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cellText {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--content-default, #d5d7dd);
+}
+
+.cellTextEmphasis {
+  color: var(--content-emphasis, #f7f7f8);
+}

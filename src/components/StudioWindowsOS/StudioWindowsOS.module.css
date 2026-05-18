@@ -1,0 +1,1283 @@
+.frame {
+  --workspace-gutter: 2px;
+  --surface-0: hsl(
+    calc(240 + var(--delta-hue)),
+    calc(8% * var(--sat-multiplier)),
+    calc((8% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --surface-100: hsl(
+    calc(230 + var(--delta-hue)),
+    calc(11% * var(--sat-multiplier)),
+    calc((11% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --content-default: hsl(
+    calc(225 + var(--delta-hue)),
+    calc(11% * var(--sat-multiplier)),
+    calc((85% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --content-muted: hsl(
+    calc(230 + var(--delta-hue)),
+    calc(10% * var(--sat-multiplier)),
+    calc((76% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --content-emphasis: hsl(
+    calc(240 + var(--delta-hue)),
+    calc(7% * var(--sat-multiplier)),
+    calc((97% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  /** PanelChrome titles — same base as content-muted. */
+  --panel-chrome-title: hsl(
+    calc(230 + var(--delta-hue)),
+    calc(10% * var(--sat-multiplier)),
+    calc((76% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --stroke-default: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.12
+  );
+  --stroke-muted: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.08
+  );
+  --shift-200: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.08
+  );
+  --shift-300: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.12
+  );
+  --shift-400: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.16
+  );
+  --overmedia-100: hsla(
+    calc(230 + var(--delta-hue)),
+    calc(11% * var(--sat-multiplier)),
+    calc((11% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.92
+  );
+  --beta-stroke: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.4
+  );
+  /** Drone Racer + asset isolation — inset focus ring. */
+  --edit-workspace-focus-ring: hsla(
+    calc(0 + var(--delta-hue)),
+    calc(0% * var(--sat-multiplier)),
+    calc((100% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.5
+  );
+
+  width: 100%;
+  max-width: 1472px;
+  height: 904px;
+  max-height: calc(100vh - 24px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-0);
+  color: var(--content-default);
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    Roboto,
+    sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--stroke-default),
+    0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+/** Play mode — 5% overlay tint (matches client / server focus ring hues). */
+.simFullTintOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/** Play mode — subtle wash on the focused sim viewport (Testing UI: Selection tint). */
+.viewportSelectionTintClient,
+.viewportSelectionTintServer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.viewportSelectionTintClient {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.viewportSelectionTintServer {
+  background: rgba(22, 163, 74, 0.12);
+}
+
+/* —— Windows title bar —— */
+.appBar {
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 4px;
+  background: var(--surface-0);
+}
+
+.appBarLeft {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 0 1 500px;
+}
+
+.logoBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0 8px 0 12px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: default;
+}
+
+.logoBtn img {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+.menu {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 0;
+}
+
+.menuItem {
+  padding: 0 8px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  color: var(--content-default);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.title {
+  flex: 0 0 auto;
+  margin: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--content-default);
+  white-space: nowrap;
+}
+
+.appBarRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 1 500px;
+}
+
+.winIcon {
+  width: 46px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.winIcon img,
+.winIcon svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.9;
+  display: block;
+}
+
+.workspaceGutter {
+  flex: 0 0 var(--workspace-gutter);
+  min-height: var(--workspace-gutter);
+  width: 100%;
+  background: var(--surface-0);
+  flex-shrink: 0;
+}
+
+/* —— Main panels —— */
+.panels {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: var(--workspace-gutter);
+  background: var(--surface-0);
+}
+
+.center {
+  flex: 1 1 1179px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100);
+  overflow: hidden;
+}
+
+.centerWorkspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.centerDockGutter {
+  flex: 0 0 var(--workspace-gutter);
+  width: 100%;
+  background: var(--surface-0);
+  flex-shrink: 0;
+}
+
+.documentPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabRow {
+  flex: 0 0 24px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+  background: var(--surface-100);
+}
+
+.tabRowUnderline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+}
+
+.tabRowUnderline img,
+.tabRowUnderline svg {
+  width: 100%;
+  height: 1px;
+  display: block;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 22px;
+  padding: 2px 12px;
+  border: 1px solid var(--stroke-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tabActive {
+  background: var(--surface-100);
+  color: var(--content-default);
+}
+
+.tabInactive {
+  background: var(--surface-0);
+  color: var(--content-muted);
+  border-bottom: none;
+}
+
+/** Figma Tooltip (3975:51736) — inverse surface; sits below tab with hover delay / chain timing. */
+.tabWithPathTooltip {
+  position: relative;
+}
+
+.tabPathTooltip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  bottom: auto;
+  transform: translateX(-50%);
+  z-index: 80;
+  pointer-events: none;
+  box-sizing: border-box;
+  max-width: 320px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: #fff;
+  color: #202227;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow:
+    0 0 0 1px rgba(4, 4, 8, 0.08),
+    0 2px 2px rgba(4, 4, 8, 0.25),
+    0 10px 20px rgba(4, 4, 8, 0.22);
+}
+
+.tabClose {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+
+.tabClose img,
+.tabClose svg {
+  width: 12px;
+  height: 12px;
+}
+
+.tabDiamond {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.bitmapIconCrisp {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/** Client / Server tab icons — full-opacity brand hues (must beat .tabDiamond opacity). */
+.tabDiamond.tabDiamondBrand {
+  opacity: 1;
+}
+
+.viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-100, #191a1f);
+}
+
+.viewportClientFocused::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.viewportAboveSimTint {
+  position: relative;
+  z-index: 101;
+}
+
+.viewport img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+}
+
+.viewport img[data-name='ClientSim'] {
+  object-fit: contain;
+  object-position: center center;
+}
+
+.viewport > img {
+  z-index: 0;
+}
+
+/**
+ * Edit viewports — inset ring above full-bleed images.
+ * Use a real stacking layer (not ::after); some engines paint replaced content above pseudo siblings.
+ */
+.editWorkspaceInsetRing {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--edit-workspace-focus-ring, rgba(255, 255, 255, 0.5));
+}
+
+/**
+ * Split edit placeholders (e.g. asset-isolation.jpg) ship with a ~1–2px white “frame” in the bitmap.
+ * Clip the inactive column so the real focus chrome is only `editWorkspaceInsetRing` on the active column.
+ */
+.editWorkspaceInactiveBleedCrop > img {
+  clip-path: inset(2px);
+}
+
+/** Test mode: Client / Server share one document column — tab strip + single viewport slot. */
+.simTabbedBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.simTabbedBody > .viewport,
+.simTabbedBody > .serverViewport {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/** Test mode split: Client | Server as two document columns (Testing UI: Split view). */
+.simSplitViewportRow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: var(--workspace-gutter);
+  background: var(--surface-0);
+}
+
+.simSplitClientWrap,
+.simSplitServerWrap {
+  flex: 1 1 0;
+  flex-basis: 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100);
+}
+
+.simSplitDocumentTabRow {
+  justify-content: flex-start;
+}
+
+/** Test + Show asset in isolation + Split view: Client | Server | Iso tab strip (aligns with body row). */
+.testTriptychTabStrip {
+  flex: 0 0 24px;
+  display: flex;
+  flex-direction: row;
+  gap: 1px;
+  background: var(--stroke-muted);
+}
+
+.testTriptychTabCol {
+  flex: 2 1 0;
+  min-width: 0;
+  min-height: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.testTriptychTabStrip > .editTabStripIso {
+  flex: 2 1 0;
+  min-width: 220px;
+  min-height: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.testTriptychTabCol > .tabRow,
+.testTriptychTabStrip > .editTabStripIso > .tabRow {
+  width: 100%;
+}
+
+/** Test + iso + Split view: Client | Server | asset isolation columns. */
+.testTriptychBodyRow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: var(--workspace-gutter);
+  background: var(--surface-0);
+}
+
+.testTriptychBodyRow > .simSplitClientWrap,
+.testTriptychBodyRow > .simSplitServerWrap {
+  flex: 2 1 0;
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.testTriptychBodyRow > .assetIsolationPanel {
+  flex: 2 1 0;
+  flex-basis: 0;
+  min-width: 220px;
+}
+
+/* Edit mode: main sim tab strip stacks above iso strip so overflow tabs don’t steal clicks. */
+.editCombinedTabStrip > .editTabStripMain {
+  position: relative;
+  z-index: 2;
+}
+
+.editCombinedTabStrip > .editTabStripIso {
+  position: relative;
+  z-index: 1;
+}
+
+/* Test triptych: Client/Server tab columns above iso strip for the same hit-test reason. */
+.testTriptychTabStrip > .testTriptychTabCol {
+  position: relative;
+  z-index: 2;
+}
+
+.testTriptychTabStrip > .editTabStripIso {
+  position: relative;
+  z-index: 1;
+}
+
+/* Edit mode: Drone Racer + asset isolation tab strips on one row (aligns with split below). */
+.editCombinedTabStrip {
+  flex: 0 0 24px;
+  display: flex;
+  flex-direction: row;
+  gap: 1px;
+  background: var(--stroke-muted);
+}
+
+.editTabStripMain {
+  flex: 3 1 0;
+  min-width: 0;
+  min-height: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.editTabStripIso {
+  flex: 2 1 0;
+  min-width: 220px;
+  min-height: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.editTabStripMain > .tabRow,
+.editTabStripIso > .tabRow {
+  width: 100%;
+}
+
+/* Edit mode: main viewport + asset isolation column (Interaction settings). */
+.editWorkspaceSplit {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 1px;
+  background: var(--stroke-muted);
+}
+
+.editWorkspaceSplit > .viewport {
+  flex: 3 1 0;
+  min-width: 0;
+}
+
+/**
+ * Test + asset in isolation (tabbed): column shell for Client/Server viewports.
+ * Must be a flex column so `simTabbedBody` gets height (plain `.viewport` is not flex — inner sim view collapsed).
+ */
+.testSimClientServerHost {
+  flex: 3 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-100, #191a1f);
+}
+
+.assetIsolationPanel {
+  flex: 2 1 0;
+  min-width: 220px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100, #191a1f);
+}
+
+.assetIsolationTabRow {
+  justify-content: flex-start;
+}
+
+.assetIsolationWorkspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #0d0e12;
+  isolation: isolate;
+}
+
+.assetIsolationWorkspace > img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+}
+
+.hoverScriptEditor {
+  position: relative;
+  z-index: 0;
+  box-sizing: border-box;
+  margin: 0;
+  min-height: 100%;
+  padding: 12px 14px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e4e6ed;
+  background: #0d0e12;
+  white-space: pre-wrap;
+  tab-size: 2;
+}
+
+/** Main Drone Racer document — Script tab fills client viewport. */
+.mainDocumentScriptFill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: auto;
+}
+
+/* Play mode client viewport — datamodel stroke stays hue-aligned with Client focus ring. */
+.simDatamodelStrokeOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px #38bdf8;
+}
+
+.serverViewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #101116;
+}
+
+.serverViewportFocused::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px #16a34a;
+}
+
+.serverViewport img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/** Play mode server viewport — “Show Stroke” (Edit datamodel) when Server has sim focus; green to match Server ring. */
+.serverSimDatamodelStrokeOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px #16a34a;
+}
+
+.right {
+  flex: 0 0 291px;
+  width: 291px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gutter);
+  background: var(--surface-0);
+}
+
+.panel {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100);
+  overflow: hidden;
+}
+
+.panelInteraction {
+  /* Fixed until panels become resizable */
+  flex: 0 0 300px;
+  height: 300px;
+  max-height: 300px;
+}
+
+.panelBodyInteraction {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface-100);
+}
+
+.panelHeader {
+  flex: 0 0 24px;
+  position: relative;
+  background: rgba(208, 217, 251, 0.04);
+}
+
+.panelTitle {
+  position: absolute;
+  top: 50%;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--panel-chrome-title, #bcbec8);
+}
+
+.panelTitleAlignCenter {
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 279px;
+  text-align: center;
+}
+
+.panelTitleAlignLeft {
+  left: 8px;
+  transform: translateY(-50%);
+  max-width: calc(100% - 52px);
+  text-align: left;
+}
+
+/* Explorer header — title + Client/Server pill (Figma 3856:139983) */
+.panelTitleWithBadge {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.panelTitleWithBadgeAlignCenter {
+  left: 50%;
+  transform: translate(-50%, -50%);
+  justify-content: center;
+  max-width: min(279px, calc(100% - 44px));
+}
+
+.panelTitleWithBadgeAlignLeft {
+  left: 8px;
+  transform: translateY(-50%);
+  justify-content: flex-start;
+  max-width: calc(100% - 52px);
+}
+
+.panelTitlePlain {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--panel-chrome-title, #bcbec8);
+  white-space: nowrap;
+}
+
+.explorerFocusBadge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 16px;
+  max-height: 16px;
+  padding: 0 4px;
+}
+
+.explorerFocusBadgePlate {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgba(208, 217, 251, 0.08);
+}
+
+.explorerFocusBadgeRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 16px;
+  padding: 0 2px 0 4px;
+}
+
+.explorerFocusBadgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.explorerFocusBadgeDotClient {
+  background: #335fff;
+}
+
+.explorerFocusBadgeDotServer {
+  background: #0c9b5a;
+}
+
+.explorerFocusBadgeDotDrone {
+  background: #da5d95;
+}
+
+.explorerFocusBadgeCaption {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  color: var(--content-emphasis, #f7f7f8);
+  white-space: nowrap;
+  padding-right: 2px;
+}
+
+.panelActions {
+  position: absolute;
+  right: 6px;
+  top: 4px;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.panelAction {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.panelAction img,
+.panelAction svg {
+  max-width: 16px;
+  max-height: 16px;
+}
+
+.panelPopoutIcon {
+  flex-shrink: 0;
+  display: block;
+}
+
+.panelBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface-100);
+}
+
+/* Explorer tree */
+.tree {
+  padding: 4px 0 8px;
+  font-size: 12px;
+  color: var(--content-default);
+}
+
+.treeRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 8px 0 4px;
+  user-select: none;
+}
+
+.treeRowInteractive {
+  cursor: pointer;
+}
+
+.treeRowHover {
+  background: var(--explorer-tint-hover, rgba(43, 68, 161, 0.2));
+}
+
+.treeRowChildOfSelected {
+  background: var(--explorer-tint-child, rgba(43, 68, 161, 0.28));
+}
+
+.treeRow.selected {
+  background: var(--explorer-tint-selected, rgba(43, 68, 161, 0.4));
+}
+
+.treeNested {
+  padding-bottom: 4px;
+}
+
+.treeChevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-muted);
+}
+
+.treeChevronSvg {
+  display: block;
+  opacity: 0.85;
+}
+
+.treeChevronClosed .treeChevronSvg {
+  transform: rotate(-90deg);
+}
+
+.treeIndent {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.treeIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/**
+ * Explorer Drone row — `public/assets/Model.png` (4× bitmap, e.g. 64px → display 16px / 1×).
+ */
+.treeExplorerModelIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.treeLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guide {
+  border-left: 1px solid rgba(208, 217, 251, 0.06);
+  margin-left: 7px;
+  padding-left: 7px;
+}
+
+/* —— Command bar (40px per product spec) —— */
+.commandBar {
+  flex: 0 0 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 20px;
+  background: var(--surface-100);
+}
+
+.cmdLeft {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cmdDiamond {
+  width: 16px;
+  height: 16px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.cmdDiamond img,
+.cmdDiamond svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cmdPlaceholder {
+  font:
+    400 14px/20px ui-monospace,
+    'Cascadia Mono',
+    Consolas,
+    monospace;
+  color: var(--content-muted);
+  opacity: 0.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmdRight {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cmdToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--overmedia-100);
+}
+
+.cmdTbBtn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cmdTbBtn img,
+.cmdTbBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cmdTbBtnActive {
+  background: var(--shift-400);
+}
+
+.cmdRun {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 4px;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--content-muted);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.cmdSelect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  min-width: 152px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--beta-stroke);
+  background: transparent;
+  color: var(--content-default);
+  font-size: 12px;
+  cursor: default;
+}
+
+.cmdSelectChevron {
+  margin-left: auto;
+  opacity: 0.7;
+  font-size: 10px;
+}
+
+/* —— Footer (32px per product spec) —— */
+.footer {
+  flex: 0 0 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 16px;
+  background: var(--surface-100);
+  border-top: 1px solid var(--stroke-default);
+}
+
+.footerActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+}
+
+.footerBtn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.footerBtn:hover {
+  background: var(--shift-200);
+}
+
+.footerBtn img,
+.footerBtn svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
+}
+
+.footerBtnIcon {
+  color: var(--panel-chrome-title, #bcbec8);
+}
+
+.footerBtnActive {
+  background: var(--shift-200);
+}
+
+/* Footer — questions overlay */
+.questionsOverlayBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.questionsOverlayPanel {
+  position: fixed;
+  z-index: 201;
+  bottom: 44px;
+  right: 16px;
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(60vh, 420px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100, #191a1f);
+  border: 1px solid var(--stroke-default, #2a2c35);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.questionsOverlayHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stroke-default, #2a2c35);
+}
+
+.questionsOverlayTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e6ed;
+}
+
+.questionsOverlayClose {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #bcbec8;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.questionsOverlayClose:hover {
+  background: var(--shift-200);
+  color: #e4e6ed;
+}
+
+.questionsOverlayList {
+  margin: 0;
+  padding: 8px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.questionsOverlayItem {
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #d8dae3;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.questionsOverlayItem:last-child {
+  border-bottom: none;
+}
+
+.questionsOverlayEmpty {
+  margin: 0;
+  padding: 14px 14px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8b8f9a;
+}
+
+.questionsOverlayCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #c4c8d4;
+}

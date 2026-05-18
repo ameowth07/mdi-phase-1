@@ -1,0 +1,1999 @@
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { ComponentProps, CSSProperties, Ref } from 'react'
+import { CircleHelp, Monitor, Server, SquareArrowOutUpRight } from 'lucide-react'
+import ClientSim from './ClientSim'
+import LegacyRibbon from './LegacyRibbon'
+import ServerSim from './ServerSim'
+import AssetManagerPanel from './AssetManagerPanel'
+import InteractionSettingsPanel from './InteractionSettingsPanel'
+import PropertiesPanel from './PropertiesPanel'
+import { publicAssetUrl } from '../../publicAssetUrl'
+import styles from './StudioWindowsOS.module.css'
+
+const MENUS = ['File', 'Edit', 'View', 'Plugins', 'Test', 'Window', 'Help'] as const
+
+/** Footer “Questions” overlay — add strings here to populate the list. */
+const FOOTER_QUESTIONS: readonly string[] = []
+
+/** Drone isolation document tab label — Explorer badge uses the same text when that column is focused. */
+const DRONE_WORKSPACE_TAB_LABEL = 'Drone' as const
+
+const HOVER_SCRIPT_TAB_LABEL = 'HoverScript' as const
+
+/** Tab hover — file path line (Figma Tooltip 3975:51893 / 3975:51736). */
+const TAB_PATH_DRONE_RACER_DOCUMENT = 'Drone Racer/Drone Racer'
+const TAB_PATH_BUNNY_DOCUMENT = 'Bunny/Bunny'
+const TAB_PATH_DRONE_RACER_SCRIPT = 'Drone Racer/Script'
+const TAB_PATH_DRONE_RACER_CLIENT = 'Drone Racer (Client)'
+const TAB_PATH_DRONE_RACER_SERVER = 'Drone Racer (Server)'
+const TAB_PATH_DRONE_ASSET = 'Drone/Drone'
+const TAB_PATH_DRONE_HOVERSCRIPT = 'Drone/HoverScript'
+
+/** Main Drone Racer document — first “Script” tab body. */
+const DRONE_RACER_MAIN_SCRIPT_PLACEHOLDER = 'this is a Drone Racer script' as const
+
+/** Asset isolation preview — selected art includes the white ring around the drone. */
+const ASSET_ISOLATION_IMAGE = publicAssetUrl('assets/asset-isolation.jpg')
+const ASSET_ISOLATION_IMAGE_FOCUSED = publicAssetUrl('assets/asset-isolation-selected.jpg')
+
+/** Explorer edit tree — direct parent id per row (for “child of selected” tint). */
+const EXPLORER_EDIT_PARENT: Record<string, string | null> = {
+  workspace: null,
+  camera: 'workspace',
+  terrain: 'workspace',
+  billboard: 'workspace',
+  shop: 'workspace',
+  shopkeeper: 'shop',
+  counter: 'shop',
+  shelves: 'shop',
+  register: 'shop',
+  door: 'shop',
+  players: 'workspace',
+  lighting: 'workspace',
+  materialservice: 'workspace',
+  /** Flat Bunny Explorer — single row id (not in datamodel tree). */
+  bunnyExplorerRow: null,
+}
+
+/** Sim Explorer tree rows — no parent/child tint relationships in this mock. */
+const EXPLORER_SIM_PARENT: Record<string, string | null> = {
+  workspace: null,
+  players: null,
+  lighting: null,
+  materialservice: null,
+}
+
+type SimViewportFocus = 'client' | 'server'
+
+/** Main Drone Racer strip: 3D vs first or second Script document tab. */
+type MainDocumentEditorTab = 'droneRacer' | 'scriptA' | 'scriptB'
+
+/** Snapshot for Explorer while a Script tab is open — sim side, edit hierarchy, or Drone isolation tree. */
+type ExplorerRetentionKind = 'sim-client' | 'sim-server' | 'edit-drone' | 'drone-isolation'
+
+/** Edit / test: main sim document vs asset isolation column (Drone preview vs HoverScript). */
+type EditDocumentFocus = 'main' | 'isolation' | 'hoverScript'
+
+/** Clip-path (even-odd) covering `frame` with a rectangular hole for `hole` (percent of frame). */
+function simTintClipPath(frame: DOMRect, hole: DOMRect): string | undefined {
+  const fw = frame.width
+  const fh = frame.height
+  if (fw <= 0 || fh <= 0) return undefined
+  let L = ((hole.left - frame.left) / fw) * 100
+  let T = ((hole.top - frame.top) / fh) * 100
+  let R = ((hole.right - frame.left) / fw) * 100
+  let B = ((hole.bottom - frame.top) / fh) * 100
+  L = Math.max(0, Math.min(100, L))
+  T = Math.max(0, Math.min(100, T))
+  R = Math.max(0, Math.min(100, R))
+  B = Math.max(0, Math.min(100, B))
+  if (R <= L + 0.02 || B <= T + 0.02) return undefined
+  return `polygon(evenodd,0% 0%,100% 0%,100% 100%,0% 100%,0% 0%,${L}% ${T}%,${L}% ${B}%,${R}% ${B}%,${R}% ${T}%,${L}% ${T}%)`
+}
+
+function TabDiamond({ className }: { className?: string } = {}) {
+  return (
+    <svg
+      className={className ?? styles.tabDiamond}
+      viewBox="0 0 12 12"
+      aria-hidden
+    >
+      <path
+        d="M6 1.2 10.8 6 6 10.8 1.2 6Z"
+        fill="currentColor"
+        opacity={0.9}
+      />
+    </svg>
+  )
+}
+
+/** Client sim — Drone Racer tab: same Lucide pattern as Server tab (`Server`), client brand hue. */
+function TabClientSimDocumentIcon() {
+  return (
+    <Monitor
+      size={12}
+      strokeWidth={1.5}
+      className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
+      color="#2563eb"
+      aria-hidden
+    />
+  )
+}
+
+/** Explorer disclosure — same stroke chevron as ribbon split (LegacyRibbon / RibbonToolbar), not Unicode triangles. */
+function TreeChevron({ mode }: { mode: 'open' | 'closed' | 'spacer' }) {
+  return (
+    <span
+      className={
+        mode === 'closed'
+          ? `${styles.treeChevron} ${styles.treeChevronClosed}`
+          : styles.treeChevron
+      }
+      aria-hidden
+    >
+      {mode !== 'spacer' && (
+        <svg
+          className={styles.treeChevronSvg}
+          width={10}
+          height={10}
+          viewBox="0 0 10 10"
+        >
+          <path
+            d="M2 3L5 6.2L8 3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </span>
+  )
+}
+
+/** Tab path tooltip: first hover delay vs quick chain to another tab (ms). */
+const TAB_PATH_TOOLTIP_FIRST_DELAY_MS = 300
+const TAB_PATH_TOOLTIP_CHAIN_WINDOW_MS = 1000
+
+let tabPathTooltipLastOpenedAt = 0
+let tabPathTooltipLastOpenedInstanceId: string | null = null
+
+/** Figma Studio App Framework — Tooltip (3975:51736): inverse surface, Body small; shown below tab. */
+function TabWithPathTooltip({
+  path,
+  className,
+  children,
+  onMouseEnter,
+  onMouseLeave,
+  ...rest
+}: ComponentProps<'div'> & { path: string }) {
+  const instanceId = useId()
+  const [tipOpen, setTipOpen] = useState(false)
+  const hoveringRef = useRef(false)
+  const openTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
+
+  const clearOpenTimer = useCallback(() => {
+    if (openTimerRef.current != null) {
+      clearTimeout(openTimerRef.current)
+      openTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => () => clearOpenTimer(), [clearOpenTimer])
+
+  const scheduleOpen = useCallback(() => {
+    clearOpenTimer()
+    const now = Date.now()
+    const chainInWindow =
+      tabPathTooltipLastOpenedAt > 0 &&
+      now - tabPathTooltipLastOpenedAt < TAB_PATH_TOOLTIP_CHAIN_WINDOW_MS
+    const chainDifferentTab =
+      chainInWindow &&
+      tabPathTooltipLastOpenedInstanceId !== null &&
+      tabPathTooltipLastOpenedInstanceId !== instanceId
+    const delay = chainDifferentTab ? 0 : TAB_PATH_TOOLTIP_FIRST_DELAY_MS
+
+    openTimerRef.current = globalThis.setTimeout(() => {
+      openTimerRef.current = null
+      if (!hoveringRef.current) return
+      setTipOpen(true)
+      tabPathTooltipLastOpenedAt = Date.now()
+      tabPathTooltipLastOpenedInstanceId = instanceId
+    }, delay)
+  }, [instanceId, clearOpenTimer])
+
+  return (
+    <div
+      {...rest}
+      className={`${className ?? ''} ${styles.tabWithPathTooltip}`}
+      onMouseEnter={(e) => {
+        onMouseEnter?.(e)
+        hoveringRef.current = true
+        scheduleOpen()
+      }}
+      onMouseLeave={(e) => {
+        onMouseLeave?.(e)
+        hoveringRef.current = false
+        clearOpenTimer()
+        setTipOpen(false)
+      }}
+    >
+      {children}
+      {tipOpen ? (
+        <span className={styles.tabPathTooltip} role="tooltip" data-node-id="3975:51738">
+          {path}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+type PanelChromeProps = {
+  title: string
+  assetVariant: 'explorer' | 'properties'
+  /** Plain title or Explorer badge row: centered (default) vs left-aligned with panel padding. */
+  titleAlign?: 'center' | 'left'
+  /** Play mode: StatusBadge-style pill next to “Explorer” (Interaction settings). */
+  explorerFocusBadgeTarget?: SimViewportFocus | null
+  /** Edit mode: document column in focus (e.g. Drone isolation) — same pill chrome as Client/Server. */
+  explorerDocumentBadgeLabel?: string | null
+  /** Explorer badge: show colored status dot (Interaction settings). */
+  explorerBadgeShowDot?: boolean
+}
+
+function ExplorerDocumentBadge({
+  label,
+  showIndicator,
+}: {
+  label: string
+  showIndicator: boolean
+}) {
+  return (
+    <span
+      className={styles.explorerFocusBadge}
+      data-name="ExplorerDocumentBadge"
+      data-node-id="3856:139987-edit-doc"
+    >
+      <span className={styles.explorerFocusBadgePlate} aria-hidden />
+      <span className={styles.explorerFocusBadgeRow}>
+        {showIndicator ? (
+          <span
+            className={`${styles.explorerFocusBadgeDot} ${styles.explorerFocusBadgeDotDrone}`}
+            aria-hidden
+          />
+        ) : null}
+        <span className={styles.explorerFocusBadgeCaption}>{label}</span>
+      </span>
+    </span>
+  )
+}
+
+function ExplorerFocusBadge({
+  target,
+  showIndicator,
+}: {
+  target: SimViewportFocus
+  showIndicator: boolean
+}) {
+  const label = target === 'client' ? 'Client' : 'Server'
+  return (
+    <span
+      className={styles.explorerFocusBadge}
+      data-name="ExplorerFocusBadge"
+      data-node-id="3856:139987"
+    >
+      <span className={styles.explorerFocusBadgePlate} aria-hidden />
+      <span className={styles.explorerFocusBadgeRow}>
+        {showIndicator ? (
+          <span
+            className={`${styles.explorerFocusBadgeDot} ${
+              target === 'client'
+                ? styles.explorerFocusBadgeDotClient
+                : styles.explorerFocusBadgeDotServer
+            }`}
+            aria-hidden
+          />
+        ) : null}
+        <span className={styles.explorerFocusBadgeCaption}>{label}</span>
+      </span>
+    </span>
+  )
+}
+
+function PanelChrome({
+  title,
+  assetVariant,
+  titleAlign = 'center',
+  explorerFocusBadgeTarget = null,
+  explorerDocumentBadgeLabel = null,
+  explorerBadgeShowDot = true,
+}: PanelChromeProps) {
+  const close =
+    assetVariant === 'explorer'
+      ? publicAssetUrl('assets/panel-close.svg')
+      : publicAssetUrl('assets/panel-close-x-2.svg')
+
+  const showSimExplorerBadge =
+    assetVariant === 'explorer' && explorerFocusBadgeTarget != null
+  const showEditExplorerBadge =
+    assetVariant === 'explorer' &&
+    !!explorerDocumentBadgeLabel &&
+    !showSimExplorerBadge
+
+  const showExplorerBadge = showSimExplorerBadge || showEditExplorerBadge
+
+  const explorerAria = showSimExplorerBadge
+    ? `Explorer, ${
+        explorerFocusBadgeTarget === 'client' ? 'Client' : 'Server'
+      } focused`
+    : showEditExplorerBadge
+      ? `Explorer, ${explorerDocumentBadgeLabel} focused`
+      : undefined
+
+  const titleAlignClass =
+    titleAlign === 'left' ? styles.panelTitleAlignLeft : styles.panelTitleAlignCenter
+  const badgeAlignClass =
+    titleAlign === 'left'
+      ? styles.panelTitleWithBadgeAlignLeft
+      : styles.panelTitleWithBadgeAlignCenter
+
+  return (
+    <header className={styles.panelHeader}>
+      {showExplorerBadge ? (
+        <div
+          className={`${styles.panelTitleWithBadge} ${badgeAlignClass}`}
+          role="group"
+          aria-label={explorerAria}
+        >
+          <p className={styles.panelTitlePlain}>{title}</p>
+          {showSimExplorerBadge ? (
+            <ExplorerFocusBadge
+              target={explorerFocusBadgeTarget!}
+              showIndicator={explorerBadgeShowDot}
+            />
+          ) : (
+            <ExplorerDocumentBadge
+              label={explorerDocumentBadgeLabel!}
+              showIndicator={explorerBadgeShowDot}
+            />
+          )}
+        </div>
+      ) : (
+        <p className={`${styles.panelTitle} ${titleAlignClass}`}>{title}</p>
+      )}
+      <div className={styles.panelActions}>
+        <button type="button" className={styles.panelAction} aria-label="Pop out panel">
+          <SquareArrowOutUpRight
+            size={12}
+            strokeWidth={1.35}
+            className={styles.panelPopoutIcon}
+            aria-hidden
+          />
+        </button>
+        <button type="button" className={styles.panelAction} aria-label="Close panel">
+          <img src={close} alt="" />
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function ExplorerTree({
+  clientSim,
+  bunnyFlatExplorer,
+  explorerWhileScriptFocus,
+  droneDocumentFocused,
+  simViewportFocus,
+  simExplorerTintColorsActive,
+  simSelectedRowId,
+  onSimExplorerSelectRow,
+}: {
+  clientSim: boolean
+  /** Bunny asset frame — Explorer is a single “Bunny” row (no datamodel hierarchy). */
+  bunnyFlatExplorer?: boolean
+  /**
+   * Test + Script tab: which Explorer to mirror — last sim Client/Server, edit hierarchy, or Drone isolation.
+   * `null` when not in that mode.
+   */
+  explorerWhileScriptFocus: ExplorerRetentionKind | null
+  /** Drone isolation document focused — minimal Explorer (edit or test with asset in isolation). */
+  droneDocumentFocused: boolean
+  /** Sim: Client vs Server focus — used when sim Explorer uses viewport hues. */
+  simViewportFocus: SimViewportFocus
+  /** Sim + Selection tint: Explorer row tints match Client/Server; off → Edit-mode explorer blue. */
+  simExplorerTintColorsActive: boolean
+  /** Sim: selected Explorer row for the current sim focus (client vs server); null until user picks. */
+  simSelectedRowId: string | null
+  onSimExplorerSelectRow: (rowId: string) => void
+}) {
+  const tintViewportFocus: SimViewportFocus =
+    clientSim && explorerWhileScriptFocus
+      ? explorerWhileScriptFocus === 'sim-server'
+        ? 'server'
+        : explorerWhileScriptFocus === 'sim-client'
+          ? 'client'
+          : simViewportFocus
+      : simViewportFocus
+
+  const explorerTreeTintStyle = useMemo((): CSSProperties | undefined => {
+    if (!simExplorerTintColorsActive) return undefined
+    if (tintViewportFocus === 'client') {
+      return {
+        ['--explorer-tint-hover' as string]: 'rgba(37, 99, 235, 0.2)',
+        ['--explorer-tint-child' as string]: 'rgba(37, 99, 235, 0.28)',
+        ['--explorer-tint-selected' as string]: 'rgba(37, 99, 235, 0.4)',
+      }
+    }
+    return {
+      ['--explorer-tint-hover' as string]: 'rgba(12, 155, 90, 0.2)',
+      ['--explorer-tint-child' as string]: 'rgba(12, 155, 90, 0.28)',
+      ['--explorer-tint-selected' as string]: 'rgba(12, 155, 90, 0.4)',
+    }
+  }, [simExplorerTintColorsActive, tintViewportFocus])
+
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
+  const [selectedEditRowId, setSelectedEditRowId] = useState<string | null>(null)
+
+  const editRowClass = (rowId: string) => {
+    const hovered = hoveredRowId === rowId
+    const selected = selectedEditRowId !== null && selectedEditRowId === rowId
+    const childOfSelected =
+      selectedEditRowId !== null && EXPLORER_EDIT_PARENT[rowId] === selectedEditRowId
+    if (selected) {
+      return [styles.treeRow, styles.treeRowInteractive, styles.selected].filter(Boolean).join(' ')
+    }
+    if (hovered) {
+      return [styles.treeRow, styles.treeRowInteractive, styles.treeRowHover].filter(Boolean).join(' ')
+    }
+    if (childOfSelected) {
+      return [styles.treeRow, styles.treeRowInteractive, styles.treeRowChildOfSelected]
+        .filter(Boolean)
+        .join(' ')
+    }
+    return [styles.treeRow, styles.treeRowInteractive].join(' ')
+  }
+
+  const simRowClass = (rowId: string) => {
+    const hovered = hoveredRowId === rowId
+    const selected = simSelectedRowId !== null && simSelectedRowId === rowId
+    const childOfSelected =
+      simSelectedRowId !== null && EXPLORER_SIM_PARENT[rowId] === simSelectedRowId
+    if (selected) {
+      return [styles.treeRow, styles.treeRowInteractive, styles.selected].filter(Boolean).join(' ')
+    }
+    if (hovered) {
+      return [styles.treeRow, styles.treeRowInteractive, styles.treeRowHover].filter(Boolean).join(' ')
+    }
+    if (childOfSelected) {
+      return [styles.treeRow, styles.treeRowInteractive, styles.treeRowChildOfSelected]
+        .filter(Boolean)
+        .join(' ')
+    }
+    return [styles.treeRow, styles.treeRowInteractive].join(' ')
+  }
+
+  const showDroneIsolationExplorer =
+    droneDocumentFocused || explorerWhileScriptFocus === 'drone-isolation'
+
+  if (bunnyFlatExplorer) {
+    const rowId = 'bunnyExplorerRow' as const
+    return (
+      <div className={styles.tree} style={explorerTreeTintStyle}>
+        <div
+          className={editRowClass(rowId)}
+          onMouseEnter={() => setHoveredRowId(rowId)}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId(rowId)}
+        >
+          <TreeChevron mode="spacer" />
+          <TabDiamond />
+          <span className={styles.treeLabel}>Bunny</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (showDroneIsolationExplorer) {
+    const rowClass = [styles.treeRow, styles.treeRowInteractive].join(' ')
+    return (
+      <div className={styles.tree} style={explorerTreeTintStyle}>
+        <div
+          className={rowClass}
+        >
+          <TreeChevron mode="closed" />
+          <img
+            src={publicAssetUrl('assets/Model.png')}
+            alt=""
+            className={`${styles.treeExplorerModelIcon} ${styles.bitmapIconCrisp}`}
+            aria-hidden
+          />
+          <span className={styles.treeLabel}>{DRONE_WORKSPACE_TAB_LABEL}</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (clientSim && explorerWhileScriptFocus === 'edit-drone') {
+    return (
+      <div className={styles.tree} style={explorerTreeTintStyle}>
+        <div
+          className={simRowClass('workspace')}
+          onMouseEnter={() => setHoveredRowId('workspace')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => onSimExplorerSelectRow('workspace')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon} style={{ color: '#4a9eff' }}>
+            ●
+          </span>
+          <span className={styles.treeLabel}>Workspace</span>
+        </div>
+        <div
+          className={simRowClass('players')}
+          onMouseEnter={() => setHoveredRowId('players')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => onSimExplorerSelectRow('players')}
+        >
+          <TreeChevron mode="spacer" />
+          <span className={styles.treeIcon} style={{ color: '#e8944a' }}>
+            ☺
+          </span>
+          <span className={styles.treeLabel}>Players</span>
+        </div>
+        <div
+          className={simRowClass('lighting')}
+          onMouseEnter={() => setHoveredRowId('lighting')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => onSimExplorerSelectRow('lighting')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon}>💡</span>
+          <span className={styles.treeLabel}>Lighting</span>
+        </div>
+        <div
+          className={simRowClass('materialservice')}
+          onMouseEnter={() => setHoveredRowId('materialservice')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => onSimExplorerSelectRow('materialservice')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon}>⌗</span>
+          <span className={styles.treeLabel}>MaterialService</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.tree} style={explorerTreeTintStyle}>
+      <div
+        className={editRowClass('workspace')}
+        onMouseEnter={() => setHoveredRowId('workspace')}
+        onMouseLeave={() => setHoveredRowId(null)}
+        onClick={() => setSelectedEditRowId('workspace')}
+      >
+        <TreeChevron mode="open" />
+        <span className={styles.treeIcon} style={{ color: '#4a9eff' }}>
+          ●
+        </span>
+        <span className={styles.treeLabel}>Workspace</span>
+      </div>
+      <div
+        className={editRowClass('camera')}
+        style={{ paddingLeft: 22 }}
+        onMouseEnter={() => setHoveredRowId('camera')}
+        onMouseLeave={() => setHoveredRowId(null)}
+        onClick={() => setSelectedEditRowId('camera')}
+      >
+        <TreeChevron mode="spacer" />
+        <span className={styles.treeIcon}>▣</span>
+        <span className={styles.treeLabel}>Camera</span>
+      </div>
+      <div
+        className={editRowClass('terrain')}
+        style={{ paddingLeft: 22 }}
+        onMouseEnter={() => setHoveredRowId('terrain')}
+        onMouseLeave={() => setHoveredRowId(null)}
+        onClick={() => setSelectedEditRowId('terrain')}
+      >
+        <TreeChevron mode="spacer" />
+        <span className={styles.treeIcon} style={{ color: '#6b4' }}>
+          ▲
+        </span>
+        <span className={styles.treeLabel}>Terrain</span>
+      </div>
+      <div
+        className={editRowClass('billboard')}
+        style={{ paddingLeft: 22 }}
+        onMouseEnter={() => setHoveredRowId('billboard')}
+        onMouseLeave={() => setHoveredRowId(null)}
+        onClick={() => setSelectedEditRowId('billboard')}
+      >
+        <TreeChevron mode="closed" />
+        <span className={styles.treeIcon} style={{ color: '#e8d44d' }}>
+          ■
+        </span>
+        <span className={styles.treeLabel}>Billboard</span>
+      </div>
+      <div className={`${styles.treeNested} ${styles.guide}`}>
+        <div
+          className={editRowClass('shop')}
+          onMouseEnter={() => setHoveredRowId('shop')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId('shop')}
+        >
+          <TreeChevron mode="open" />
+          <span className={styles.treeIcon} style={{ color: '#e8d44d' }}>
+            ■
+          </span>
+          <span className={styles.treeLabel}>Shop</span>
+        </div>
+        <div
+          className={editRowClass('shopkeeper')}
+          style={{ paddingLeft: 20 }}
+          onMouseEnter={() => setHoveredRowId('shopkeeper')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId('shopkeeper')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon}>◇</span>
+          <span className={styles.treeLabel}>Shopkeeper</span>
+        </div>
+        <div
+          className={editRowClass('counter')}
+          style={{ paddingLeft: 20 }}
+          onMouseEnter={() => setHoveredRowId('counter')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId('counter')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon}>◇</span>
+          <span className={styles.treeLabel}>Counter</span>
+        </div>
+        <div
+          className={editRowClass('shelves')}
+          style={{ paddingLeft: 20 }}
+          onMouseEnter={() => setHoveredRowId('shelves')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId('shelves')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon}>◇</span>
+          <span className={styles.treeLabel}>Shelves</span>
+        </div>
+        <div
+          className={editRowClass('register')}
+          style={{ paddingLeft: 20 }}
+          onMouseEnter={() => setHoveredRowId('register')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId('register')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon}>◇</span>
+          <span className={styles.treeLabel}>Register</span>
+        </div>
+        <div
+          className={editRowClass('door')}
+          style={{ paddingLeft: 20 }}
+          onMouseEnter={() => setHoveredRowId('door')}
+          onMouseLeave={() => setHoveredRowId(null)}
+          onClick={() => setSelectedEditRowId('door')}
+        >
+          <TreeChevron mode="closed" />
+          <span className={styles.treeIcon}>◇</span>
+          <span className={styles.treeLabel}>Door</span>
+        </div>
+      </div>
+      <div
+        className={editRowClass('players')}
+        style={{ paddingLeft: 22 }}
+        onMouseEnter={() => setHoveredRowId('players')}
+        onMouseLeave={() => setHoveredRowId(null)}
+        onClick={() => setSelectedEditRowId('players')}
+      >
+        <TreeChevron mode="spacer" />
+        <span className={styles.treeIcon} style={{ color: '#e8944a' }}>
+          ☺
+        </span>
+        <span className={styles.treeLabel}>Players</span>
+      </div>
+      <div
+        className={editRowClass('lighting')}
+        style={{ paddingLeft: 22 }}
+        onMouseEnter={() => setHoveredRowId('lighting')}
+        onMouseLeave={() => setHoveredRowId(null)}
+        onClick={() => setSelectedEditRowId('lighting')}
+      >
+        <TreeChevron mode="closed" />
+        <span className={styles.treeIcon}>💡</span>
+        <span className={styles.treeLabel}>Lighting</span>
+      </div>
+      <div
+        className={editRowClass('materialservice')}
+        style={{ paddingLeft: 22 }}
+        onMouseEnter={() => setHoveredRowId('materialservice')}
+        onMouseLeave={() => setHoveredRowId(null)}
+        onClick={() => setSelectedEditRowId('materialservice')}
+      >
+        <TreeChevron mode="closed" />
+        <span className={styles.treeIcon}>⌗</span>
+        <span className={styles.treeLabel}>MaterialService</span>
+      </div>
+    </div>
+  )
+}
+
+export type DroneRacerWorkspaceProps = {
+  clientSim?: boolean
+  /** Asset window opened from Interaction settings — Bunny viewport, no isolation column or Script tabs. */
+  bunnyAssetWindow?: boolean
+  /** Edit mode: second column with isolated-asset preview (Interaction settings). */
+  showAssetInIsolation?: boolean
+  /** Edit datamodel UI: inset stroke on the focused document workspace. */
+  editDatamodelShowStroke?: boolean
+  /** Which edit document column is focused (Drone isolation vs main). */
+  editDocumentFocus: EditDocumentFocus
+  onEditDocumentFocusChange: (focus: EditDocumentFocus) => void
+  /** Main strip: Drone Racer 3D vs Script tabs (edit and test). */
+  mainDocumentEditorTab: MainDocumentEditorTab
+  onMainDocumentEditorTabChange: (tab: MainDocumentEditorTab) => void
+  /** Test (play) mode: Client vs Server tab — datamodel stroke and tint follow this. */
+  simViewportFocus?: SimViewportFocus
+  onSimViewportFocusChange?: (focus: SimViewportFocus) => void
+  /** Test mode: Interaction “Has semantic stroke” (brand inset when focus stroke is off). */
+  playModeHasStroke?: boolean
+  /** Test mode: white inset focus ring (Testing UI: Has focus stroke). */
+  playModeHasFocusStroke?: boolean
+  playModeSelectionTint?: boolean
+  playModeFullTint?: boolean
+  /** Test mode: `clientSimActive && playModeFullTint` — hole punch for full-frame tint. */
+  tintActive?: boolean
+  focusHoleRef?: Ref<HTMLDivElement | null>
+  /** Test mode: Client and Server side by side (Testing UI: Split view). */
+  playModeSplitView?: boolean
+}
+
+function DroneRacerWorkspace({
+  clientSim,
+  bunnyAssetWindow,
+  showAssetInIsolation,
+  editDatamodelShowStroke,
+  editDocumentFocus,
+  onEditDocumentFocusChange,
+  mainDocumentEditorTab,
+  onMainDocumentEditorTabChange,
+  simViewportFocus,
+  onSimViewportFocusChange,
+  playModeHasStroke,
+  playModeHasFocusStroke,
+  playModeSelectionTint,
+  playModeFullTint,
+  tintActive,
+  focusHoleRef,
+  playModeSplitView,
+}: DroneRacerWorkspaceProps) {
+  const [bunnyEditViewportFocused, setBunnyEditViewportFocused] = useState(false)
+
+  useEffect(() => {
+    if (clientSim) setBunnyEditViewportFocused(false)
+  }, [clientSim])
+
+  const simFocus = simViewportFocus ?? 'client'
+
+  const mainDocumentScriptOpen =
+    mainDocumentEditorTab === 'scriptA' || mainDocumentEditorTab === 'scriptB'
+
+  /** Client / Server tab chrome: active only when that sim is focused and the 3D doc is selected (not Script). */
+  const simClientTabChromeActive = simFocus === 'client' && mainDocumentEditorTab === 'droneRacer'
+  const simServerTabChromeActive = simFocus === 'server' && mainDocumentEditorTab === 'droneRacer'
+
+  const selectMainDroneRacerTab = useCallback(() => {
+    onMainDocumentEditorTabChange('droneRacer')
+    onEditDocumentFocusChange('main')
+  }, [onEditDocumentFocusChange, onMainDocumentEditorTabChange])
+
+  const selectMainScriptTab = useCallback(
+    (slot: 'scriptA' | 'scriptB') => {
+      onMainDocumentEditorTabChange(slot)
+    },
+    [onMainDocumentEditorTabChange],
+  )
+
+  /** Edit: inset ring on main Drone Racer viewport (split = focused column; single = interaction “Has stroke”). */
+  const mainEditInsetRing =
+    !clientSim &&
+    (showAssetInIsolation ? editDocumentFocus === 'main' : !!editDatamodelShowStroke)
+
+  /** Asset isolation column — inset ring when a document in that column has focus (Drone preview or HoverScript). */
+  const droneIsolationPreviewActive =
+    !!showAssetInIsolation && editDocumentFocus === 'isolation'
+  const hoverScriptDocumentActive =
+    !!showAssetInIsolation && editDocumentFocus === 'hoverScript'
+  const isolationColumnEditInsetRing =
+    droneIsolationPreviewActive || hoverScriptDocumentActive
+
+  /** Split edit: inactive column — crop baked UI frame on placeholder art so only one inset ring reads as focus. */
+  const mainInactiveInSplit =
+    !clientSim && !!showAssetInIsolation && editDocumentFocus !== 'main'
+
+  const strokeOn = !!playModeHasStroke
+  const focusStrokeOn = !!playModeHasFocusStroke
+  const simFullTintOn = !!playModeFullTint
+  const simSelectionTintOn = !!playModeSelectionTint
+  const simTintHoleActive = !!tintActive
+
+  /**
+   * Test + Show asset in isolation: Client/Server sim chrome (stroke, rings, tint hole) only while
+   * the sim document strip has focus — not when Drone isolation is the active document.
+   */
+  const simDocumentChromeActive =
+    !clientSim || !showAssetInIsolation || editDocumentFocus === 'main'
+
+  /** Test: datamodel stroke on Client tab viewport while Client has sim focus (cyan). */
+  const mainSimInsetRing =
+    !!clientSim &&
+    simDocumentChromeActive &&
+    !!editDatamodelShowStroke &&
+    simFocus === 'client'
+
+  const clientSemanticStroke =
+    !!clientSim &&
+    simDocumentChromeActive &&
+    strokeOn &&
+    !focusStrokeOn &&
+    simFocus === 'client'
+  const serverSemanticStroke =
+    !!clientSim &&
+    simDocumentChromeActive &&
+    strokeOn &&
+    !focusStrokeOn &&
+    simFocus === 'server'
+
+  const clientFocusChromeRing =
+    !!clientSim && simDocumentChromeActive && focusStrokeOn && simFocus === 'client'
+  const serverFocusChromeRing =
+    !!clientSim && simDocumentChromeActive && focusStrokeOn && simFocus === 'server'
+
+  const clientElevateForSimTint =
+    !!clientSim && simDocumentChromeActive && simTintHoleActive && simFocus === 'client'
+  const serverElevateForSimTint =
+    !!clientSim && simDocumentChromeActive && simTintHoleActive && simFocus === 'server'
+
+  const clientSimTintFromServerFocus =
+    !!clientSim &&
+    simDocumentChromeActive &&
+    simSelectionTintOn &&
+    simFullTintOn &&
+    simFocus === 'server'
+
+  const serverSimTintFromClientFocus =
+    !!clientSim &&
+    simDocumentChromeActive &&
+    simSelectionTintOn &&
+    simFullTintOn &&
+    simFocus === 'client'
+
+  const clientTintHoleRef =
+    !!clientSim && clientElevateForSimTint ? focusHoleRef : undefined
+  const serverTintHoleRef =
+    !!clientSim && serverElevateForSimTint ? focusHoleRef : undefined
+
+  /** Same Drone Racer scene in edit and Client test tab (when asset isolation is off in test). */
+  const droneViewportImage = (
+    <img
+      src={
+        bunnyAssetWindow
+          ? publicAssetUrl('assets/bunny-viewport.png')
+          : publicAssetUrl('assets/viewport.png')
+      }
+      alt="3D viewport"
+    />
+  )
+
+  /** Test + “Show asset in isolation”: Client panel shows sim art; Drone world stays in Client when iso is off. */
+  const clientTestViewportBody =
+    !!clientSim && !!showAssetInIsolation ? <ClientSim /> : droneViewportImage
+
+  const mainDocumentScriptBody = (
+    <div
+      className={styles.mainDocumentScriptFill}
+      data-name="DroneRacerMainScript"
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        if (clientSim) onSimViewportFocusChange?.('client')
+        onEditDocumentFocusChange('main')
+      }}
+    >
+      <pre className={styles.hoverScriptEditor} spellCheck={false}>
+        {DRONE_RACER_MAIN_SCRIPT_PLACEHOLDER}
+      </pre>
+    </div>
+  )
+
+  const viewportClass = [
+    styles.viewport,
+    clientSemanticStroke ? styles.viewportClientFocused : null,
+    clientElevateForSimTint ? styles.viewportAboveSimTint : null,
+    mainInactiveInSplit ? styles.editWorkspaceInactiveBleedCrop : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const mainViewport = (
+    <div
+      ref={clientTintHoleRef}
+      className={viewportClass}
+      data-node-id="3842:134334"
+      {...(bunnyAssetWindow && !clientSim ? { 'data-bunny-viewport-root': '' as const } : {})}
+      onPointerDown={() => {
+        if (clientSim) onSimViewportFocusChange?.('client')
+        onEditDocumentFocusChange('main')
+      }}
+    >
+      {clientSim
+        ? mainDocumentScriptOpen
+          ? mainDocumentScriptBody
+          : clientTestViewportBody
+        : mainDocumentScriptOpen
+          ? mainDocumentScriptBody
+          : droneViewportImage}
+      {clientSimTintFromServerFocus ? (
+        <div className={styles.viewportSelectionTintClient} aria-hidden />
+      ) : null}
+      {mainEditInsetRing ||
+      (bunnyAssetWindow && !clientSim && bunnyEditViewportFocused) ? (
+        <div className={styles.editWorkspaceInsetRing} aria-hidden />
+      ) : null}
+      {mainSimInsetRing ? (
+        <div className={styles.simDatamodelStrokeOverlay} aria-hidden />
+      ) : null}
+      {clientFocusChromeRing ? (
+        <div className={styles.editWorkspaceInsetRing} aria-hidden />
+      ) : null}
+    </div>
+  )
+
+  const serverTestViewport = (
+    <div
+      ref={serverTintHoleRef}
+      className={[
+        styles.serverViewport,
+        serverSemanticStroke ? styles.serverViewportFocused : null,
+        serverElevateForSimTint ? styles.viewportAboveSimTint : null,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      data-node-id="3841:113029-viewport"
+      onPointerDown={() => {
+        onSimViewportFocusChange?.('server')
+        onEditDocumentFocusChange('main')
+      }}
+    >
+      <ServerSim />
+      {serverSimTintFromClientFocus ? (
+        <div className={styles.viewportSelectionTintServer} aria-hidden />
+      ) : null}
+      {!!clientSim && !!editDatamodelShowStroke && simFocus === 'server' ? (
+        <div className={styles.serverSimDatamodelStrokeOverlay} aria-hidden />
+      ) : null}
+      {serverFocusChromeRing ? (
+        <div className={styles.editWorkspaceInsetRing} aria-hidden />
+      ) : null}
+    </div>
+  )
+
+  /** Inactive Drone Racer document tabs — shown in edit and persisted beside Client/Server in test. */
+  const mainDocumentSecondaryTabs = (
+    <>
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_RACER_SCRIPT}
+        role="tab"
+        tabIndex={0}
+        aria-selected={mainDocumentEditorTab === 'scriptA'}
+        className={`${styles.tab} ${
+          mainDocumentEditorTab === 'scriptA' ? styles.tabActive : styles.tabInactive
+        }`}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          selectMainScriptTab('scriptA')
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          selectMainScriptTab('scriptA')
+        }}
+      >
+        <TabDiamond />
+        <span>Script</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_RACER_SCRIPT}
+        role="tab"
+        tabIndex={0}
+        aria-selected={mainDocumentEditorTab === 'scriptB'}
+        className={`${styles.tab} ${
+          mainDocumentEditorTab === 'scriptB'
+            ? styles.tabActive
+            : styles.tabInactive
+        }`}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          selectMainScriptTab('scriptB')
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          selectMainScriptTab('scriptB')
+        }}
+      >
+        <TabDiamond />
+        <span>Script</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+    </>
+  )
+
+  const optionalScriptTabs = bunnyAssetWindow ? null : mainDocumentSecondaryTabs
+
+  const simClientServerTabRow = (
+    <div className={styles.tabRow} data-node-id="3841:115140-sim-client-server">
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_RACER_CLIENT}
+        role="tab"
+        tabIndex={0}
+        aria-selected={simClientTabChromeActive}
+        className={`${styles.tab} ${simClientTabChromeActive ? styles.tabActive : styles.tabInactive}`}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          onMainDocumentEditorTabChange('droneRacer')
+          onSimViewportFocusChange?.('client')
+          onEditDocumentFocusChange('main')
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onMainDocumentEditorTabChange('droneRacer')
+          onSimViewportFocusChange?.('client')
+          onEditDocumentFocusChange('main')
+        }}
+      >
+        <TabClientSimDocumentIcon />
+        <span>Client</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_RACER_SERVER}
+        role="tab"
+        tabIndex={0}
+        aria-selected={simServerTabChromeActive}
+        className={`${styles.tab} ${simServerTabChromeActive ? styles.tabActive : styles.tabInactive}`}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          onMainDocumentEditorTabChange('droneRacer')
+          onSimViewportFocusChange?.('server')
+          onEditDocumentFocusChange('main')
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onMainDocumentEditorTabChange('droneRacer')
+          onSimViewportFocusChange?.('server')
+          onEditDocumentFocusChange('main')
+        }}
+      >
+        <Server
+          size={12}
+          strokeWidth={1.5}
+          className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
+          color="#0c9b5a"
+          aria-hidden
+        />
+        <span>Server</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      {optionalScriptTabs}
+      <div className={styles.tabRowUnderline} aria-hidden>
+        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
+      </div>
+    </div>
+  )
+
+  const simSplitClientTabRow = (
+    <div
+      className={`${styles.tabRow} ${styles.simSplitDocumentTabRow}`}
+      data-node-id="3841:115140-split-client-tabs"
+    >
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_RACER_CLIENT}
+        className={`${styles.tab} ${mainDocumentEditorTab === 'droneRacer' ? styles.tabActive : styles.tabInactive}`}
+      >
+        <TabClientSimDocumentIcon />
+        <span>Client</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      {optionalScriptTabs}
+      <div className={styles.tabRowUnderline} aria-hidden>
+        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
+      </div>
+    </div>
+  )
+
+  const simSplitServerTabRow = (
+    <div
+      className={`${styles.tabRow} ${styles.simSplitDocumentTabRow}`}
+      data-node-id="3841:113029-split-server-tabs"
+    >
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_RACER_SERVER}
+        className={`${styles.tab} ${mainDocumentEditorTab === 'droneRacer' ? styles.tabActive : styles.tabInactive}`}
+      >
+        <Server
+          size={12}
+          strokeWidth={1.5}
+          className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
+          color="#0c9b5a"
+          aria-hidden
+        />
+        <span>Server</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      {optionalScriptTabs}
+      <div className={styles.tabRowUnderline} aria-hidden>
+        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
+      </div>
+    </div>
+  )
+
+  const assetIsolationTabRow = (
+    <div
+      className={`${styles.tabRow} ${styles.assetIsolationTabRow}`}
+      data-node-id="3841:115139-iso-tabs"
+    >
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_ASSET}
+        role="tab"
+        tabIndex={0}
+        aria-selected={editDocumentFocus === 'isolation'}
+        className={`${styles.tab} ${
+          editDocumentFocus === 'isolation' ? styles.tabActive : styles.tabInactive
+        }`}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          onEditDocumentFocusChange('isolation')
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onEditDocumentFocusChange('isolation')
+        }}
+      >
+        <img
+          src={publicAssetUrl('assets/Model.png')}
+          alt=""
+          className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
+          aria-hidden
+        />
+        <span>{DRONE_WORKSPACE_TAB_LABEL}</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      <TabWithPathTooltip
+        path={TAB_PATH_DRONE_HOVERSCRIPT}
+        role="tab"
+        tabIndex={0}
+        aria-selected={editDocumentFocus === 'hoverScript'}
+        className={`${styles.tab} ${
+          editDocumentFocus === 'hoverScript' ? styles.tabActive : styles.tabInactive
+        }`}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          onEditDocumentFocusChange('hoverScript')
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onEditDocumentFocusChange('hoverScript')
+        }}
+      >
+        <TabDiamond />
+        <span>{HOVER_SCRIPT_TAB_LABEL}</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      <div className={styles.tabRowUnderline} aria-hidden>
+        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
+      </div>
+    </div>
+  )
+
+  const assetIsolationColumnAside = (
+    <aside className={styles.assetIsolationPanel} aria-label={DRONE_WORKSPACE_TAB_LABEL}>
+      <div
+        className={[
+          styles.assetIsolationWorkspace,
+          isolationColumnEditInsetRing ? null : styles.editWorkspaceInactiveBleedCrop,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        onPointerDown={() =>
+          onEditDocumentFocusChange(
+            editDocumentFocus === 'hoverScript' ? 'hoverScript' : 'isolation',
+          )
+        }
+      >
+        {hoverScriptDocumentActive ? (
+          <pre className={styles.hoverScriptEditor} spellCheck={false}>
+            hello world
+          </pre>
+        ) : (
+          <img
+            src={
+              droneIsolationPreviewActive ? ASSET_ISOLATION_IMAGE_FOCUSED : ASSET_ISOLATION_IMAGE
+            }
+            alt=""
+          />
+        )}
+        {isolationColumnEditInsetRing ? (
+          <div className={styles.editWorkspaceInsetRing} aria-hidden />
+        ) : null}
+      </div>
+    </aside>
+  )
+
+  /** Single tabbed Client/Server + Script strip: Script lives in `mainViewport`; Server sim is `serverTestViewport`. */
+  const simTabbedBodyViewport =
+    mainDocumentScriptOpen || simFocus === 'client' ? mainViewport : serverTestViewport
+
+  const simTabbedClientServerStack = (
+    <>
+      {simClientServerTabRow}
+      <div className={styles.simTabbedBody}>{simTabbedBodyViewport}</div>
+    </>
+  )
+
+  if (clientSim) {
+    if (showAssetInIsolation) {
+      if (playModeSplitView) {
+        return (
+          <div className={styles.documentPanel} data-node-id="3841:115139">
+            <div className={styles.testTriptychTabStrip}>
+              <div
+                className={styles.testTriptychTabCol}
+                onPointerDown={() => {
+                  onSimViewportFocusChange?.('client')
+                  onEditDocumentFocusChange('main')
+                }}
+              >
+                {simSplitClientTabRow}
+              </div>
+              <div
+                className={styles.testTriptychTabCol}
+                onPointerDown={() => {
+                  onSimViewportFocusChange?.('server')
+                  onEditDocumentFocusChange('main')
+                }}
+              >
+                {simSplitServerTabRow}
+              </div>
+              <div className={styles.editTabStripIso}>
+                {assetIsolationTabRow}
+              </div>
+            </div>
+            <div className={styles.testTriptychBodyRow}>
+              <div
+                className={styles.simSplitClientWrap}
+                onPointerDown={() => {
+                  onSimViewportFocusChange?.('client')
+                  onEditDocumentFocusChange('main')
+                }}
+              >
+                <div className={styles.simTabbedBody}>{mainViewport}</div>
+              </div>
+              <section
+                className={styles.simSplitServerWrap}
+                aria-label="Server simulation view"
+                onPointerDown={() => {
+                  onSimViewportFocusChange?.('server')
+                  onEditDocumentFocusChange('main')
+                }}
+              >
+                <div className={styles.simTabbedBody}>
+                  {mainDocumentScriptOpen ? mainViewport : serverTestViewport}
+                </div>
+              </section>
+              {assetIsolationColumnAside}
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div className={styles.documentPanel} data-node-id="3841:115139">
+          <div className={styles.editCombinedTabStrip}>
+            <div
+              className={styles.editTabStripMain}
+              onPointerDown={() => onEditDocumentFocusChange('main')}
+            >
+              {simClientServerTabRow}
+            </div>
+            <div className={styles.editTabStripIso}>
+              {assetIsolationTabRow}
+            </div>
+          </div>
+          <div className={styles.editWorkspaceSplit}>
+            <div className={styles.testSimClientServerHost}>
+              <div className={styles.simTabbedBody}>{simTabbedBodyViewport}</div>
+            </div>
+            {assetIsolationColumnAside}
+          </div>
+        </div>
+      )
+    }
+
+    if (playModeSplitView) {
+      return (
+        <div className={styles.documentPanel} data-node-id="3841:115139">
+          <div className={styles.simSplitViewportRow}>
+            <div
+              className={styles.simSplitClientWrap}
+              onPointerDown={() => {
+                onSimViewportFocusChange?.('client')
+                onEditDocumentFocusChange('main')
+              }}
+            >
+              {simSplitClientTabRow}
+              <div className={styles.simTabbedBody}>{mainViewport}</div>
+            </div>
+            <section
+              className={styles.simSplitServerWrap}
+              aria-label="Server simulation view"
+              onPointerDown={() => {
+                onSimViewportFocusChange?.('server')
+                onEditDocumentFocusChange('main')
+              }}
+            >
+              {simSplitServerTabRow}
+              <div className={styles.simTabbedBody}>
+                {mainDocumentScriptOpen ? mainViewport : serverTestViewport}
+              </div>
+            </section>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div className={styles.documentPanel} data-node-id="3841:115139">
+        {simTabbedClientServerStack}
+      </div>
+    )
+  }
+
+  const mainDocumentTabRow = (
+    <div className={styles.tabRow} data-node-id="3841:115140">
+      <TabWithPathTooltip
+        path={bunnyAssetWindow ? TAB_PATH_BUNNY_DOCUMENT : TAB_PATH_DRONE_RACER_DOCUMENT}
+        role="tab"
+        tabIndex={0}
+        aria-selected={mainDocumentEditorTab === 'droneRacer'}
+        className={`${styles.tab} ${
+          mainDocumentEditorTab === 'droneRacer' ? styles.tabActive : styles.tabInactive
+        }`}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          selectMainDroneRacerTab()
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          selectMainDroneRacerTab()
+        }}
+      >
+        <TabDiamond />
+        <span>{bunnyAssetWindow ? 'Bunny' : 'Drone Racer'}</span>
+        <button type="button" className={styles.tabClose} aria-label="Close tab">
+          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+        </button>
+      </TabWithPathTooltip>
+      {optionalScriptTabs}
+      <div className={styles.tabRowUnderline} aria-hidden>
+        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
+      </div>
+    </div>
+  )
+
+  const documentPanelBunnyFocusProps =
+    bunnyAssetWindow && !clientSim
+      ? {
+          onPointerDownCapture: (e: React.PointerEvent<HTMLDivElement>) => {
+            const t = e.target as HTMLElement | null
+            if (!t) return
+            setBunnyEditViewportFocused(!!t.closest('[data-bunny-viewport-root]'))
+          },
+        }
+      : {}
+
+  return (
+    <div
+      className={styles.documentPanel}
+      data-node-id="3841:115139"
+      {...documentPanelBunnyFocusProps}
+    >
+      {showAssetInIsolation && !clientSim ? (
+        <div className={styles.editCombinedTabStrip}>
+          <div className={styles.editTabStripMain} onPointerDown={() => onEditDocumentFocusChange('main')}>
+            {mainDocumentTabRow}
+          </div>
+          <div className={styles.editTabStripIso}>
+            {assetIsolationTabRow}
+          </div>
+        </div>
+      ) : (
+        mainDocumentTabRow
+      )}
+      {showAssetInIsolation && !clientSim ? (
+        <div className={styles.editWorkspaceSplit}>
+          {mainViewport}
+          {assetIsolationColumnAside}
+        </div>
+      ) : (
+        mainViewport
+      )}
+    </div>
+  )
+}
+
+/** Bunny asset window — same shell as `DroneRacerWorkspace` with fixed Bunny layout (DevTools / stack traces). */
+export type BunnyWorkspaceProps = Omit<
+  DroneRacerWorkspaceProps,
+  'bunnyAssetWindow' | 'showAssetInIsolation'
+>
+
+export function BunnyWorkspace(props: BunnyWorkspaceProps) {
+  return (
+    <DroneRacerWorkspace {...props} bunnyAssetWindow showAssetInIsolation={false} />
+  )
+}
+
+/**
+ * Studio – Windows OS frame from Figma
+ * (Studio App Framework 2026, node 3841:114990).
+ */
+export type StudioFrameVariant = 'studio' | 'bunny'
+
+export type StudioWindowsOSProps = {
+  /** Spawns another full Studio frame stacked above (wired from `App`). */
+  onOpenAssetWindow?: () => void
+  /** `bunny`: asset window — title, viewport art, no isolation column or Script tabs. */
+  frameVariant?: StudioFrameVariant
+  /** Bunny stacked frame: title-bar close removes this window (main studio omits this). */
+  onCloseFrame?: () => void
+}
+
+export default function StudioWindowsOS({
+  onOpenAssetWindow,
+  frameVariant = 'studio',
+  onCloseFrame,
+}: StudioWindowsOSProps) {
+  const bunnyAssetWindow = frameVariant === 'bunny'
+  const [clientSimActive, setClientSimActive] = useState(false)
+  const [simViewportFocus, setSimViewportFocus] = useState<SimViewportFocus>('client')
+  /** Sim Explorer: selected row while Client viewport has sim focus (null until user selects). */
+  const [simExplorerSelectedRowClient, setSimExplorerSelectedRowClient] = useState<string | null>(null)
+  /** Sim Explorer: selected row while Server viewport has sim focus (null until user selects). */
+  const [simExplorerSelectedRowServer, setSimExplorerSelectedRowServer] = useState<string | null>(null)
+  /** Play mode: inset ring on focused client/server viewport — brand hue (Testing UI: Has semantic stroke). */
+  const [playModeHasStroke, setPlayModeHasStroke] = useState(true)
+  /** Play mode: sim viewport focus ring matches edit Drone Racer / asset isolation white inset (Testing UI). */
+  const [playModeHasFocusStroke, setPlayModeHasFocusStroke] = useState(true)
+  /** Play mode: Explorer header pill for Client vs Server focus (Figma 3856:139983). */
+  const [explorerFocusBadge, setExplorerFocusBadge] = useState(true)
+  /** Explorer badge pill: show Client/Server (or Drone) colored dot when focus badge is on. */
+  const [explorerBadgeShowIndicator, setExplorerBadgeShowIndicator] = useState(true)
+  /** Play mode: subtle full-frame tint by focused viewport (Interaction settings). */
+  const [playModeFullTint, setPlayModeFullTint] = useState(false)
+  /** Play mode: subtle tint on the focused client/server sim viewport (Interaction settings). */
+  const [playModeSelectionTint, setPlayModeSelectionTint] = useState(false)
+  /** Play mode: Client and Server as two columns (Testing UI: Split view). */
+  const [playModeSplitView, setPlayModeSplitView] = useState(false)
+  /** Interaction settings: asset isolation preview in viewport. */
+  const [showAssetInIsolation, setShowAssetInIsolation] = useState(true)
+  /** Interaction settings: Edit datamodel UI — show stroke. */
+  const [editDatamodelShowStroke, setEditDatamodelShowStroke] = useState(false)
+  /** Edit mode: focused document column (main vs asset isolation column tabs). */
+  const [editWorkspaceDocumentFocus, setEditWorkspaceDocumentFocus] = useState<EditDocumentFocus>(
+    'main',
+  )
+
+  /** Main document strip: Drone Racer 3D vs Script tabs (shared by edit + test workspace). */
+  const [mainDocumentEditorTab, setMainDocumentEditorTab] = useState<MainDocumentEditorTab>(
+    'droneRacer',
+  )
+  const mainDocumentScriptOpen =
+    mainDocumentEditorTab === 'scriptA' || mainDocumentEditorTab === 'scriptB'
+
+  /** While Script is open in test, Explorer mirrors this snapshot (updated only when not on Script). */
+  const explorerContextForScriptRef = useRef<ExplorerRetentionKind>('sim-client')
+
+  const explorerWhileScriptFocus: ExplorerRetentionKind | null =
+    clientSimActive && mainDocumentScriptOpen ? explorerContextForScriptRef.current : null
+
+  const explorerHeaderSimFocus: SimViewportFocus =
+    explorerWhileScriptFocus === 'sim-server'
+      ? 'server'
+      : explorerWhileScriptFocus === 'sim-client'
+        ? 'client'
+        : simViewportFocus
+
+  /** Right rail: Explorer / Properties / Interaction panel — title alignment (Interaction settings). */
+  const [panelTitlesLeftAligned, setPanelTitlesLeftAligned] = useState(true)
+
+  /** Footer: questions checklist overlay. */
+  const [footerQuestionsOpen, setFooterQuestionsOpen] = useState(false)
+
+  const frameRef = useRef<HTMLDivElement | null>(null)
+  const focusHoleRef = useRef<HTMLDivElement | null>(null)
+  /** Remember Drone main vs isolation column when leaving Edit for Play. */
+  const editDocumentFocusBeforePlayRef = useRef<EditDocumentFocus>('main')
+  const prevClientSimActiveRef = useRef(clientSimActive)
+  const [tintClipPath, setTintClipPath] = useState<string | undefined>()
+
+  const tintActive = clientSimActive && playModeFullTint
+
+  const simExplorerSelectedRowId =
+    clientSimActive && simViewportFocus === 'client'
+      ? simExplorerSelectedRowClient
+      : clientSimActive && simViewportFocus === 'server'
+        ? simExplorerSelectedRowServer
+        : null
+
+  const onSimExplorerSelectRow = useCallback((rowId: string) => {
+    if (simViewportFocus === 'client') setSimExplorerSelectedRowClient(rowId)
+    else setSimExplorerSelectedRowServer(rowId)
+  }, [simViewportFocus])
+
+  const panelChromeTitleAlign = panelTitlesLeftAligned ? ('left' as const) : ('center' as const)
+
+  const updateTintHole = useCallback(() => {
+    if (!clientSimActive || !playModeFullTint) {
+      setTintClipPath(undefined)
+      return
+    }
+    const frame = frameRef.current
+    const hole = focusHoleRef.current
+    if (!frame || !hole) {
+      setTintClipPath(undefined)
+      return
+    }
+    const path = simTintClipPath(frame.getBoundingClientRect(), hole.getBoundingClientRect())
+    setTintClipPath(path)
+  }, [clientSimActive, playModeFullTint])
+
+  useLayoutEffect(() => {
+    updateTintHole()
+  }, [updateTintHole, simViewportFocus])
+
+  useEffect(() => {
+    if (!clientSimActive || !playModeFullTint) return
+    const frame = frameRef.current
+    if (!frame) return
+    const ro = new ResizeObserver(() => {
+      updateTintHole()
+    })
+    ro.observe(frame)
+    const hole = focusHoleRef.current
+    if (hole) ro.observe(hole)
+    window.addEventListener('resize', updateTintHole)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', updateTintHole)
+    }
+  }, [clientSimActive, playModeFullTint, simViewportFocus, updateTintHole])
+
+  useEffect(() => {
+    const wasSim = prevClientSimActiveRef.current
+    if (!wasSim && clientSimActive) {
+      editDocumentFocusBeforePlayRef.current = editWorkspaceDocumentFocus
+    }
+    if (wasSim && !clientSimActive) {
+      const saved = editDocumentFocusBeforePlayRef.current
+      setEditWorkspaceDocumentFocus(!showAssetInIsolation && saved !== 'main' ? 'main' : saved)
+    }
+    prevClientSimActiveRef.current = clientSimActive
+    // editWorkspaceDocumentFocus intentionally omitted: only snapshot on sim toggle, not each focus tick.
+  }, [clientSimActive, showAssetInIsolation])
+
+  useEffect(() => {
+    if (clientSimActive) {
+      setSimViewportFocus('client')
+      setSimExplorerSelectedRowClient(null)
+      setSimExplorerSelectedRowServer(null)
+      setEditWorkspaceDocumentFocus('main')
+      setMainDocumentEditorTab('droneRacer')
+    }
+  }, [clientSimActive])
+
+  useEffect(() => {
+    if (!showAssetInIsolation) setEditWorkspaceDocumentFocus('main')
+  }, [showAssetInIsolation])
+
+  useEffect(() => {
+    if (!clientSimActive) {
+      explorerContextForScriptRef.current = 'edit-drone'
+      return
+    }
+    if (mainDocumentEditorTab === 'droneRacer') {
+      if (showAssetInIsolation && editWorkspaceDocumentFocus !== 'main') {
+        explorerContextForScriptRef.current = 'drone-isolation'
+      } else {
+        explorerContextForScriptRef.current =
+          simViewportFocus === 'server' ? 'sim-server' : 'sim-client'
+      }
+    }
+  }, [
+    clientSimActive,
+    mainDocumentEditorTab,
+    simViewportFocus,
+    showAssetInIsolation,
+    editWorkspaceDocumentFocus,
+  ])
+
+  useEffect(() => {
+    if (!footerQuestionsOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFooterQuestionsOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [footerQuestionsOpen])
+
+  return (
+    <div
+      ref={frameRef}
+      className={styles.frame}
+      data-node-id="3841:114990"
+      data-name="Studio - Windows OS"
+    >
+      <header className={styles.appBar} data-node-id="3842:134467">
+        <div className={styles.appBarLeft}>
+          <button type="button" className={styles.logoBtn} aria-label="App menu">
+            <img src={publicAssetUrl('assets/appbar-logo.svg')} alt="" />
+          </button>
+          <nav className={styles.menu} aria-label="Application menu">
+            {MENUS.map((label) => (
+              <span key={label} className={styles.menuItem}>
+                {label}
+              </span>
+            ))}
+          </nav>
+        </div>
+        <h1 className={styles.title}>{bunnyAssetWindow ? 'Bunny' : 'Drone Racer'}</h1>
+        <div className={styles.appBarRight}>
+          <button type="button" className={styles.winIcon} aria-label="Minimize">
+            <img src={publicAssetUrl('assets/win-min.svg')} alt="" />
+          </button>
+          <button type="button" className={styles.winIcon} aria-label="Maximize">
+            <img src={publicAssetUrl('assets/win-max.svg')} alt="" />
+          </button>
+          <button
+            type="button"
+            className={styles.winIcon}
+            aria-label="Close"
+            onClick={(e) => {
+              e.stopPropagation()
+              onCloseFrame?.()
+            }}
+          >
+            <img src={publicAssetUrl('assets/win-close.svg')} alt="" />
+          </button>
+        </div>
+      </header>
+
+      <LegacyRibbon
+        simulating={clientSimActive}
+        testPlaybackDisabled={bunnyAssetWindow}
+        onPlay={() => setClientSimActive(true)}
+        onStop={() => setClientSimActive(false)}
+      />
+
+      <div className={styles.workspaceGutter} aria-hidden />
+
+      <div className={styles.panels} data-node-id="3841:115136">
+        {clientSimActive ? (
+          <section className={styles.center} data-node-id="3841:115137">
+            <div className={styles.centerWorkspace}>
+              {bunnyAssetWindow ? (
+                <BunnyWorkspace
+                  clientSim
+                  simViewportFocus={simViewportFocus}
+                  onSimViewportFocusChange={setSimViewportFocus}
+                  mainDocumentEditorTab={mainDocumentEditorTab}
+                  onMainDocumentEditorTabChange={setMainDocumentEditorTab}
+                  playModeHasStroke={playModeHasStroke}
+                  playModeHasFocusStroke={playModeHasFocusStroke}
+                  playModeSelectionTint={playModeSelectionTint}
+                  playModeFullTint={playModeFullTint}
+                  tintActive={tintActive}
+                  focusHoleRef={focusHoleRef}
+                  playModeSplitView={playModeSplitView}
+                  editDatamodelShowStroke={editDatamodelShowStroke}
+                  editDocumentFocus={editWorkspaceDocumentFocus}
+                  onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
+                />
+              ) : (
+                <DroneRacerWorkspace
+                  clientSim
+                  showAssetInIsolation={showAssetInIsolation}
+                  simViewportFocus={simViewportFocus}
+                  onSimViewportFocusChange={setSimViewportFocus}
+                  mainDocumentEditorTab={mainDocumentEditorTab}
+                  onMainDocumentEditorTabChange={setMainDocumentEditorTab}
+                  playModeHasStroke={playModeHasStroke}
+                  playModeHasFocusStroke={playModeHasFocusStroke}
+                  playModeSelectionTint={playModeSelectionTint}
+                  playModeFullTint={playModeFullTint}
+                  tintActive={tintActive}
+                  focusHoleRef={focusHoleRef}
+                  playModeSplitView={playModeSplitView}
+                  editDatamodelShowStroke={editDatamodelShowStroke}
+                  editDocumentFocus={editWorkspaceDocumentFocus}
+                  onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
+                />
+              )}
+            </div>
+            {!bunnyAssetWindow ? (
+              <>
+                <div className={styles.centerDockGutter} aria-hidden />
+                <AssetManagerPanel />
+              </>
+            ) : null}
+          </section>
+        ) : (
+          <section className={styles.center} data-node-id="3841:115137">
+            <div className={styles.centerWorkspace}>
+              {bunnyAssetWindow ? (
+                <BunnyWorkspace
+                  editDatamodelShowStroke={editDatamodelShowStroke}
+                  editDocumentFocus={editWorkspaceDocumentFocus}
+                  onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
+                  mainDocumentEditorTab={mainDocumentEditorTab}
+                  onMainDocumentEditorTabChange={setMainDocumentEditorTab}
+                />
+              ) : (
+                <DroneRacerWorkspace
+                  showAssetInIsolation={showAssetInIsolation}
+                  editDatamodelShowStroke={editDatamodelShowStroke}
+                  editDocumentFocus={editWorkspaceDocumentFocus}
+                  onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
+                  mainDocumentEditorTab={mainDocumentEditorTab}
+                  onMainDocumentEditorTabChange={setMainDocumentEditorTab}
+                />
+              )}
+            </div>
+            {!bunnyAssetWindow ? (
+              <>
+                <div className={styles.centerDockGutter} aria-hidden />
+                <AssetManagerPanel />
+              </>
+            ) : null}
+          </section>
+        )}
+
+        <aside className={styles.right} data-node-id="3841:115190">
+          <div className={styles.panel} data-node-id="3841:115191">
+            <PanelChrome
+              title={
+                clientSimActive && explorerFocusBadge
+                  ? 'Explorer'
+                  : clientSimActive &&
+                      !(
+                        mainDocumentScriptOpen &&
+                        (explorerWhileScriptFocus === 'edit-drone' ||
+                          explorerWhileScriptFocus === 'drone-isolation')
+                      )
+                    ? explorerHeaderSimFocus === 'server'
+                      ? 'Explorer (Server)'
+                      : 'Explorer (Client)'
+                    : 'Explorer'
+              }
+              assetVariant="explorer"
+              titleAlign={panelChromeTitleAlign}
+              explorerFocusBadgeTarget={
+                clientSimActive &&
+                explorerFocusBadge &&
+                !(showAssetInIsolation && editWorkspaceDocumentFocus !== 'main') &&
+                !(
+                  mainDocumentScriptOpen && explorerWhileScriptFocus === 'drone-isolation'
+                )
+                  ? explorerHeaderSimFocus
+                  : null
+              }
+              explorerDocumentBadgeLabel={
+                showAssetInIsolation && editWorkspaceDocumentFocus !== 'main'
+                  ? DRONE_WORKSPACE_TAB_LABEL
+                  : mainDocumentScriptOpen &&
+                      explorerWhileScriptFocus === 'drone-isolation'
+                    ? DRONE_WORKSPACE_TAB_LABEL
+                    : null
+              }
+              explorerBadgeShowDot={
+                !explorerFocusBadge || explorerBadgeShowIndicator
+              }
+            />
+            <div className={styles.panelBody} data-node-id="3841:115193">
+              <ExplorerTree
+                clientSim={clientSimActive}
+                bunnyFlatExplorer={bunnyAssetWindow}
+                explorerWhileScriptFocus={explorerWhileScriptFocus}
+                droneDocumentFocused={
+                  showAssetInIsolation && editWorkspaceDocumentFocus !== 'main'
+                }
+                simViewportFocus={simViewportFocus}
+                simExplorerTintColorsActive={
+                  clientSimActive && playModeSelectionTint
+                }
+                simSelectedRowId={simExplorerSelectedRowId}
+                onSimExplorerSelectRow={onSimExplorerSelectRow}
+              />
+            </div>
+          </div>
+          <div className={styles.panel} data-node-id="3841:115196">
+            <PanelChrome title="Properties" assetVariant="properties" titleAlign={panelChromeTitleAlign} />
+            <div className={styles.panelBody} data-node-id="3841:115198">
+              <PropertiesPanel empty={clientSimActive} />
+            </div>
+          </div>
+          <div className={`${styles.panel} ${styles.panelInteraction}`}>
+            <PanelChrome
+              title="Theme settings"
+              assetVariant="properties"
+              titleAlign={panelChromeTitleAlign}
+            />
+            <div className={styles.panelBodyInteraction}>
+              <InteractionSettingsPanel
+                hasStroke={playModeHasStroke}
+                onHasStrokeChange={setPlayModeHasStroke}
+                hasFocusStroke={playModeHasFocusStroke}
+                onHasFocusStrokeChange={setPlayModeHasFocusStroke}
+                explorerFocusBadge={explorerFocusBadge}
+                onExplorerFocusBadgeChange={setExplorerFocusBadge}
+                explorerBadgeShowIndicator={explorerBadgeShowIndicator}
+                onExplorerBadgeShowIndicatorChange={setExplorerBadgeShowIndicator}
+                fullTint={playModeFullTint}
+                onFullTintChange={setPlayModeFullTint}
+                selectionTint={playModeSelectionTint}
+                onSelectionTintChange={setPlayModeSelectionTint}
+                splitView={playModeSplitView}
+                onSplitViewChange={setPlayModeSplitView}
+                showAssetInIsolation={showAssetInIsolation}
+                onShowAssetInIsolationChange={setShowAssetInIsolation}
+                editDatamodelShowStroke={editDatamodelShowStroke}
+                onEditDatamodelShowStrokeChange={setEditDatamodelShowStroke}
+                panelTitlesLeftAligned={panelTitlesLeftAligned}
+                onPanelTitlesLeftAlignedChange={setPanelTitlesLeftAligned}
+                bunnyAssetWindow={bunnyAssetWindow}
+                onOpenAssetWindow={bunnyAssetWindow ? undefined : onOpenAssetWindow}
+              />
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div className={styles.workspaceGutter} aria-hidden />
+
+      <div className={styles.commandBar} data-node-id="3841:115202">
+        <div className={styles.cmdLeft}>
+          <div className={styles.cmdDiamond} aria-hidden>
+            <img src={publicAssetUrl('assets/cmd-diamond.svg')} alt="" />
+          </div>
+          <span className={styles.cmdPlaceholder}>
+            Type a command or use Cmd+↑↓ for history
+          </span>
+        </div>
+        <div className={styles.cmdRight}>
+          <div className={styles.cmdToolbar}>
+            <button type="button" className={styles.cmdTbBtn} aria-label="Bookmarks">
+              <img src={publicAssetUrl('assets/cmd-bookmark.svg')} alt="" />
+            </button>
+            <button
+              type="button"
+              className={`${styles.cmdTbBtn} ${styles.cmdTbBtnActive}`}
+              aria-label="History"
+            >
+              <img src={publicAssetUrl('assets/cmd-history.svg')} alt="" />
+            </button>
+            <button type="button" className={styles.cmdRun} disabled>
+              Run ⌘↵
+            </button>
+            <button type="button" className={styles.cmdSelect}>
+              Local
+              <span className={styles.cmdSelectChevron}>▾</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <footer className={styles.footer} data-node-id="3841:115204">
+        <div className={styles.footerActions}>
+          <button
+            type="button"
+            className={`${styles.footerBtn} ${footerQuestionsOpen ? styles.footerBtnActive : ''}`}
+            aria-label="Questions"
+            aria-expanded={footerQuestionsOpen}
+            aria-controls="footer-questions-overlay"
+            onClick={() => setFooterQuestionsOpen((o) => !o)}
+          >
+            <CircleHelp size={16} strokeWidth={1.75} className={styles.footerBtnIcon} aria-hidden />
+          </button>
+          <button type="button" className={styles.footerBtn} aria-label="Recent">
+            <img src={publicAssetUrl('assets/footer-recent.svg')} alt="" />
+          </button>
+        </div>
+      </footer>
+      {footerQuestionsOpen ? (
+        <>
+          <div
+            className={styles.questionsOverlayBackdrop}
+            aria-hidden
+            onClick={() => setFooterQuestionsOpen(false)}
+          />
+          <div
+            id="footer-questions-overlay"
+            className={styles.questionsOverlayPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="footer-questions-title"
+          >
+            <div className={styles.questionsOverlayHeader}>
+              <h2 id="footer-questions-title" className={styles.questionsOverlayTitle}>
+                Questions
+              </h2>
+              <button
+                type="button"
+                className={styles.questionsOverlayClose}
+                aria-label="Close"
+                onClick={() => setFooterQuestionsOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            {FOOTER_QUESTIONS.length > 0 ? (
+              <ul className={styles.questionsOverlayList}>
+                {FOOTER_QUESTIONS.map((q, i) => (
+                  <li key={i} className={styles.questionsOverlayItem}>
+                    {q}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={styles.questionsOverlayEmpty}>
+                Add entries to <code className={styles.questionsOverlayCode}>FOOTER_QUESTIONS</code> in{' '}
+                <code className={styles.questionsOverlayCode}>StudioWindowsOS.tsx</code>.
+              </p>
+            )}
+          </div>
+        </>
+      ) : null}
+      {tintActive ? (
+        <div
+          className={styles.simFullTintOverlay}
+          style={{
+            background:
+              simViewportFocus === 'client'
+                ? 'rgba(37, 99, 235, 0.05)'
+                : 'rgba(22, 163, 74, 0.05)',
+            clipPath: tintClipPath ?? 'none',
+          }}
+          aria-hidden
+        />
+      ) : null}
+    </div>
+  )
+}
