@@ -1,0 +1,227 @@
+/* Output panel — Figma 4032:63343 */
+.root {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100, #191a1f);
+  border: 1px solid var(--surface-100, #191a1f);
+  overflow: hidden;
+}
+
+.header {
+  flex: 0 0 24px;
+  position: relative;
+  background: var(--shift-100, rgba(208, 217, 251, 0.04));
+}
+
+.title {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--panel-chrome-title, #bcbec8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titleAlignLeft {
+  left: 8px;
+  max-width: calc(100% - 52px);
+  text-align: left;
+}
+
+.titleAlignCenter {
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 279px;
+  max-width: calc(100% - 52px);
+  text-align: center;
+}
+
+.headerActions {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.headerBtn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--content-emphasis, #f7f7f8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  opacity: 0.85;
+}
+
+.headerBtn img,
+.headerBtn svg {
+  max-width: 16px;
+  max-height: 16px;
+  display: block;
+}
+
+.headerPopoutIcon {
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.toolbar {
+  flex: 0 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.toolbarFilters {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.dropdown {
+  flex: 0 0 160px;
+  min-width: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  color: var(--content-default, #d5d7dd);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: default;
+}
+
+.dropdownLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbarTools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchField {
+  width: 200px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  color: var(--content-muted, #bcbec8);
+}
+
+.searchPlaceholder {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--content-default, #d5d7dd);
+}
+
+.iconBtn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--content-emphasis, #f7f7f8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  opacity: 0.9;
+}
+
+.log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.logRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.logRowError {
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.logRowError:hover {
+  background: var(--shift-100, rgba(208, 217, 251, 0.04));
+}
+
+.logRowError:focus-visible {
+  outline: 1px solid var(--content-muted, #bcbec8);
+  outline-offset: -1px;
+}
+
+.logIndicator {
+  flex: 0 0 4px;
+  width: 4px;
+  height: 13px;
+  margin-top: 2px;
+  opacity: 0;
+}
+
+.logLine {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: 'Builder Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--content-default, #d5d7dd);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.logLineError {
+  color: #df281f;
+}
+
+.logTimestamp {
+  color: inherit;
+}

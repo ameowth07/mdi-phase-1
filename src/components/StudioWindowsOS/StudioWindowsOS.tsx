@@ -5,6 +5,12 @@ import ClientSim from './ClientSim'
 import LegacyRibbon from './LegacyRibbon'
 import ServerSim from './ServerSim'
 import AssetManagerPanel from './AssetManagerPanel'
+import OutputPanel, { type OutputLogEntry } from './OutputPanel'
+import {
+  CAMERA_ZOOM_SCRIPT_DOCUMENT,
+  DEFAULT_CLIENT_SCRIPT_DOCUMENT,
+  type ClientScriptDocument,
+} from './clientScripts'
 import InteractionSettingsPanel from './InteractionSettingsPanel'
 import PropertiesPanel from './PropertiesPanel'
 import { publicAssetUrl } from '../../publicAssetUrl'
@@ -39,11 +45,27 @@ const DRONE_ISOLATION_EXPLORER_ROW_ID = 'drone-isolation-root' as const
 
 const HOVER_SCRIPT_TAB_LABEL = 'HoverScript' as const
 
+const INITIAL_OUTPUT_LOG: OutputLogEntry[] = [
+  {
+    id: 'seed-configured',
+    timestamp: '23:31:31.708',
+    message: 'Plugin has already been configured',
+    variant: 'default',
+  },
+]
+
+function formatOutputTimestamp(date = new Date()): string {
+  const hours = date.getHours()
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  const millis = String(date.getMilliseconds()).padStart(3, '0')
+  return `${hours}:${minutes}:${seconds}.${millis}`
+}
+
 /** Tab hover — file path line (Figma Tooltip 3975:51893 / 3975:51736). */
 const TAB_PATH_DRONE_RACER_DOCUMENT = 'Drone Racer/Drone Racer'
 const TAB_PATH_BUNNY_DOCUMENT = 'Bunny/Bunny'
 const TAB_PATH_DRONE_RACER_SCRIPT = 'Drone Racer/Script'
-const TAB_PATH_DRONE_RACER_CLIENT_SCRIPT = 'Drone Racer (Client)/Script'
 const TAB_PATH_DRONE_RACER_SERVER_SCRIPT = 'Drone Racer (Server)/Script'
 const TAB_PATH_DRONE_RACER_CLIENT = 'Drone Racer (Client)'
 const TAB_PATH_DRONE_RACER_SERVER = 'Drone Racer (Server)'
@@ -52,7 +74,6 @@ const TAB_PATH_DRONE_HOVERSCRIPT = 'Drone/HoverScript'
 
 /** Main Drone Racer document — first “Script” tab body. */
 const DRONE_RACER_MAIN_SCRIPT_PLACEHOLDER = 'this is a Drone Racer script' as const
-const CLIENT_SCRIPT_PLACEHOLDER = 'this is a Client script' as const
 const SERVER_SCRIPT_PLACEHOLDER = 'this is a Server script' as const
 
 /** Asset isolation preview — selected art includes the white ring around the drone. */
@@ -808,6 +829,8 @@ export type DroneRacerWorkspaceProps = {
   focusHoleRef?: Ref<HTMLDivElement | null>
   /** Test mode: Client and Server side by side (Testing UI: Split view). */
   playModeSplitView?: boolean
+  /** Client Script tab label, path tooltip, and editor body. */
+  clientScriptDocument?: ClientScriptDocument
 }
 
 function DroneRacerWorkspace({
@@ -844,6 +867,7 @@ function DroneRacerWorkspace({
   tintActive,
   focusHoleRef,
   playModeSplitView,
+  clientScriptDocument = DEFAULT_CLIENT_SCRIPT_DOCUMENT,
 }: DroneRacerWorkspaceProps) {
   const [bunnyEditViewportFocused, setBunnyEditViewportFocused] = useState(false)
 
@@ -1102,7 +1126,7 @@ function DroneRacerWorkspace({
     !!clientSim && !!showAssetInIsolation ? <ClientSim /> : droneViewportImage
 
   const scriptPlaceholderForTab = (tab: MainDocumentEditorTab) => {
-    if (tab === 'clientScript') return CLIENT_SCRIPT_PLACEHOLDER
+    if (tab === 'clientScript') return clientScriptDocument.source
     if (tab === 'serverScript') return SERVER_SCRIPT_PLACEHOLDER
     return DRONE_RACER_MAIN_SCRIPT_PLACEHOLDER
   }
@@ -1283,7 +1307,7 @@ function DroneRacerWorkspace({
       ) : null}
       {extraTabs?.clientScript ? (
         <TabWithPathTooltip
-          path={TAB_PATH_DRONE_RACER_CLIENT_SCRIPT}
+          path={clientScriptDocument.tabPath}
           role="tab"
           tabIndex={0}
           aria-selected={activeTab === 'clientScript'}
@@ -1302,7 +1326,7 @@ function DroneRacerWorkspace({
           }}
         >
           <TabClientSimDocumentIcon />
-          <span>Script</span>
+          <span>{clientScriptDocument.tabLabel}</span>
           <TabCloseButton onClose={() => onCloseScriptTab('clientScript')} />
         </TabWithPathTooltip>
       ) : null}
@@ -1942,6 +1966,21 @@ export default function StudioWindowsOS({
   const [hoverScriptTabOpen, setHoverScriptTabOpen] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.hoverScriptTabOpen,
   )
+  const [clientScriptDocument, setClientScriptDocument] = useState<ClientScriptDocument>(
+    DEFAULT_CLIENT_SCRIPT_DOCUMENT,
+  )
+
+  const openCameraZoomScript = useCallback(() => {
+    setClientScriptDocument(CAMERA_ZOOM_SCRIPT_DOCUMENT)
+    setClientScriptTabOpen(true)
+    if (clientSimActive && playModeSplitView) {
+      setSplitClientDocumentTab('clientScript')
+      setSimViewportFocus('client')
+    } else {
+      setMainDocumentEditorTab('clientScript')
+    }
+    setEditWorkspaceDocumentFocus('main')
+  }, [clientSimActive, playModeSplitView])
 
   const openClientScriptTab = useCallback(() => {
     setClientScriptTabOpen(true)
@@ -1953,6 +1992,19 @@ export default function StudioWindowsOS({
     }
     setEditWorkspaceDocumentFocus('main')
   }, [clientSimActive, playModeSplitView])
+
+  const handleThrowError = useCallback(() => {
+    setOutputPanelOpen(true)
+    setOutputLogEntries((prev) => [
+      ...prev,
+      {
+        id: `error-${Date.now()}`,
+        timestamp: formatOutputTimestamp(),
+        message: 'Error: Exception... - Line 4: CameraZoomScript',
+        variant: 'error',
+      },
+    ])
+  }, [])
 
   const openServerScriptTab = useCallback(() => {
     setServerScriptTabOpen(true)
@@ -2013,6 +2065,8 @@ export default function StudioWindowsOS({
 
   /** Footer: questions checklist overlay. */
   const [footerQuestionsOpen, setFooterQuestionsOpen] = useState(false)
+  const [outputPanelOpen, setOutputPanelOpen] = useState(false)
+  const [outputLogEntries, setOutputLogEntries] = useState<OutputLogEntry[]>(INITIAL_OUTPUT_LOG)
 
   const frameRef = useRef<HTMLDivElement | null>(null)
   const focusHoleRef = useRef<HTMLDivElement | null>(null)
@@ -2067,6 +2121,9 @@ export default function StudioWindowsOS({
     setServerScriptTabOpen(d.serverScriptTabOpen)
     setIsolationTabOpen(d.isolationTabOpen)
     setHoverScriptTabOpen(d.hoverScriptTabOpen)
+    setClientScriptDocument(DEFAULT_CLIENT_SCRIPT_DOCUMENT)
+    setOutputPanelOpen(false)
+    setOutputLogEntries(INITIAL_OUTPUT_LOG)
     setSimExplorerSelectedRowClient(null)
     setSimExplorerSelectedRowServer(null)
     editDocumentBeforePlayRef.current = {
@@ -2101,6 +2158,26 @@ export default function StudioWindowsOS({
   )
 
   const panelChromeTitleAlign = panelTitlesLeftAligned ? ('left' as const) : ('center' as const)
+
+  const centerBottomDock = !bunnyAssetWindow ? (
+    <>
+      <div className={styles.centerDockGutter} aria-hidden />
+      <div className={styles.centerDock}>
+        {outputPanelOpen ? (
+          <>
+            <OutputPanel
+              entries={outputLogEntries}
+              onClose={() => setOutputPanelOpen(false)}
+              titleAlign={panelChromeTitleAlign}
+              onErrorRowClick={() => openCameraZoomScript()}
+            />
+            <div className={styles.centerDockPanelGutter} aria-hidden />
+          </>
+        ) : null}
+        <AssetManagerPanel fillDock={!outputPanelOpen} titleAlign={panelChromeTitleAlign} />
+      </div>
+    </>
+  ) : null
 
   const updateTintHole = useCallback(() => {
     if (!clientSimActive || !playModeFullTint) {
@@ -2296,15 +2373,11 @@ export default function StudioWindowsOS({
                   editDatamodelShowStroke={editDatamodelShowStroke}
                   editDocumentFocus={editWorkspaceDocumentFocus}
                   onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
+                  clientScriptDocument={clientScriptDocument}
                 />
               )}
             </div>
-            {!bunnyAssetWindow ? (
-              <>
-                <div className={styles.centerDockGutter} aria-hidden />
-                <AssetManagerPanel />
-              </>
-            ) : null}
+            {centerBottomDock}
           </section>
         ) : (
           <section className={styles.center} data-node-id="3841:115137">
@@ -2337,15 +2410,11 @@ export default function StudioWindowsOS({
                   onServerScriptTabOpenChange={setServerScriptTabOpen}
                   onIsolationTabOpenChange={setIsolationTabOpen}
                   onHoverScriptTabOpenChange={setHoverScriptTabOpen}
+                  clientScriptDocument={clientScriptDocument}
                 />
               )}
             </div>
-            {!bunnyAssetWindow ? (
-              <>
-                <div className={styles.centerDockGutter} aria-hidden />
-                <AssetManagerPanel />
-              </>
-            ) : null}
+            {centerBottomDock}
           </section>
         )}
 
@@ -2440,6 +2509,7 @@ export default function StudioWindowsOS({
                 onOpenAssetWindow={bunnyAssetWindow ? undefined : onOpenAssetWindow}
                 onOpenClientScript={bunnyAssetWindow ? undefined : openClientScriptTab}
                 onOpenServerScript={bunnyAssetWindow ? undefined : openServerScriptTab}
+                onThrowError={bunnyAssetWindow ? undefined : handleThrowError}
                 testingMode={clientSimActive}
                 onReset={bunnyAssetWindow ? undefined : handlePrototypeReset}
               />

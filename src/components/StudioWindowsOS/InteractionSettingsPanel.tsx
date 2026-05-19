@@ -54,6 +54,8 @@ export type InteractionSettingsPanelProps = {
   onOpenClientScript?: () => void
   /** Opens a Server Script document tab in the main workspace. */
   onOpenServerScript?: () => void
+  /** Test mode — opens Output and appends a sample error line. */
+  onThrowError?: () => void
   /** Play / Testing mode — script tab actions are only enabled while simulating. */
   testingMode?: boolean
   /** Bunny asset window — hide isolation toggle (layout is fixed). */
@@ -127,6 +129,7 @@ export default function InteractionSettingsPanel({
   onOpenAssetWindow,
   onOpenClientScript,
   onOpenServerScript,
+  onThrowError,
   testingMode = false,
   bunnyAssetWindow,
   onReset,
@@ -570,7 +573,7 @@ export default function InteractionSettingsPanel({
               </div>
             </section>
 
-            {onOpenClientScript || onOpenServerScript ? (
+            {onOpenClientScript || onOpenServerScript || onThrowError ? (
               <div className={css.scriptTabActions}>
                 {onOpenClientScript ? (
                   <button
@@ -592,6 +595,17 @@ export default function InteractionSettingsPanel({
                     onClick={onOpenServerScript}
                   >
                     Open Server Script
+                  </button>
+                ) : null}
+                {onThrowError ? (
+                  <button
+                    type="button"
+                    className={css.openAssetBtn}
+                    disabled={!testingMode}
+                    aria-disabled={!testingMode}
+                    onClick={onThrowError}
+                  >
+                    Throw Error
                   </button>
                 ) : null}
               </div>

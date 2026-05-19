@@ -164,7 +164,16 @@ function AssetThumb({ row }: { row: AssetRow }) {
   )
 }
 
-export default function AssetManagerPanel() {
+export type AssetManagerPanelProps = {
+  /** When true, panel grows to fill the bottom dock row (no Output beside it). */
+  fillDock?: boolean
+  titleAlign?: 'left' | 'center'
+}
+
+export default function AssetManagerPanel({
+  fillDock = false,
+  titleAlign = 'center',
+}: AssetManagerPanelProps) {
   const [selectedSidebarId, setSelectedSidebarId] = useState('folder-selected')
   const [hoveredSidebarId, setHoveredSidebarId] = useState<string | null>(null)
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>('barrier')
@@ -174,13 +183,19 @@ export default function AssetManagerPanel() {
 
   return (
     <section
-      className={css.root}
+      className={`${css.root} ${fillDock ? css.rootFillDock : ''}`}
       data-name="[Legacy] Panel"
       data-node-id="3994:57525"
       aria-label="Asset Manager"
     >
       <header className={css.header} data-node-id="I3994:57525;3:141494">
-        <p className={css.title}>Asset Manager</p>
+        <p
+          className={`${css.title} ${
+            titleAlign === 'left' ? css.titleAlignLeft : css.titleAlignCenter
+          }`}
+        >
+          Asset Manager
+        </p>
         <div className={css.headerActions}>
           <button type="button" className={css.headerBtn} aria-label="Pop out panel">
             <SquareArrowOutUpRight
