@@ -64,10 +64,15 @@
   opacity: 0.85;
 }
 
-.headerBtn img {
-  width: 16px;
-  height: 16px;
+.headerBtn img,
+.headerBtn svg {
+  max-width: 16px;
+  max-height: 16px;
   display: block;
+}
+
+.headerPopoutIcon {
+  flex-shrink: 0;
 }
 
 .body {

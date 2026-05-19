@@ -43,6 +43,13 @@
     calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
     0.08
   );
+  /** #D0D9FB @ 4% — active / focused document tabs */
+  --shift-100: hsla(
+    calc(227 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.04
+  );
   --shift-200: hsla(
     calc(227 + var(--delta-hue)),
     calc(84% * var(--sat-multiplier)),
@@ -321,7 +328,7 @@
 }
 
 .tabActive {
-  background: var(--surface-100);
+  background: var(--shift-100);
   color: var(--content-default);
 }
 

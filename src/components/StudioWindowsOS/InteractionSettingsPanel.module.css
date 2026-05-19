@@ -286,6 +286,11 @@
   background: rgba(208, 217, 251, 0.14);
 }
 
+.resetRow {
+  display: flex;
+  padding-top: 4px;
+}
+
 .scriptTabActions {
   display: flex;
   flex-direction: column;

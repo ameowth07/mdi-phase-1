@@ -8,7 +8,23 @@ import AssetManagerPanel from './AssetManagerPanel'
 import InteractionSettingsPanel from './InteractionSettingsPanel'
 import PropertiesPanel from './PropertiesPanel'
 import { publicAssetUrl } from '../../publicAssetUrl'
+import {
+  closeTabFocusLeft,
+  EDIT_ISOLATION_TAB_ORDER,
+  isMainScriptTabOpen,
+  MAIN_SCRIPT_TAB_ORDER,
+  type EditIsolationTabId,
+  type MainScriptTabId,
+} from './documentTabClose'
+import {
+  PROTOTYPE_SETTINGS_DEFAULTS,
+  type EditDocumentFocus,
+  type MainDocumentEditorTab,
+  type SimViewportFocus,
+} from './prototypeDefaults'
 import styles from './StudioWindowsOS.module.css'
+
+export type { EditDocumentFocus, MainDocumentEditorTab, SimViewportFocus }
 
 const MENUS = ['File', 'Edit', 'View', 'Plugins', 'Test', 'Window', 'Help'] as const
 
@@ -70,16 +86,6 @@ const EXPLORER_SIM_PARENT: Record<string, string | null> = {
   materialservice: null,
 }
 
-type SimViewportFocus = 'client' | 'server'
-
-/** Main Drone Racer strip: 3D vs Script document tabs. */
-type MainDocumentEditorTab =
-  | 'droneRacer'
-  | 'scriptA'
-  | 'scriptB'
-  | 'clientScript'
-  | 'serverScript'
-
 function isScriptDocumentTab(tab: MainDocumentEditorTab): boolean {
   return tab !== 'droneRacer'
 }
@@ -114,9 +120,6 @@ function resolveExplorerSelectionTintFocus(
   return null
 }
 
-/** Edit / test: main sim document vs asset isolation column (Drone preview vs HoverScript). */
-type EditDocumentFocus = 'main' | 'isolation' | 'hoverScript'
-
 /** Clip-path (even-odd) covering `frame` with a rectangular hole for `hole` (percent of frame). */
 function simTintClipPath(frame: DOMRect, hole: DOMRect): string | undefined {
   const fw = frame.width
@@ -147,6 +150,27 @@ function TabDiamond({ className }: { className?: string } = {}) {
         opacity={0.9}
       />
     </svg>
+  )
+}
+
+/** Client sim — Drone Racer tab: same Lucide pattern as Server tab (`Server`), client brand hue. */
+function TabCloseButton({ onClose }: { onClose: (e: React.MouseEvent) => void }) {
+  return (
+    <button
+      type="button"
+      className={styles.tabClose}
+      aria-label="Close tab"
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        onClose(e)
+      }}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClose(e)
+      }}
+    >
+      <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+    </button>
   )
 }
 
@@ -758,8 +782,18 @@ export type DroneRacerWorkspaceProps = {
   splitServerDocumentTab?: MainDocumentEditorTab
   onSplitClientDocumentTabChange?: (tab: MainDocumentEditorTab) => void
   onSplitServerDocumentTabChange?: (tab: MainDocumentEditorTab) => void
+  scriptATabOpen?: boolean
+  scriptBTabOpen?: boolean
   clientScriptTabOpen?: boolean
   serverScriptTabOpen?: boolean
+  isolationTabOpen?: boolean
+  hoverScriptTabOpen?: boolean
+  onScriptATabOpenChange?: (open: boolean) => void
+  onScriptBTabOpenChange?: (open: boolean) => void
+  onClientScriptTabOpenChange?: (open: boolean) => void
+  onServerScriptTabOpenChange?: (open: boolean) => void
+  onIsolationTabOpenChange?: (open: boolean) => void
+  onHoverScriptTabOpenChange?: (open: boolean) => void
   /** Test (play) mode: Client vs Server tab — datamodel stroke and tint follow this. */
   simViewportFocus?: SimViewportFocus
   onSimViewportFocusChange?: (focus: SimViewportFocus) => void
@@ -789,8 +823,18 @@ function DroneRacerWorkspace({
   splitServerDocumentTab,
   onSplitClientDocumentTabChange,
   onSplitServerDocumentTabChange,
+  scriptATabOpen = true,
+  scriptBTabOpen = true,
   clientScriptTabOpen = false,
   serverScriptTabOpen = false,
+  isolationTabOpen = true,
+  hoverScriptTabOpen = true,
+  onScriptATabOpenChange,
+  onScriptBTabOpenChange,
+  onClientScriptTabOpenChange,
+  onServerScriptTabOpenChange,
+  onIsolationTabOpenChange,
+  onHoverScriptTabOpenChange,
   simViewportFocus,
   onSimViewportFocusChange,
   playModeHasStroke,
@@ -828,11 +872,113 @@ function DroneRacerWorkspace({
   const clientDocumentScriptOpen = isScriptDocumentTab(clientDocumentTab)
   const serverDocumentScriptOpen = isScriptDocumentTab(serverDocumentTab)
 
+  const scriptTabsOpen = useMemo(
+    () => ({
+      scriptA: scriptATabOpen,
+      scriptB: scriptBTabOpen,
+      clientScript: clientScriptTabOpen && !!clientSim,
+      serverScript: serverScriptTabOpen && !!clientSim,
+    }),
+    [scriptATabOpen, scriptBTabOpen, clientScriptTabOpen, serverScriptTabOpen, clientSim],
+  )
+
+  const setScriptTabOpen = useCallback(
+    (tab: MainScriptTabId, open: boolean) => {
+      if (tab === 'scriptA') onScriptATabOpenChange?.(open)
+      else if (tab === 'scriptB') onScriptBTabOpenChange?.(open)
+      else if (tab === 'clientScript') onClientScriptTabOpenChange?.(open)
+      else if (tab === 'serverScript') onServerScriptTabOpenChange?.(open)
+    },
+    [
+      onScriptATabOpenChange,
+      onScriptBTabOpenChange,
+      onClientScriptTabOpenChange,
+      onServerScriptTabOpenChange,
+    ],
+  )
+
+  const closeMainDocumentScriptTab = useCallback(
+    (tab: MainScriptTabId) => {
+      closeTabFocusLeft(
+        MAIN_SCRIPT_TAB_ORDER,
+        (t) => isMainScriptTabOpen(t, scriptTabsOpen),
+        tab,
+        mainDocumentEditorTab,
+        onMainDocumentEditorTabChange,
+        (t, open) => setScriptTabOpen(t, open),
+        'droneRacer',
+      )
+    },
+    [mainDocumentEditorTab, onMainDocumentEditorTabChange, scriptTabsOpen, setScriptTabOpen],
+  )
+
+  const closeSplitClientScriptTab = useCallback(
+    (tab: MainScriptTabId) => {
+      if (!onSplitClientDocumentTabChange) return
+      closeTabFocusLeft(
+        MAIN_SCRIPT_TAB_ORDER,
+        (t) => isMainScriptTabOpen(t, scriptTabsOpen),
+        tab,
+        clientDocumentTab,
+        onSplitClientDocumentTabChange,
+        (t, open) => setScriptTabOpen(t, open),
+        'droneRacer',
+      )
+    },
+    [clientDocumentTab, onSplitClientDocumentTabChange, scriptTabsOpen, setScriptTabOpen],
+  )
+
+  const closeSplitServerScriptTab = useCallback(
+    (tab: MainScriptTabId) => {
+      if (!onSplitServerDocumentTabChange) return
+      closeTabFocusLeft(
+        MAIN_SCRIPT_TAB_ORDER,
+        (t) => isMainScriptTabOpen(t, scriptTabsOpen),
+        tab,
+        serverDocumentTab,
+        onSplitServerDocumentTabChange,
+        (t, open) => setScriptTabOpen(t, open),
+        'droneRacer',
+      )
+    },
+    [serverDocumentTab, onSplitServerDocumentTabChange, scriptTabsOpen, setScriptTabOpen],
+  )
+
+  const closeEditIsolationTab = useCallback(
+    (tab: EditIsolationTabId) => {
+      const isOpen = (t: EditIsolationTabId) =>
+        t === 'isolation' ? isolationTabOpen : hoverScriptTabOpen
+      const visibleBefore = EDIT_ISOLATION_TAB_ORDER.filter(isOpen)
+      const idx = visibleBefore.indexOf(tab)
+      if (idx < 0) return
+
+      if (tab === 'isolation') onIsolationTabOpenChange?.(false)
+      else onHoverScriptTabOpenChange?.(false)
+
+      if (editDocumentFocus !== tab) return
+
+      const left = idx > 0 ? visibleBefore[idx - 1]! : ('main' as const)
+      onEditDocumentFocusChange(left)
+    },
+    [
+      editDocumentFocus,
+      onEditDocumentFocusChange,
+      isolationTabOpen,
+      hoverScriptTabOpen,
+      onIsolationTabOpenChange,
+      onHoverScriptTabOpenChange,
+    ],
+  )
+
   /** Client / Server tab chrome: active only when that sim is focused and the 3D doc is selected (not Script). */
   const simClientTabChromeActive = simFocus === 'client' && mainDocumentEditorTab === 'droneRacer'
   const simServerTabChromeActive = simFocus === 'server' && mainDocumentEditorTab === 'droneRacer'
   const splitClientPrimaryTabActive = clientDocumentTab === 'droneRacer'
   const splitServerPrimaryTabActive = serverDocumentTab === 'droneRacer'
+
+  /** Active = this tab is the visible document (only one active tab per strip). */
+  const documentTabClass = (active: boolean) =>
+    `${styles.tab} ${active ? styles.tabActive : styles.tabInactive}`
 
   const selectMainDroneRacerTab = useCallback(() => {
     onMainDocumentEditorTabChange('droneRacer')
@@ -842,7 +988,9 @@ function DroneRacerWorkspace({
   /** Edit: inset ring on main Drone Racer viewport (split = focused column; single = interaction “Has stroke”). */
   const mainEditInsetRing =
     !clientSim &&
-    (showAssetInIsolation ? editDocumentFocus === 'main' : !!editDatamodelShowStroke)
+    (showAssetInIsolation
+      ? editDocumentFocus === 'main'
+      : !!editDatamodelShowStroke || mainDocumentScriptOpen)
 
   /** Asset isolation column — inset ring when a document in that column has focus (Drone preview or HoverScript). */
   const droneIsolationPreviewActive =
@@ -889,10 +1037,29 @@ function DroneRacerWorkspace({
     !focusStrokeOn &&
     simFocus === 'server'
 
+  /**
+   * Play focus inset: on 3D tabs follow Client/Server sim focus; on Script tabs keep the ring on
+   * the column (split) or viewport (combined) showing that script.
+   */
   const clientFocusChromeRing =
-    !!clientSim && simDocumentChromeActive && focusStrokeOn && simFocus === 'client'
+    !!clientSim &&
+    simDocumentChromeActive &&
+    focusStrokeOn &&
+    (usePerColumnDocumentTabs
+      ? splitClientPrimaryTabActive
+        ? simFocus === 'client'
+        : clientDocumentScriptOpen
+      : simFocus === 'client' || mainDocumentScriptOpen)
+
   const serverFocusChromeRing =
-    !!clientSim && simDocumentChromeActive && focusStrokeOn && simFocus === 'server'
+    !!clientSim &&
+    simDocumentChromeActive &&
+    focusStrokeOn &&
+    (usePerColumnDocumentTabs
+      ? splitServerPrimaryTabActive
+        ? simFocus === 'server'
+        : serverDocumentScriptOpen
+      : simFocus === 'server' && !mainDocumentScriptOpen)
 
   const clientElevateForSimTint =
     !!clientSim && simDocumentChromeActive && simTintHoleActive && simFocus === 'client'
@@ -946,7 +1113,11 @@ function DroneRacerWorkspace({
       data-name="DroneRacerMainScript"
       onPointerDown={(e) => {
         e.stopPropagation()
-        if (clientSim) onSimViewportFocusChange?.('client')
+        if (clientSim) {
+          onSimViewportFocusChange?.(
+            activeScriptTab === 'serverScript' ? 'server' : 'client',
+          )
+        }
         onEditDocumentFocusChange('main')
       }}
     >
@@ -1052,9 +1223,17 @@ function DroneRacerWorkspace({
   const renderDocumentSecondaryTabs = (
     activeTab: MainDocumentEditorTab,
     onTabChange: (tab: MainDocumentEditorTab) => void,
+    onCloseScriptTab: (tab: MainScriptTabId) => void,
     extraTabs?: { clientScript?: boolean; serverScript?: boolean },
-  ) => (
+    simColumn: SimViewportFocus = 'client',
+  ) => {
+    const focusSimColumn = () => {
+      if (clientSim) onSimViewportFocusChange?.(simColumn)
+    }
+
+    return (
     <>
+      {scriptATabOpen ? (
       <TabWithPathTooltip
         path={TAB_PATH_DRONE_RACER_SCRIPT}
         role="tab"
@@ -1064,18 +1243,20 @@ function DroneRacerWorkspace({
         onPointerDown={(e) => {
           e.stopPropagation()
           onTabChange('scriptA')
+          focusSimColumn()
         }}
         onClick={(e) => {
           e.stopPropagation()
           onTabChange('scriptA')
+          focusSimColumn()
         }}
       >
         <TabDiamond />
         <span>Script</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
+        <TabCloseButton onClose={() => onCloseScriptTab('scriptA')} />
       </TabWithPathTooltip>
+      ) : null}
+      {scriptBTabOpen ? (
       <TabWithPathTooltip
         path={TAB_PATH_DRONE_RACER_SCRIPT}
         role="tab"
@@ -1087,18 +1268,19 @@ function DroneRacerWorkspace({
         onPointerDown={(e) => {
           e.stopPropagation()
           onTabChange('scriptB')
+          focusSimColumn()
         }}
         onClick={(e) => {
           e.stopPropagation()
           onTabChange('scriptB')
+          focusSimColumn()
         }}
       >
         <TabDiamond />
         <span>Script</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
+        <TabCloseButton onClose={() => onCloseScriptTab('scriptB')} />
       </TabWithPathTooltip>
+      ) : null}
       {extraTabs?.clientScript ? (
         <TabWithPathTooltip
           path={TAB_PATH_DRONE_RACER_CLIENT_SCRIPT}
@@ -1111,17 +1293,17 @@ function DroneRacerWorkspace({
           onPointerDown={(e) => {
             e.stopPropagation()
             onTabChange('clientScript')
+            if (clientSim) onSimViewportFocusChange?.('client')
           }}
           onClick={(e) => {
             e.stopPropagation()
             onTabChange('clientScript')
+            if (clientSim) onSimViewportFocusChange?.('client')
           }}
         >
-          <Monitor size={12} strokeWidth={1.5} className={styles.tabDiamond} aria-hidden />
+          <TabClientSimDocumentIcon />
           <span>Script</span>
-          <button type="button" className={styles.tabClose} aria-label="Close tab">
-            <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-          </button>
+          <TabCloseButton onClose={() => onCloseScriptTab('clientScript')} />
         </TabWithPathTooltip>
       ) : null}
       {extraTabs?.serverScript ? (
@@ -1136,10 +1318,12 @@ function DroneRacerWorkspace({
           onPointerDown={(e) => {
             e.stopPropagation()
             onTabChange('serverScript')
+            if (clientSim) onSimViewportFocusChange?.('server')
           }}
           onClick={(e) => {
             e.stopPropagation()
             onTabChange('serverScript')
+            if (clientSim) onSimViewportFocusChange?.('server')
           }}
         >
           <Server
@@ -1150,17 +1334,16 @@ function DroneRacerWorkspace({
             aria-hidden
           />
           <span>Script</span>
-          <button type="button" className={styles.tabClose} aria-label="Close tab">
-            <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-          </button>
+          <TabCloseButton onClose={() => onCloseScriptTab('serverScript')} />
         </TabWithPathTooltip>
       ) : null}
     </>
-  )
+    )
+  }
 
   const combinedExtraScriptTabs = {
-    clientScript: clientScriptTabOpen,
-    serverScript: serverScriptTabOpen,
+    clientScript: !!clientSim && clientScriptTabOpen,
+    serverScript: !!clientSim && serverScriptTabOpen,
   }
 
   const optionalScriptTabs = bunnyAssetWindow
@@ -1168,6 +1351,7 @@ function DroneRacerWorkspace({
     : renderDocumentSecondaryTabs(
         mainDocumentEditorTab,
         onMainDocumentEditorTabChange,
+        closeMainDocumentScriptTab,
         combinedExtraScriptTabs,
       )
 
@@ -1178,7 +1362,7 @@ function DroneRacerWorkspace({
         role="tab"
         tabIndex={0}
         aria-selected={simClientTabChromeActive}
-        className={`${styles.tab} ${simClientTabChromeActive ? styles.tabActive : styles.tabInactive}`}
+        className={documentTabClass(simClientTabChromeActive)}
         onPointerDown={(e) => {
           e.stopPropagation()
           onMainDocumentEditorTabChange('droneRacer')
@@ -1203,7 +1387,7 @@ function DroneRacerWorkspace({
         role="tab"
         tabIndex={0}
         aria-selected={simServerTabChromeActive}
-        className={`${styles.tab} ${simServerTabChromeActive ? styles.tabActive : styles.tabInactive}`}
+        className={documentTabClass(simServerTabChromeActive)}
         onPointerDown={(e) => {
           e.stopPropagation()
           onMainDocumentEditorTabChange('droneRacer')
@@ -1266,7 +1450,7 @@ function DroneRacerWorkspace({
         role="tab"
         tabIndex={0}
         aria-selected={splitClientPrimaryTabActive}
-        className={`${styles.tab} ${splitClientPrimaryTabActive ? styles.tabActive : styles.tabInactive}`}
+        className={documentTabClass(splitClientPrimaryTabActive)}
         onPointerDown={(e) => {
           e.stopPropagation()
           focusClientSim()
@@ -1286,7 +1470,9 @@ function DroneRacerWorkspace({
         ? renderDocumentSecondaryTabs(
             clientDocumentTab,
             onSplitClientDocumentTabChange!,
-            { clientScript: clientScriptTabOpen },
+            closeSplitClientScriptTab,
+            { clientScript: !!clientSim && clientScriptTabOpen },
+            'client',
           )
         : optionalScriptTabs}
       <div className={styles.tabRowUnderline} aria-hidden>
@@ -1305,7 +1491,7 @@ function DroneRacerWorkspace({
         role="tab"
         tabIndex={0}
         aria-selected={splitServerPrimaryTabActive}
-        className={`${styles.tab} ${splitServerPrimaryTabActive ? styles.tabActive : styles.tabInactive}`}
+        className={documentTabClass(splitServerPrimaryTabActive)}
         onPointerDown={(e) => {
           e.stopPropagation()
           focusServerSim()
@@ -1331,7 +1517,9 @@ function DroneRacerWorkspace({
         ? renderDocumentSecondaryTabs(
             serverDocumentTab,
             onSplitServerDocumentTabChange!,
-            { serverScript: serverScriptTabOpen },
+            closeSplitServerScriptTab,
+            { serverScript: !!clientSim && serverScriptTabOpen },
+            'server',
           )
         : optionalScriptTabs}
       <div className={styles.tabRowUnderline} aria-hidden>
@@ -1345,6 +1533,7 @@ function DroneRacerWorkspace({
       className={`${styles.tabRow} ${styles.assetIsolationTabRow}`}
       data-node-id="3841:115139-iso-tabs"
     >
+      {isolationTabOpen ? (
       <TabWithPathTooltip
         path={TAB_PATH_DRONE_ASSET}
         role="tab"
@@ -1369,10 +1558,10 @@ function DroneRacerWorkspace({
           aria-hidden
         />
         <span>{DRONE_WORKSPACE_TAB_LABEL}</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
+        <TabCloseButton onClose={() => closeEditIsolationTab('isolation')} />
       </TabWithPathTooltip>
+      ) : null}
+      {hoverScriptTabOpen ? (
       <TabWithPathTooltip
         path={TAB_PATH_DRONE_HOVERSCRIPT}
         role="tab"
@@ -1392,10 +1581,9 @@ function DroneRacerWorkspace({
       >
         <TabDiamond />
         <span>{HOVER_SCRIPT_TAB_LABEL}</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
+        <TabCloseButton onClose={() => closeEditIsolationTab('hoverScript')} />
       </TabWithPathTooltip>
+      ) : null}
       <div className={styles.tabRowUnderline} aria-hidden>
         <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
       </div>
@@ -1736,8 +1924,24 @@ export default function StudioWindowsOS({
     useState<MainDocumentEditorTab>('droneRacer')
   const [splitServerDocumentTab, setSplitServerDocumentTab] =
     useState<MainDocumentEditorTab>('droneRacer')
-  const [clientScriptTabOpen, setClientScriptTabOpen] = useState(false)
-  const [serverScriptTabOpen, setServerScriptTabOpen] = useState(false)
+  const [scriptATabOpen, setScriptATabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.scriptATabOpen,
+  )
+  const [scriptBTabOpen, setScriptBTabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.scriptBTabOpen,
+  )
+  const [clientScriptTabOpen, setClientScriptTabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.clientScriptTabOpen,
+  )
+  const [serverScriptTabOpen, setServerScriptTabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.serverScriptTabOpen,
+  )
+  const [isolationTabOpen, setIsolationTabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.isolationTabOpen,
+  )
+  const [hoverScriptTabOpen, setHoverScriptTabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.hoverScriptTabOpen,
+  )
 
   const openClientScriptTab = useCallback(() => {
     setClientScriptTabOpen(true)
@@ -1770,11 +1974,32 @@ export default function StudioWindowsOS({
 
   const focusedColumnScriptOpen = isScriptDocumentTab(focusedColumnDocumentTab)
 
-  /** While Script is open in test, Explorer mirrors this snapshot (updated only when not on Script). */
-  const explorerContextForScriptRef = useRef<ExplorerRetentionKind>('sim-client')
+  /** While a script tab is open in test, which Explorer datamodel tree to show. */
+  const explorerWhileScriptFocus: ExplorerRetentionKind | null = useMemo(() => {
+    if (!clientSimActive || !focusedColumnScriptOpen) return null
 
-  const explorerWhileScriptFocus: ExplorerRetentionKind | null =
-    clientSimActive && focusedColumnScriptOpen ? explorerContextForScriptRef.current : null
+    if (focusedColumnDocumentTab === 'clientScript') return 'sim-client'
+    if (focusedColumnDocumentTab === 'serverScript') return 'sim-server'
+
+    if (showAssetInIsolation && editWorkspaceDocumentFocus !== 'main') {
+      return 'drone-isolation'
+    }
+
+    return simViewportFocus === 'server' ? 'sim-server' : 'sim-client'
+  }, [
+    clientSimActive,
+    focusedColumnScriptOpen,
+    focusedColumnDocumentTab,
+    showAssetInIsolation,
+    editWorkspaceDocumentFocus,
+    simViewportFocus,
+  ])
+
+  const explorerSimFocusForTree: SimViewportFocus = useMemo(() => {
+    if (focusedColumnDocumentTab === 'clientScript') return 'client'
+    if (focusedColumnDocumentTab === 'serverScript') return 'server'
+    return simViewportFocus
+  }, [focusedColumnDocumentTab, simViewportFocus])
 
   const explorerHeaderSimFocus: SimViewportFocus =
     explorerWhileScriptFocus === 'sim-server'
@@ -1791,24 +2016,89 @@ export default function StudioWindowsOS({
 
   const frameRef = useRef<HTMLDivElement | null>(null)
   const focusHoleRef = useRef<HTMLDivElement | null>(null)
-  /** Remember Drone main vs isolation column when leaving Edit for Play. */
-  const editDocumentFocusBeforePlayRef = useRef<EditDocumentFocus>('main')
+  /** Edit-mode document tabs when entering Test — restored on exit. */
+  const editDocumentBeforePlayRef = useRef<{
+    mainDocumentEditorTab: MainDocumentEditorTab
+    splitClientDocumentTab: MainDocumentEditorTab
+    splitServerDocumentTab: MainDocumentEditorTab
+    editWorkspaceDocumentFocus: EditDocumentFocus
+  }>({
+    mainDocumentEditorTab: 'droneRacer',
+    splitClientDocumentTab: 'droneRacer',
+    splitServerDocumentTab: 'droneRacer',
+    editWorkspaceDocumentFocus: 'main',
+  })
+  /** Last test-mode document + sim focus — restored on re-enter. */
+  const playModeSessionRef = useRef<{
+    simViewportFocus: SimViewportFocus
+    mainDocumentEditorTab: MainDocumentEditorTab
+    splitClientDocumentTab: MainDocumentEditorTab
+    splitServerDocumentTab: MainDocumentEditorTab
+  }>({
+    simViewportFocus: 'client',
+    mainDocumentEditorTab: 'droneRacer',
+    splitClientDocumentTab: 'droneRacer',
+    splitServerDocumentTab: 'droneRacer',
+  })
   const prevClientSimActiveRef = useRef(clientSimActive)
   const [tintClipPath, setTintClipPath] = useState<string | undefined>()
+
+  const handlePrototypeReset = useCallback(() => {
+    const d = PROTOTYPE_SETTINGS_DEFAULTS
+    setClientSimActive(d.clientSimActive)
+    setSimViewportFocus(d.simViewportFocus)
+    setPlayModeHasStroke(d.playModeHasStroke)
+    setPlayModeHasFocusStroke(d.playModeHasFocusStroke)
+    setExplorerFocusBadge(d.explorerFocusBadge)
+    setExplorerBadgeShowIndicator(d.explorerBadgeShowIndicator)
+    setPlayModeFullTint(d.playModeFullTint)
+    setPlayModeSelectionTint(d.playModeSelectionTint)
+    setPlayModeSplitView(d.playModeSplitView)
+    setShowAssetInIsolation(d.showAssetInIsolation)
+    setEditDatamodelShowStroke(d.editDatamodelShowStroke)
+    setEditWorkspaceDocumentFocus(d.editWorkspaceDocumentFocus)
+    setPanelTitlesLeftAligned(d.panelTitlesLeftAligned)
+    setMainDocumentEditorTab(d.mainDocumentEditorTab)
+    setSplitClientDocumentTab(d.splitClientDocumentTab)
+    setSplitServerDocumentTab(d.splitServerDocumentTab)
+    setScriptATabOpen(d.scriptATabOpen)
+    setScriptBTabOpen(d.scriptBTabOpen)
+    setClientScriptTabOpen(d.clientScriptTabOpen)
+    setServerScriptTabOpen(d.serverScriptTabOpen)
+    setIsolationTabOpen(d.isolationTabOpen)
+    setHoverScriptTabOpen(d.hoverScriptTabOpen)
+    setSimExplorerSelectedRowClient(null)
+    setSimExplorerSelectedRowServer(null)
+    editDocumentBeforePlayRef.current = {
+      mainDocumentEditorTab: d.mainDocumentEditorTab,
+      splitClientDocumentTab: d.splitClientDocumentTab,
+      splitServerDocumentTab: d.splitServerDocumentTab,
+      editWorkspaceDocumentFocus: d.editWorkspaceDocumentFocus,
+    }
+    playModeSessionRef.current = {
+      simViewportFocus: d.simViewportFocus,
+      mainDocumentEditorTab: d.mainDocumentEditorTab,
+      splitClientDocumentTab: d.splitClientDocumentTab,
+      splitServerDocumentTab: d.splitServerDocumentTab,
+    }
+  }, [])
 
   const tintActive = clientSimActive && playModeFullTint
 
   const simExplorerSelectedRowId =
-    clientSimActive && simViewportFocus === 'client'
+    clientSimActive && explorerSimFocusForTree === 'client'
       ? simExplorerSelectedRowClient
-      : clientSimActive && simViewportFocus === 'server'
+      : clientSimActive && explorerSimFocusForTree === 'server'
         ? simExplorerSelectedRowServer
         : null
 
-  const onSimExplorerSelectRow = useCallback((rowId: string) => {
-    if (simViewportFocus === 'client') setSimExplorerSelectedRowClient(rowId)
-    else setSimExplorerSelectedRowServer(rowId)
-  }, [simViewportFocus])
+  const onSimExplorerSelectRow = useCallback(
+    (rowId: string) => {
+      if (explorerSimFocusForTree === 'client') setSimExplorerSelectedRowClient(rowId)
+      else setSimExplorerSelectedRowServer(rowId)
+    },
+    [explorerSimFocusForTree],
+  )
 
   const panelChromeTitleAlign = panelTitlesLeftAligned ? ('left' as const) : ('center' as const)
 
@@ -1851,54 +2141,44 @@ export default function StudioWindowsOS({
   useEffect(() => {
     const wasSim = prevClientSimActiveRef.current
     if (!wasSim && clientSimActive) {
-      editDocumentFocusBeforePlayRef.current = editWorkspaceDocumentFocus
+      editDocumentBeforePlayRef.current = {
+        mainDocumentEditorTab,
+        splitClientDocumentTab,
+        splitServerDocumentTab,
+        editWorkspaceDocumentFocus,
+      }
+      const session = playModeSessionRef.current
+      setSimViewportFocus(session.simViewportFocus)
+      setMainDocumentEditorTab(session.mainDocumentEditorTab)
+      setSplitClientDocumentTab(session.splitClientDocumentTab)
+      setSplitServerDocumentTab(session.splitServerDocumentTab)
+      setSimExplorerSelectedRowClient(null)
+      setSimExplorerSelectedRowServer(null)
+      setEditWorkspaceDocumentFocus('main')
     }
     if (wasSim && !clientSimActive) {
-      const saved = editDocumentFocusBeforePlayRef.current
-      setEditWorkspaceDocumentFocus(!showAssetInIsolation && saved !== 'main' ? 'main' : saved)
+      playModeSessionRef.current = {
+        simViewportFocus,
+        mainDocumentEditorTab,
+        splitClientDocumentTab,
+        splitServerDocumentTab,
+      }
+      const edit = editDocumentBeforePlayRef.current
+      setMainDocumentEditorTab(edit.mainDocumentEditorTab)
+      setSplitClientDocumentTab(edit.splitClientDocumentTab)
+      setSplitServerDocumentTab(edit.splitServerDocumentTab)
+      const restoredFocus = edit.editWorkspaceDocumentFocus
+      setEditWorkspaceDocumentFocus(
+        !showAssetInIsolation && restoredFocus !== 'main' ? 'main' : restoredFocus,
+      )
     }
     prevClientSimActiveRef.current = clientSimActive
     // editWorkspaceDocumentFocus intentionally omitted: only snapshot on sim toggle, not each focus tick.
   }, [clientSimActive, showAssetInIsolation])
 
   useEffect(() => {
-    if (clientSimActive) {
-      setSimViewportFocus('client')
-      setSimExplorerSelectedRowClient(null)
-      setSimExplorerSelectedRowServer(null)
-      setEditWorkspaceDocumentFocus('main')
-      setMainDocumentEditorTab('droneRacer')
-      setSplitClientDocumentTab('droneRacer')
-      setSplitServerDocumentTab('droneRacer')
-      setClientScriptTabOpen(false)
-      setServerScriptTabOpen(false)
-    }
-  }, [clientSimActive])
-
-  useEffect(() => {
     if (!showAssetInIsolation) setEditWorkspaceDocumentFocus('main')
   }, [showAssetInIsolation])
-
-  useEffect(() => {
-    if (!clientSimActive) {
-      explorerContextForScriptRef.current = 'edit-drone'
-      return
-    }
-    if (focusedColumnDocumentTab === 'droneRacer') {
-      if (showAssetInIsolation && editWorkspaceDocumentFocus !== 'main') {
-        explorerContextForScriptRef.current = 'drone-isolation'
-      } else {
-        explorerContextForScriptRef.current =
-          simViewportFocus === 'server' ? 'sim-server' : 'sim-client'
-      }
-    }
-  }, [
-    clientSimActive,
-    focusedColumnDocumentTab,
-    simViewportFocus,
-    showAssetInIsolation,
-    editWorkspaceDocumentFocus,
-  ])
 
   useEffect(() => {
     if (!footerQuestionsOpen) return
@@ -1994,8 +2274,18 @@ export default function StudioWindowsOS({
                   splitServerDocumentTab={splitServerDocumentTab}
                   onSplitClientDocumentTabChange={setSplitClientDocumentTab}
                   onSplitServerDocumentTabChange={setSplitServerDocumentTab}
+                  scriptATabOpen={scriptATabOpen}
+                  scriptBTabOpen={scriptBTabOpen}
                   clientScriptTabOpen={clientScriptTabOpen}
                   serverScriptTabOpen={serverScriptTabOpen}
+                  isolationTabOpen={isolationTabOpen}
+                  hoverScriptTabOpen={hoverScriptTabOpen}
+                  onScriptATabOpenChange={setScriptATabOpen}
+                  onScriptBTabOpenChange={setScriptBTabOpen}
+                  onClientScriptTabOpenChange={setClientScriptTabOpen}
+                  onServerScriptTabOpenChange={setServerScriptTabOpen}
+                  onIsolationTabOpenChange={setIsolationTabOpen}
+                  onHoverScriptTabOpenChange={setHoverScriptTabOpen}
                   playModeHasStroke={playModeHasStroke}
                   playModeHasFocusStroke={playModeHasFocusStroke}
                   playModeSelectionTint={playModeSelectionTint}
@@ -2035,8 +2325,18 @@ export default function StudioWindowsOS({
                   onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
                   mainDocumentEditorTab={mainDocumentEditorTab}
                   onMainDocumentEditorTabChange={setMainDocumentEditorTab}
+                  scriptATabOpen={scriptATabOpen}
+                  scriptBTabOpen={scriptBTabOpen}
                   clientScriptTabOpen={clientScriptTabOpen}
                   serverScriptTabOpen={serverScriptTabOpen}
+                  isolationTabOpen={isolationTabOpen}
+                  hoverScriptTabOpen={hoverScriptTabOpen}
+                  onScriptATabOpenChange={setScriptATabOpen}
+                  onScriptBTabOpenChange={setScriptBTabOpen}
+                  onClientScriptTabOpenChange={setClientScriptTabOpen}
+                  onServerScriptTabOpenChange={setServerScriptTabOpen}
+                  onIsolationTabOpenChange={setIsolationTabOpen}
+                  onHoverScriptTabOpenChange={setHoverScriptTabOpen}
                 />
               )}
             </div>
@@ -2058,8 +2358,7 @@ export default function StudioWindowsOS({
                   : clientSimActive &&
                       !(
                         focusedColumnScriptOpen &&
-                        (explorerWhileScriptFocus === 'edit-drone' ||
-                          explorerWhileScriptFocus === 'drone-isolation')
+                        explorerWhileScriptFocus === 'drone-isolation'
                       )
                     ? explorerHeaderSimFocus === 'server'
                       ? 'Explorer (Server)'
@@ -2142,6 +2441,7 @@ export default function StudioWindowsOS({
                 onOpenClientScript={bunnyAssetWindow ? undefined : openClientScriptTab}
                 onOpenServerScript={bunnyAssetWindow ? undefined : openServerScriptTab}
                 testingMode={clientSimActive}
+                onReset={bunnyAssetWindow ? undefined : handlePrototypeReset}
               />
             </div>
           </div>

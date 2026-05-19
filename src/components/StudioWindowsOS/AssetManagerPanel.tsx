@@ -10,6 +10,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  SquareArrowOutUpRight,
 } from 'lucide-react'
 import { publicAssetUrl } from '../../publicAssetUrl'
 import css from './AssetManagerPanel.module.css'
@@ -181,8 +182,13 @@ export default function AssetManagerPanel() {
       <header className={css.header} data-node-id="I3994:57525;3:141494">
         <p className={css.title}>Asset Manager</p>
         <div className={css.headerActions}>
-          <button type="button" className={css.headerBtn} aria-label="Minimize panel">
-            <img src={publicAssetUrl('assets/win-min.svg')} alt="" />
+          <button type="button" className={css.headerBtn} aria-label="Pop out panel">
+            <SquareArrowOutUpRight
+              size={12}
+              strokeWidth={1.35}
+              className={css.headerPopoutIcon}
+              aria-hidden
+            />
           </button>
           <button type="button" className={css.headerBtn} aria-label="Close panel">
             <img src={publicAssetUrl('assets/panel-close.svg')} alt="" />

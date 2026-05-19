@@ -58,6 +58,8 @@ export type InteractionSettingsPanelProps = {
   testingMode?: boolean
   /** Bunny asset window — hide isolation toggle (layout is fixed). */
   bunnyAssetWindow?: boolean
+  /** Restore prototype settings and color operators to current defaults. */
+  onReset?: () => void
 }
 
 const SLIDER_TICK_VALUES = {
@@ -127,6 +129,7 @@ export default function InteractionSettingsPanel({
   onOpenServerScript,
   testingMode = false,
   bunnyAssetWindow,
+  onReset,
 }: InteractionSettingsPanelProps) {
   const [colorOperatorsOpen, setColorOperatorsOpen] = useState(false)
   const [miscOpen, setMiscOpen] = useState(false)
@@ -170,6 +173,12 @@ export default function InteractionSettingsPanel({
     const elements = getSliderElements()
     if (elements) resetThemeColorOperators(elements)
   }, [getSliderElements])
+
+  const handleReset = useCallback(() => {
+    const elements = getSliderElements()
+    if (elements) resetThemeColorOperators(elements)
+    onReset?.()
+  }, [getSliderElements, onReset])
 
   const handleSurfacePreset = useCallback(
     (id: SurfacePresetId) => {
@@ -590,6 +599,14 @@ export default function InteractionSettingsPanel({
           </div>
         ) : null}
       </section>
+
+      {onReset ? (
+        <div className={css.resetRow}>
+          <button type="button" className={css.openAssetBtn} onClick={handleReset}>
+            Reset
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

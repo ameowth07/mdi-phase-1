@@ -97,6 +97,7 @@ Defined in `StudioWindowsOS.module.css`.
 | `--panel-chrome-title` | 230 | 10% | 76% | text | — |
 | `--stroke-default` | 227 | 84% | 90% | text | 0.12 |
 | `--stroke-muted` | 227 | 84% | 90% | text | 0.08 |
+| `--shift-100` | 227 | 84% | 90% | text | 0.04 |
 | `--shift-200` | 227 | 84% | 90% | text | 0.08 |
 | `--shift-300` | 227 | 84% | 90% | text | 0.12 |
 | `--shift-400` | 227 | 84% | 90% | text | 0.16 |
