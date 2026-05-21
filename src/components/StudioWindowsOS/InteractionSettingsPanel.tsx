@@ -21,21 +21,33 @@ export type InteractionSettingsPanelProps = {
   /** Inset focus ring on client / server viewports while simulating. */
   hasStroke: boolean
   onHasStrokeChange: (value: boolean) => void
-  /** Sim focus ring uses the same white inset stroke as edit Drone Racer / asset isolation (not brand blue/green). */
+  /** Sim focus ring — white inset on Client/Server/Drone script viewports (replaces semantic stroke when on). */
   hasFocusStroke: boolean
   onHasFocusStrokeChange: (value: boolean) => void
+  /** Explorer header: plain “Explorer” only — no pills, dots, or title suffixes. */
+  explorerNoBadge: boolean
+  onExplorerNoBadgeChange: (value: boolean) => void
   /** Explorer header pill (Client / Server) while simulating — Figma 3856:139983. */
   explorerFocusBadge: boolean
   onExplorerFocusBadgeChange: (value: boolean) => void
   /** Colored dot in Explorer title badge (only when Show focus badge is on). */
   explorerBadgeShowIndicator: boolean
   onExplorerBadgeShowIndicatorChange: (value: boolean) => void
+  /** Light gray dot pill for edit / Bunny original datamodel in Explorer. */
+  explorerOriginalDmBadge: boolean
+  onExplorerOriginalDmBadgeChange: (value: boolean) => void
+  /** Explorer title suffix for focused document (e.g. Explorer / Drone). */
+  explorerShowBreadcrumb: boolean
+  onExplorerShowBreadcrumbChange: (value: boolean) => void
   /** Full-frame 5% tint by focused viewport while simulating. */
   fullTint: boolean
   onFullTintChange: (value: boolean) => void
-  /** Subtle tint on the focused client/server sim viewport while simulating. */
+  /** Explorer selected-row hues follow focused datamodel while simulating (not viewport wash). */
   selectionTint: boolean
   onSelectionTintChange: (value: boolean) => void
+  /** Footer background uses focused datamodel hue (Explorer selection tint colors). */
+  footerTint: boolean
+  onFooterTintChange: (value: boolean) => void
   /** Test mode: Client and Server as two columns instead of one tabbed document. */
   splitView: boolean
   onSplitViewChange: (value: boolean) => void
@@ -45,9 +57,15 @@ export type InteractionSettingsPanelProps = {
   /** Edit datamodel UI: stroke visibility. */
   editDatamodelShowStroke: boolean
   onEditDatamodelShowStrokeChange: (value: boolean) => void
+  /** Edit datamodel UI: suppress Drone/asset Explorer and footer tint (Client/Server unchanged). */
+  hideAssetTinting: boolean
+  onHideAssetTintingChange: (value: boolean) => void
   /** Right-side panel headers: Explorer / Properties / Theme — title left-aligned vs centered. */
   panelTitlesLeftAligned: boolean
   onPanelTitlesLeftAlignedChange: (value: boolean) => void
+  /** Properties header: `Properties / Model "Shop"` from Explorer selection. */
+  propertiesShowBreadcrumb: boolean
+  onPropertiesShowBreadcrumbChange: (value: boolean) => void
   /** When set, shows control to spawn another full Studio frame (stacked in the app shell). */
   onOpenAssetWindow?: () => void
   /** Opens a Client Script document tab in the main workspace. */
@@ -110,22 +128,34 @@ export default function InteractionSettingsPanel({
   onHasStrokeChange,
   hasFocusStroke,
   onHasFocusStrokeChange,
+  explorerNoBadge,
+  onExplorerNoBadgeChange,
   explorerFocusBadge,
   onExplorerFocusBadgeChange,
   explorerBadgeShowIndicator,
   onExplorerBadgeShowIndicatorChange,
+  explorerOriginalDmBadge,
+  onExplorerOriginalDmBadgeChange,
+  explorerShowBreadcrumb,
+  onExplorerShowBreadcrumbChange,
   fullTint,
   onFullTintChange,
   selectionTint,
   onSelectionTintChange,
+  footerTint,
+  onFooterTintChange,
   splitView,
   onSplitViewChange,
   showAssetInIsolation,
   onShowAssetInIsolationChange,
   editDatamodelShowStroke,
   onEditDatamodelShowStrokeChange,
+  hideAssetTinting,
+  onHideAssetTintingChange,
   panelTitlesLeftAligned,
   onPanelTitlesLeftAlignedChange,
+  propertiesShowBreadcrumb,
+  onPropertiesShowBreadcrumbChange,
   onOpenAssetWindow,
   onOpenClientScript,
   onOpenServerScript,
@@ -136,7 +166,9 @@ export default function InteractionSettingsPanel({
 }: InteractionSettingsPanelProps) {
   const [colorOperatorsOpen, setColorOperatorsOpen] = useState(false)
   const [miscOpen, setMiscOpen] = useState(false)
-  const indicatorRowDisabled = !explorerFocusBadge
+  const badgeOptionsDisabled = explorerNoBadge
+  const indicatorRowDisabled =
+    badgeOptionsDisabled || (!explorerFocusBadge && !explorerOriginalDmBadge)
 
   const hueSliderRef = useRef<HTMLInputElement>(null)
   const satSliderRef = useRef<HTMLInputElement>(null)
@@ -411,6 +443,21 @@ export default function InteractionSettingsPanel({
                   </button>
                   <span className={css.label}>Show Stroke</span>
                 </div>
+                <div className={css.row}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={hideAssetTinting}
+                    aria-label="Hide Asset tinting"
+                    className={`${css.checkboxBtn} ${hideAssetTinting ? css.checkboxBtnChecked : ''}`}
+                    onClick={() => onHideAssetTintingChange(!hideAssetTinting)}
+                  >
+                    {hideAssetTinting ? (
+                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                    ) : null}
+                  </button>
+                  <span className={css.label}>Hide Asset tinting</span>
+                </div>
                 {onOpenAssetWindow ? (
                   <div className={css.openAssetRow}>
                     <button type="button" className={css.openAssetBtn} onClick={onOpenAssetWindow}>
@@ -423,7 +470,7 @@ export default function InteractionSettingsPanel({
 
             <section className={css.group} aria-labelledby="interaction-testing-ui-heading">
               <h2 id="interaction-testing-ui-heading" className={css.groupLabel}>
-                Testing UI
+                Focus stroke
               </h2>
               <div className={css.options}>
                 <div className={css.row}>
@@ -456,98 +503,101 @@ export default function InteractionSettingsPanel({
                   </button>
                   <span className={css.label}>Has focus stroke</span>
                 </div>
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={fullTint}
-                    aria-label="Full tint"
-                    className={`${css.checkboxBtn} ${fullTint ? css.checkboxBtnChecked : ''}`}
-                    onClick={() => onFullTintChange(!fullTint)}
-                  >
-                    {fullTint ? (
-                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-                    ) : null}
-                  </button>
-                  <span className={css.label}>Full tint</span>
-                </div>
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={selectionTint}
-                    aria-label="Selection tint"
-                    className={`${css.checkboxBtn} ${selectionTint ? css.checkboxBtnChecked : ''}`}
-                    onClick={() => onSelectionTintChange(!selectionTint)}
-                  >
-                    {selectionTint ? (
-                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-                    ) : null}
-                  </button>
-                  <span className={css.label}>Selection tint</span>
-                </div>
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={splitView}
-                    aria-label="Split view"
-                    className={`${css.checkboxBtn} ${splitView ? css.checkboxBtnChecked : ''}`}
-                    onClick={() => onSplitViewChange(!splitView)}
-                  >
-                    {splitView ? (
-                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-                    ) : null}
-                  </button>
-                  <span className={css.label}>Split view</span>
-                </div>
               </div>
-            </section>
-
-            <section className={css.group} aria-labelledby="interaction-badge-heading">
-              <h2 id="interaction-badge-heading" className={css.groupLabel}>
-                Badge
-              </h2>
-              <div className={css.options}>
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={explorerFocusBadge}
-                    aria-label="Show focus badge"
-                    className={`${css.checkboxBtn} ${explorerFocusBadge ? css.checkboxBtnChecked : ''}`}
-                    onClick={() => onExplorerFocusBadgeChange(!explorerFocusBadge)}
-                  >
-                    {explorerFocusBadge ? (
-                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-                    ) : null}
-                  </button>
-                  <span className={css.label}>Show focus badge</span>
+              <section className={css.subgroup} aria-labelledby="interaction-tints-heading">
+                <h3 id="interaction-tints-heading" className={css.subgroupLabel}>
+                  Tints
+                </h3>
+                <div className={css.options}>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={fullTint}
+                      aria-label="Full tint"
+                      className={`${css.checkboxBtn} ${fullTint ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onFullTintChange(!fullTint)}
+                    >
+                      {fullTint ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Full tint</span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={selectionTint}
+                      aria-label="Selection tint"
+                      className={`${css.checkboxBtn} ${selectionTint ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onSelectionTintChange(!selectionTint)}
+                    >
+                      {selectionTint ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Selection tint</span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={footerTint}
+                      aria-label="Footer tint"
+                      className={`${css.checkboxBtn} ${footerTint ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onFooterTintChange(!footerTint)}
+                    >
+                      {footerTint ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Footer tint</span>
+                  </div>
                 </div>
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={explorerBadgeShowIndicator}
-                    aria-label="Show indicator in badge"
-                    aria-disabled={indicatorRowDisabled}
-                    disabled={indicatorRowDisabled}
-                    className={`${css.checkboxBtn} ${explorerBadgeShowIndicator ? css.checkboxBtnChecked : ''}`}
-                    onClick={() =>
-                      onExplorerBadgeShowIndicatorChange(!explorerBadgeShowIndicator)
-                    }
-                  >
-                    {explorerBadgeShowIndicator ? (
-                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-                    ) : null}
-                  </button>
-                  <span
-                    className={`${css.label} ${indicatorRowDisabled ? css.labelMuted : ''}`}
-                  >
-                    Show indicator in badge
-                  </span>
+              </section>
+              <section className={css.subgroup} aria-labelledby="interaction-view-heading">
+                <h3 id="interaction-view-heading" className={css.subgroupLabel}>
+                  View
+                </h3>
+                <div className={css.options}>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={splitView}
+                      aria-label="Split view"
+                      className={`${css.checkboxBtn} ${splitView ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onSplitViewChange(!splitView)}
+                    >
+                      {splitView ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Split view</span>
+                  </div>
                 </div>
-              </div>
+              </section>
             </section>
 
             <section className={css.group} aria-labelledby="interaction-panel-chrome-heading">
@@ -570,7 +620,155 @@ export default function InteractionSettingsPanel({
                   </button>
                   <span className={css.label}>Left-align panel titles</span>
                 </div>
+                <div className={css.row}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={propertiesShowBreadcrumb}
+                    aria-label="Show Properties breadcrumb"
+                    className={`${css.checkboxBtn} ${propertiesShowBreadcrumb ? css.checkboxBtnChecked : ''}`}
+                    onClick={() => onPropertiesShowBreadcrumbChange(!propertiesShowBreadcrumb)}
+                  >
+                    {propertiesShowBreadcrumb ? (
+                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                    ) : null}
+                  </button>
+                  <span className={css.label}>Show Properties breadcrumb</span>
+                </div>
               </div>
+              <section className={css.subgroup} aria-labelledby="interaction-badge-heading">
+                <h3 id="interaction-badge-heading" className={css.subgroupLabel}>
+                  Badge
+                </h3>
+                <div className={css.options}>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={explorerNoBadge}
+                      aria-label="No badge"
+                      className={`${css.checkboxBtn} ${explorerNoBadge ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onExplorerNoBadgeChange(!explorerNoBadge)}
+                    >
+                      {explorerNoBadge ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>No badge</span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={explorerFocusBadge}
+                      aria-label="Show focus badge"
+                      aria-disabled={badgeOptionsDisabled}
+                      disabled={badgeOptionsDisabled}
+                      className={`${css.checkboxBtn} ${explorerFocusBadge ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onExplorerFocusBadgeChange(!explorerFocusBadge)}
+                    >
+                      {explorerFocusBadge ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span
+                      className={`${css.label} ${badgeOptionsDisabled ? css.labelMuted : ''}`}
+                    >
+                      Show focus badge
+                    </span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={explorerBadgeShowIndicator}
+                      aria-label="Show indicator in badge"
+                      aria-disabled={indicatorRowDisabled}
+                      disabled={indicatorRowDisabled}
+                      className={`${css.checkboxBtn} ${explorerBadgeShowIndicator ? css.checkboxBtnChecked : ''}`}
+                      onClick={() =>
+                        onExplorerBadgeShowIndicatorChange(!explorerBadgeShowIndicator)
+                      }
+                    >
+                      {explorerBadgeShowIndicator ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span
+                      className={`${css.label} ${indicatorRowDisabled ? css.labelMuted : ''}`}
+                    >
+                      Show indicator in badge
+                    </span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={explorerOriginalDmBadge}
+                      aria-label="Show original DM badge"
+                      aria-disabled={badgeOptionsDisabled}
+                      disabled={badgeOptionsDisabled}
+                      className={`${css.checkboxBtn} ${explorerOriginalDmBadge ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onExplorerOriginalDmBadgeChange(!explorerOriginalDmBadge)}
+                    >
+                      {explorerOriginalDmBadge ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span
+                      className={`${css.label} ${badgeOptionsDisabled ? css.labelMuted : ''}`}
+                    >
+                      Show original DM badge
+                    </span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={explorerShowBreadcrumb}
+                      aria-label="Show breadcrumb"
+                      aria-disabled={badgeOptionsDisabled}
+                      disabled={badgeOptionsDisabled}
+                      className={`${css.checkboxBtn} ${explorerShowBreadcrumb ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onExplorerShowBreadcrumbChange(!explorerShowBreadcrumb)}
+                    >
+                      {explorerShowBreadcrumb ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span
+                      className={`${css.label} ${badgeOptionsDisabled ? css.labelMuted : ''}`}
+                    >
+                      Show breadcrumb
+                    </span>
+                  </div>
+                </div>
+              </section>
             </section>
 
             {onOpenClientScript || onOpenServerScript || onThrowError ? (

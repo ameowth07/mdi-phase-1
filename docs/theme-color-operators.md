@@ -103,6 +103,7 @@ Defined in `StudioWindowsOS.module.css`.
 | `--shift-400` | 227 | 84% | 90% | text | 0.16 |
 | `--overmedia-100` | 230 | 11% | 11% | surface | 0.92 |
 | `--beta-stroke` | 227 | 84% | 90% | text | 0.4 |
+| `--edit-workspace-focus-ring-width` | — | — | — | layout | 2px |
 | `--edit-workspace-focus-ring` | 0 | 0% | 100% | text | 0.5 |
 
 ### Example: `--content-muted` (inactive tab labels)

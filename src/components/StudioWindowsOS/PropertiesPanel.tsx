@@ -1,11 +1,18 @@
 import type { ReactNode } from 'react'
-import { Anchor, Check, Lock, MoreHorizontal, Package2 } from 'lucide-react'
+import { Anchor, Check, Globe, Lock, MoreHorizontal, Package2, X } from 'lucide-react'
 import css from './PropertiesPanel.module.css'
 
 function ChevDownSm() {
   return (
     <svg width={10} height={6} viewBox="0 0 10 6" aria-hidden>
-      <path d="M1 1.2L5 4.8L9 1.2" fill="none" stroke="#f7f7f8" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M1 1.2L5 4.8L9 1.2"
+        fill="none"
+        stroke="#f7f7f8"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -42,13 +49,22 @@ function MoreIcon() {
   )
 }
 
-function SectionHeader({ title }: { title: string }) {
+function SectionHeader({ title, trailing }: { title: string; trailing?: ReactNode }) {
   return (
     <div className={css.sectionHeader}>
       <div className={css.sectionChevron}>
         <ChevDownSm />
       </div>
-      <h3 className={css.sectionTitle}>{title}</h3>
+      <h3 className={trailing ? css.originTitle : css.sectionTitle}>{title}</h3>
+      {trailing ?? null}
+    </div>
+  )
+}
+
+function SectionDivider() {
+  return (
+    <div className={css.sectionRule} aria-hidden>
+      <div className={css.sectionRuleLine} />
     </div>
   )
 }
@@ -56,12 +72,14 @@ function SectionHeader({ title }: { title: string }) {
 function PropRow({
   label,
   children,
+  dimmed,
 }: {
   label: string
   children: ReactNode
+  dimmed?: boolean
 }) {
   return (
-    <div className={css.row}>
+    <div className={`${css.row} ${dimmed ? css.rowDimmed : ''}`}>
       <div className={css.labelCol}>
         <div className={css.labelSpacer} />
         <span className={css.label}>{label}</span>
@@ -71,25 +89,151 @@ function PropRow({
   )
 }
 
+function CheckboxControl({ checked }: { checked: boolean }) {
+  return (
+    <div className={css.checkboxCell}>
+      {checked ? (
+        <div className={css.checkbox}>
+          <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+        </div>
+      ) : (
+        <div className={css.checkboxUnchecked} aria-hidden />
+      )}
+    </div>
+  )
+}
+
+function NumberValue({ value }: { value: string }) {
+  return (
+    <div className={`${css.inputShell} ${css.inputShellTight}`}>
+      <span className={`${css.mono} ${css.inputText}`}>{value}</span>
+    </div>
+  )
+}
+
+function DropdownValue({
+  text,
+  mutedSuffix,
+  lead,
+}: {
+  text: string
+  mutedSuffix?: string
+  lead?: ReactNode
+}) {
+  return (
+    <div className={`${css.inputShell} ${css.inputShellDropdown}`}>
+      {lead ?? null}
+      <span className={css.inputText}>
+        {text}
+        {mutedSuffix ? <span className={css.inputMuted}> {mutedSuffix}</span> : null}
+      </span>
+      <div className={css.trailChev}>
+        <ChevDownSm />
+      </div>
+    </div>
+  )
+}
+
+const AXIS_LINE_CLASS = {
+  X: css.axisX,
+  Y: css.axisY,
+  Z: css.axisZ,
+} as const
+
+function Vec3Values({ values }: { values: [string, string, string] }) {
+  const axes = ['X', 'Y', 'Z'] as const
+  return (
+    <div className={css.vec3Row}>
+      {values.map((value, index) => (
+        <div
+          key={axes[index]}
+          className={`${css.numCell} ${
+            index === 0 ? css.numCellFirst : index === 2 ? css.numCellLast : css.numCellMid
+          }`}
+        >
+          <span className={`${css.axisLine} ${AXIS_LINE_CLASS[axes[index]]}`} />
+          <span className={css.mono}>{value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Vec3DegValues({ values }: { values: [string, string, string] }) {
+  const axes = ['X', 'Y', 'Z'] as const
+  return (
+    <div className={css.vec3Row}>
+      {values.map((value, index) => (
+        <div
+          key={axes[index]}
+          className={`${css.numCell} ${
+            index === 0 ? css.numCellFirst : index === 2 ? css.numCellLast : css.numCellMid
+          }`}
+        >
+          <span className={`${css.axisLine} ${AXIS_LINE_CLASS[axes[index]]}`} />
+          <span className={css.mono}>{value}</span>
+          <span className={css.degSuffix}>°</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ColorRgbRow() {
+  return (
+    <div className={css.rgbRow}>
+      <div className={css.colorSwatchSeg}>
+        <div className={css.swatchSq} />
+      </div>
+      <div className={css.vDiv} />
+      <div className={`${css.numCell} ${css.numCellFirst}`}>
+        <span className={css.mono}>163</span>
+      </div>
+      <div className={css.vDiv} />
+      <div className={`${css.numCell} ${css.numCellMid}`}>
+        <span className={css.mono}>162</span>
+      </div>
+      <div className={css.vDiv} />
+      <div className={`${css.numCell} ${css.numCellLast}`}>
+        <span className={css.mono}>165</span>
+      </div>
+    </div>
+  )
+}
+
+function ParentField() {
+  return (
+    <div className={`${css.inputShell} ${css.parentInputShell}`}>
+      <div className={css.parentLeadIcon} aria-hidden>
+        <Globe size={12} strokeWidth={1.75} className={css.parentGlobeIcon} />
+      </div>
+      <span className={css.inputText}>Workspace</span>
+      <button type="button" className={css.parentClearBtn} aria-label="Clear parent">
+        <X size={12} strokeWidth={1.75} aria-hidden />
+      </button>
+    </div>
+  )
+}
+
 type PropertiesPanelProps = {
   /** No Explorer selection — hide part inspector (client sim, etc.). */
   empty?: boolean
 }
 
-/** Figma node 3841:115199 — Properties “full” slot */
+/** Figma 4143:101971 — Properties panel (full slot). */
 export default function PropertiesPanel({ empty }: PropertiesPanelProps) {
   if (empty) {
     return (
-      <div className={css.root} data-node-id="3841:115199">
+      <div className={css.root} data-node-id="4143:101971">
         <div className={css.emptyState}>
-          <p className={css.emptyHint}>Select an instance in Explorer to edit properties.</p>
+          <p className={css.emptyHint}>Select an object in Explorer</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className={css.root} data-node-id="3841:115199">
+    <div className={css.root} data-node-id="4143:101971">
       <div className={css.frontmatter}>
         <div className={css.titleRow}>
           <PartLeadingIcon />
@@ -120,144 +264,111 @@ export default function PropertiesPanel({ empty }: PropertiesPanelProps) {
         <SectionHeader title="Appearance" />
 
         <PropRow label="Material">
-          <div className={`${css.inputShell} ${css.inputShellDropdown}`}>
-            <div className={css.leadSwatch}>
-              <div className={css.leadSwatchInner}>
-                <div className={css.materialSwatchLucide} aria-hidden />
+          <DropdownValue
+            text="Plastic"
+            lead={
+              <div className={css.leadSwatch}>
+                <div className={css.leadSwatchInner}>
+                  <div className={css.materialSwatchLucide} aria-hidden />
+                </div>
               </div>
-            </div>
-            <span className={css.inputText}>Plastic</span>
-            <div className={css.trailChev}>
-              <ChevDownSm />
-            </div>
-          </div>
+            }
+          />
         </PropRow>
 
         <PropRow label="Color">
-          <div className={css.rgbRow}>
-            <div className={css.colorSwatchSeg}>
-              <div className={css.swatchSq} />
-            </div>
-            <div className={css.vDiv} />
-            <div className={`${css.numCell} ${css.numCellFirst}`}>
-              <span className={`${css.axisLine} ${css.axisX}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                163
-              </span>
-            </div>
-            <div className={css.vDiv} />
-            <div className={`${css.numCell} ${css.numCellMid}`}>
-              <span className={`${css.axisLine} ${css.axisY}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                162
-              </span>
-            </div>
-            <div className={css.vDiv} />
-            <div className={`${css.numCell} ${css.numCellLast}`}>
-              <span className={`${css.axisLine} ${css.axisZ}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                165
-              </span>
-            </div>
-          </div>
+          <ColorRgbRow />
         </PropRow>
 
         <PropRow label="Transparency">
-          <div className={`${css.inputShell} ${css.inputShellTight}`}>
-            <span className={`${css.mono} ${css.inputText}`}>0</span>
-          </div>
+          <NumberValue value="0" />
         </PropRow>
 
         <PropRow label="Reflectance">
-          <div className={`${css.inputShell} ${css.inputShellTight}`}>
-            <span className={`${css.mono} ${css.inputText}`}>0</span>
-          </div>
+          <NumberValue value="0" />
         </PropRow>
 
         <PropRow label="Shape">
-          <div className={`${css.inputShell} ${css.inputShellDropdown}`}>
-            <span className={css.inputText}>
-              Block <span className={css.inputMuted}>(enabled)</span>
-            </span>
-            <div className={css.trailChev}>
-              <ChevDownSm />
-            </div>
-          </div>
+          <DropdownValue text="Block" mutedSuffix="(enabled)" />
         </PropRow>
 
         <PropRow label="Cast Shadow">
-          <div className={css.checkboxCell}>
-            <div className={css.checkbox}>
-              <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-            </div>
-          </div>
+          <CheckboxControl checked />
         </PropRow>
 
-        <div className={css.sectionRule} aria-hidden>
-          <div className={css.sectionRuleLine} />
-        </div>
-
-        <div className={css.sectionHeader}>
-          <div className={css.sectionChevron}>
-            <ChevDownSm />
-          </div>
-          <h3 className={css.originTitle}>Origin</h3>
-          <MoreIcon />
-        </div>
+        <SectionDivider />
+        <SectionHeader title="Origin" trailing={<MoreIcon />} />
 
         <PropRow label="Position">
-          <div className={css.rgbRow}>
-            <div className={`${css.numCell} ${css.numCellFirst}`}>
-              <span className={`${css.axisLine} ${css.axisX}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                0
-              </span>
-            </div>
-            <div className={`${css.numCell} ${css.numCellMid}`}>
-              <span className={`${css.axisLine} ${css.axisY}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                0
-              </span>
-            </div>
-            <div className={`${css.numCell} ${css.numCellLast}`}>
-              <span className={`${css.axisLine} ${css.axisZ}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                0
-              </span>
-            </div>
-          </div>
+          <Vec3Values values={['0', '0', '0']} />
         </PropRow>
 
         <PropRow label="Orientation">
-          <div className={css.rgbRow}>
-            <div className={`${css.numCell} ${css.numCellFirst}`}>
-              <span className={`${css.axisLine} ${css.axisX}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                0
-              </span>
-              <span className={css.inputMuted} style={{ fontSize: 11 }}>
-                °
-              </span>
-            </div>
-            <div className={`${css.numCell} ${css.numCellMid}`}>
-              <span className={`${css.axisLine} ${css.axisY}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                0
-              </span>
-              <span className={css.inputMuted} style={{ fontSize: 11 }}>
-                °
-              </span>
-            </div>
-            <div className={`${css.numCell} ${css.numCellLast}`}>
-              <span className={`${css.axisLine} ${css.axisZ}`} />
-              <span className={css.mono} style={{ marginLeft: 6 }}>
-                0
-              </span>
-              <span className={css.inputMuted} style={{ fontSize: 11 }}>
-                °
-              </span>
-            </div>
-          </div>
+          <Vec3DegValues values={['0', '0', '0']} />
+        </PropRow>
+
+        <PropRow label="Size">
+          <Vec3Values values={['4', '1', '2']} />
+        </PropRow>
+
+        <SectionDivider />
+        <SectionHeader title="Pivot Offset" />
+
+        <PropRow label="Position">
+          <Vec3Values values={['10', '-0.5', '10']} />
+        </PropRow>
+
+        <PropRow label="Orientation">
+          <Vec3DegValues values={['10', '-90', '10']} />
+        </PropRow>
+
+        <SectionDivider />
+        <SectionHeader title="Physics" />
+
+        <PropRow label="Anchored">
+          <CheckboxControl checked />
+        </PropRow>
+
+        <PropRow label="Fluid Forces">
+          <CheckboxControl checked />
+        </PropRow>
+
+        <PropRow label="Massless">
+          <CheckboxControl checked={false} />
+        </PropRow>
+
+        <PropRow label="Root Priority">
+          <NumberValue value="0" />
+        </PropRow>
+
+        <SectionDivider />
+        <SectionHeader title="Collision" />
+
+        <PropRow label="Can Collide">
+          <CheckboxControl checked />
+        </PropRow>
+
+        <PropRow label="Can Query" dimmed>
+          <CheckboxControl checked />
+        </PropRow>
+
+        <PropRow label="Can Touch">
+          <CheckboxControl checked />
+        </PropRow>
+
+        <PropRow label="Collision Group">
+          <DropdownValue text="Default" mutedSuffix="(enabled)" />
+        </PropRow>
+
+        <SectionDivider />
+        <SectionHeader title="Data" />
+
+        <PropRow label="Locked">
+          <CheckboxControl checked />
+        </PropRow>
+
+        <PropRow label="Parent">
+          <ParentField />
         </PropRow>
       </div>
     </div>

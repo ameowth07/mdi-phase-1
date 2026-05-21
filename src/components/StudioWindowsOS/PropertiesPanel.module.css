@@ -1,4 +1,4 @@
-/* Properties panel content — Figma 3841:115199 */
+/* Properties panel content — Figma 4143:101971 */
 
 .root {
   display: flex;
@@ -214,6 +214,10 @@
   box-sizing: border-box;
 }
 
+.rowDimmed {
+  opacity: 0.3;
+}
+
 .labelCol {
   flex: 0 1 160px;
   max-width: 160px;
@@ -369,6 +373,14 @@
   gap: 2px;
 }
 
+.vec3Row {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-width: 0;
+  gap: 4px;
+}
+
 .numCellMid {
   border-radius: 0;
 }
@@ -378,9 +390,19 @@
   flex: 1 1 0;
   display: flex;
   align-items: center;
+  gap: 2px;
   min-height: 24px;
   padding: 0 6px;
   background: rgba(208, 217, 251, 0.08);
+}
+
+.numCell .mono {
+  margin-left: 2px;
+}
+
+.degSuffix {
+  font-size: 11px;
+  color: var(--content-muted, #bcbec8);
 }
 
 .numCellFirst {
@@ -465,5 +487,48 @@
 
 .checkboxMark {
   color: #202227;
+  flex-shrink: 0;
+}
+
+.checkboxUnchecked {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: rgba(208, 217, 251, 0.04);
+  border: 1.25px solid rgba(208, 217, 251, 0.16);
+  flex-shrink: 0;
+}
+
+.parentInputShell {
+  gap: 8px;
+  padding: 0 6px;
+}
+
+.parentLeadIcon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.parentGlobeIcon {
+  color: #6ea8fe;
+  flex-shrink: 0;
+}
+
+.parentClearBtn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-emphasis, #f7f7f8);
+  cursor: default;
   flex-shrink: 0;
 }

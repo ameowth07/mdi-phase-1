@@ -1,0 +1,314 @@
+/* Figma 4057:75458 — combined command bar + footer */
+
+.footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--surface-200, #202227);
+}
+
+/* Testing UI → Footer tint: same hues as Explorer selected row */
+.footer[data-footer-tint='client'] {
+  background: #032e49;
+}
+
+.footer[data-footer-tint='server'] {
+  background: #04340b;
+}
+
+.footer[data-footer-tint='drone'] {
+  background: rgba(218, 93, 149, 0.32);
+}
+
+.paneDivider {
+  flex: 0 0 1px;
+  width: 100%;
+  background: var(--stroke-default);
+}
+
+.footerRow {
+  flex: 0 0 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.commandSection {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.commandInputRow {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.iconBtn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--content-emphasis, #f7f7f8);
+}
+
+.iconBtn:hover {
+  background: var(--shift-200);
+}
+
+.iconBtnActive {
+  background: var(--shift-400);
+}
+
+.iconBtn img,
+.iconBtn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.localSelect {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--content-default, #d5d7dd);
+  font-size: 14px;
+  line-height: 20px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.localSelectChevron {
+  width: 12px;
+  height: 12px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.commandField {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--shift-200);
+}
+
+.commandFieldInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  margin: 0;
+  font:
+    400 14px/20px ui-monospace,
+    'Cascadia Mono',
+    Consolas,
+    monospace;
+  color: var(--content-emphasis, #f7f7f8);
+  outline: none;
+}
+
+.commandFieldInput::placeholder {
+  color: var(--content-muted, #bcbec8);
+  opacity: 0.6;
+}
+
+.appBarRight {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 40px;
+}
+
+.appBarActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.appBarIconBtn {
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.appBarIconBtn:hover {
+  background: var(--shift-200);
+}
+
+.appBarIconBtn img {
+  width: 16px;
+  height: 16px;
+  display: block;
+  object-fit: contain;
+}
+
+.verticalDivider {
+  flex: 0 0 1px;
+  align-self: stretch;
+  margin: 4px 0;
+  background: var(--stroke-default);
+}
+
+.historyUtilityBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--content-default, #d5d7dd);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.historyUtilityBtn:hover {
+  background: var(--shift-200);
+}
+
+.historyUtilityBtn img {
+  width: 16px;
+  height: 16px;
+  opacity: 0.9;
+  display: block;
+}
+
+/* Questions overlay (prototype) */
+.questionsOverlayBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.questionsOverlayPanel {
+  position: fixed;
+  z-index: 201;
+  bottom: 52px;
+  right: 16px;
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(60vh, 420px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100, #191a1f);
+  border: 1px solid var(--stroke-default, #2a2c35);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.questionsOverlayHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stroke-default, #2a2c35);
+}
+
+.questionsOverlayTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e6ed;
+}
+
+.questionsOverlayClose {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #bcbec8;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.questionsOverlayClose:hover {
+  background: var(--shift-200);
+  color: #e4e6ed;
+}
+
+.questionsOverlayList {
+  margin: 0;
+  padding: 8px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.questionsOverlayItem {
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #d8dae3;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.questionsOverlayItem:last-child {
+  border-bottom: none;
+}
+
+.questionsOverlayEmpty {
+  margin: 0;
+  padding: 14px 14px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8b8f9a;
+}
+
+.questionsOverlayCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #c4c8d4;
+}

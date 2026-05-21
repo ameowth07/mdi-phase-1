@@ -17,10 +17,18 @@ export type ClientScriptDocument = {
   source: string
 }
 
+export const PLAYER_SCRIPT_TAB_LABEL = 'PlayerScript' as const
+
+export const PLAYER_SCRIPT_TAB_PATH = 'Drone Racer (Client)/PlayerScript' as const
+
+export const CLIENT_SCRIPT_EDIT_SOURCE = 'this is the source/edit state of the LocalScript' as const
+
+export const CLIENT_SCRIPT_TEST_COPY_SOURCE = 'this is a client copy of the LocalScript' as const
+
 export const DEFAULT_CLIENT_SCRIPT_DOCUMENT: ClientScriptDocument = {
-  tabLabel: 'Script',
-  tabPath: 'Drone Racer (Client)/Script',
-  source: 'this is a Client script',
+  tabLabel: PLAYER_SCRIPT_TAB_LABEL,
+  tabPath: PLAYER_SCRIPT_TAB_PATH,
+  source: CLIENT_SCRIPT_TEST_COPY_SOURCE,
 }
 
 export const CAMERA_ZOOM_SCRIPT_DOCUMENT: ClientScriptDocument = {
@@ -28,3 +36,12 @@ export const CAMERA_ZOOM_SCRIPT_DOCUMENT: ClientScriptDocument = {
   tabPath: CAMERA_ZOOM_SCRIPT_TAB_PATH,
   source: CAMERA_ZOOM_SCRIPT_SOURCE,
 }
+
+/** Server datamodel script tab (test / edit). */
+export const SERVER_SCRIPT_TAB_LABEL = 'AddAtRuntime' as const
+
+export const SERVER_SCRIPT_TAB_PATH = 'Drone Racer (Server)/AddAtRuntime' as const
+
+export const SERVER_SCRIPT_EDIT_SOURCE = 'this is the source/edit state of the Script' as const
+
+export const SERVER_SCRIPT_TEST_COPY_SOURCE = 'this is a Server copy of the Script' as const
