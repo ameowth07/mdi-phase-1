@@ -5,6 +5,24 @@ export type DatamodelTintFocus = 'client' | 'server' | 'drone'
 
 export type ExplorerRetentionKind = 'sim-client' | 'sim-server' | 'edit-drone' | 'drone-isolation'
 
+/** Default Properties (and similar) input focus border when Selection tint is off. */
+export const SELECTION_TINT_INPUT_FOCUS_DEFAULT = '#657BF4'
+
+/** Viewport / panel inset stroke colors — match semantic focus rings in StudioWindowsOS.module.css. */
+export const DATAMODEL_INSET_FOCUS_BORDER: Record<DatamodelTintFocus, string> = {
+  client: '#4ec8e9',
+  server: '#47B84F',
+  drone: 'rgba(255, 255, 255, 0.5)',
+}
+
+export function propertiesInputFocusBorderColor(
+  selectionTintActive: boolean,
+  tintFocus: DatamodelTintFocus | null,
+): string {
+  if (!selectionTintActive || tintFocus == null) return SELECTION_TINT_INPUT_FOCUS_DEFAULT
+  return DATAMODEL_INSET_FOCUS_BORDER[tintFocus]
+}
+
 /** Matches Explorer `data-explorer-tint` selected-row hues (Testing UI). */
 export function resolveDatamodelTintFocus(
   tintActive: boolean,

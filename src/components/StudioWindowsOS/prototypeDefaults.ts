@@ -20,6 +20,8 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   explorerBadgeShowIndicator: false,
   explorerOriginalDmBadge: false,
   explorerShowBreadcrumb: true,
+  /** Shorten in-window breadcrumbs; full workspace path when Properties is floating. */
+  showFullBreadcrumbWhenDetached: true,
   playModeFullTint: false,
   playModeSelectionTint: true,
   playModeFooterTint: true,
@@ -29,7 +31,7 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   hideAssetTinting: true,
   editWorkspaceDocumentFocus: 'main' as EditDocumentFocus,
   panelTitlesLeftAligned: true,
-  propertiesShowBreadcrumb: true,
+  floatingPropertiesOpen: false,
   mainDocumentEditorTab: 'droneRacer' as MainDocumentEditorTab,
   splitClientDocumentTab: 'droneRacer' as MainDocumentEditorTab,
   splitServerDocumentTab: 'droneRacer' as MainDocumentEditorTab,

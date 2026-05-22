@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ComponentProps, Ref } from 'react'
+import type { ComponentProps, MouseEvent, Ref } from 'react'
 import { Monitor, Server, SquareArrowOutUpRight } from 'lucide-react'
 import ClientSim from './ClientSim'
 import LegacyRibbon from './LegacyRibbon'
@@ -121,7 +121,8 @@ function formatOutputTimestamp(date = new Date()): string {
 /** Tab hover — file path line (Figma Tooltip 3975:51893 / 3975:51736). */
 const TAB_PATH_DRONE_RACER_DOCUMENT = 'Drone Racer/Drone Racer'
 const TAB_PATH_BUNNY_DOCUMENT = 'Bunny/Bunny'
-const TAB_PATH_DRONE_RACER_SCRIPT = 'Drone Racer/Script'
+const TAB_PATH_DRONE_RACER_SCRIPT_A = 'Drone Racer/Script'
+const TAB_PATH_DRONE_RACER_SCRIPT_B = 'Drone Racer/Script'
 const TAB_PATH_DRONE_RACER_CLIENT = 'Drone Racer (Client)'
 const TAB_PATH_DRONE_RACER_SERVER = 'Drone Racer (Server)'
 const TAB_PATH_DRONE_ASSET = 'Drone/Drone'
@@ -182,11 +183,17 @@ const EXPLORER_ROW_META: Record<string, { label: string; className: string }> = 
   'drone-isolation-sensor': { label: 'Sensor', className: 'Model' },
 }
 
+function explorerRowMeta(rowId: string): { label: string; className: string } {
+  return (
+    EXPLORER_ROW_META[rowId] ?? {
+      label: rowId.charAt(0).toUpperCase() + rowId.slice(1),
+      className: 'Model',
+    }
+  )
+}
+
 function explorerRowPropertiesBreadcrumb(rowId: string): string {
-  const meta = EXPLORER_ROW_META[rowId] ?? {
-    label: rowId.charAt(0).toUpperCase() + rowId.slice(1),
-    className: 'Model',
-  }
+  const meta = explorerRowMeta(rowId)
   return `${meta.className} "${meta.label}"`
 }
 
@@ -196,6 +203,26 @@ function formatPropertiesPanelTitle(
 ): string {
   const rowPart = explorerRowPropertiesBreadcrumb(rowId)
   return contextSegment ? `Properties / ${contextSegment} / ${rowPart}` : `Properties / ${rowPart}`
+}
+
+const DRONE_WORKSPACE_BREADCRUMB = 'Drone Racer'
+
+/** Drop workspace name from breadcrumb when not showing full in-window path. */
+function breadcrumbSegmentForDisplay(
+  fullSegment: string | null,
+  includeWorkspace: boolean,
+): string | null {
+  if (!fullSegment) return null
+  if (includeWorkspace) return fullSegment
+  if (fullSegment === DRONE_WORKSPACE_BREADCRUMB) return null
+  if (fullSegment.startsWith(`${DRONE_WORKSPACE_BREADCRUMB} / `)) {
+    return fullSegment.slice(`${DRONE_WORKSPACE_BREADCRUMB} / `.length)
+  }
+  return fullSegment
+}
+
+function formatExplorerPanelTitle(displaySegment: string | null): string {
+  return displaySegment ? `Explorer / ${displaySegment}` : 'Explorer'
 }
 
 /** Sim Explorer tree rows — no parent/child tint relationships in this mock. */
@@ -371,22 +398,14 @@ function TreeChevron({ mode }: { mode: 'open' | 'closed' | 'spacer' }) {
   )
 }
 
-/** Tab path tooltip: first hover delay vs quick chain to another tab (ms). */
-const TAB_PATH_TOOLTIP_FIRST_DELAY_MS = 300
-const TAB_PATH_TOOLTIP_CHAIN_WINDOW_MS = 1000
+/** Path tooltip: first hover delay vs quick chain to another host (ms). */
+const PATH_TOOLTIP_FIRST_DELAY_MS = 300
+const PATH_TOOLTIP_CHAIN_WINDOW_MS = 1000
 
-let tabPathTooltipLastOpenedAt = 0
-let tabPathTooltipLastOpenedInstanceId: string | null = null
+let pathTooltipLastOpenedAt = 0
+let pathTooltipLastOpenedInstanceId: string | null = null
 
-/** Figma Studio App Framework — Tooltip (3975:51736): inverse surface, Body small; shown below tab. */
-function TabWithPathTooltip({
-  path,
-  className,
-  children,
-  onMouseEnter,
-  onMouseLeave,
-  ...rest
-}: ComponentProps<'div'> & { path: string }) {
+function usePathTooltip(path: string, enabled: boolean) {
   const instanceId = useId()
   const [tipOpen, setTipOpen] = useState(false)
   const hoveringRef = useRef(false)
@@ -402,48 +421,93 @@ function TabWithPathTooltip({
   useEffect(() => () => clearOpenTimer(), [clearOpenTimer])
 
   const scheduleOpen = useCallback(() => {
+    if (!enabled) return
     clearOpenTimer()
     const now = Date.now()
     const chainInWindow =
-      tabPathTooltipLastOpenedAt > 0 &&
-      now - tabPathTooltipLastOpenedAt < TAB_PATH_TOOLTIP_CHAIN_WINDOW_MS
-    const chainDifferentTab =
+      pathTooltipLastOpenedAt > 0 &&
+      now - pathTooltipLastOpenedAt < PATH_TOOLTIP_CHAIN_WINDOW_MS
+    const chainDifferentHost =
       chainInWindow &&
-      tabPathTooltipLastOpenedInstanceId !== null &&
-      tabPathTooltipLastOpenedInstanceId !== instanceId
-    const delay = chainDifferentTab ? 0 : TAB_PATH_TOOLTIP_FIRST_DELAY_MS
+      pathTooltipLastOpenedInstanceId !== null &&
+      pathTooltipLastOpenedInstanceId !== instanceId
+    const delay = chainDifferentHost ? 0 : PATH_TOOLTIP_FIRST_DELAY_MS
 
     openTimerRef.current = globalThis.setTimeout(() => {
       openTimerRef.current = null
       if (!hoveringRef.current) return
       setTipOpen(true)
-      tabPathTooltipLastOpenedAt = Date.now()
-      tabPathTooltipLastOpenedInstanceId = instanceId
+      pathTooltipLastOpenedAt = Date.now()
+      pathTooltipLastOpenedInstanceId = instanceId
     }, delay)
-  }, [instanceId, clearOpenTimer])
+  }, [enabled, instanceId, clearOpenTimer])
+
+  const onMouseEnter = useCallback(
+    (e: MouseEvent) => {
+      hoveringRef.current = true
+      scheduleOpen()
+      return e
+    },
+    [scheduleOpen],
+  )
+
+  const onMouseLeave = useCallback(() => {
+    hoveringRef.current = false
+    clearOpenTimer()
+    setTipOpen(false)
+  }, [clearOpenTimer])
+
+  return { tipOpen: enabled && tipOpen, onMouseEnter, onMouseLeave, path }
+}
+
+/** Figma Studio App Framework — Tooltip (3975:51736): inverse surface, Body small; shown below host. */
+function PathTooltipBubble({
+  path,
+  align = 'center',
+}: {
+  path: string
+  align?: 'center' | 'start'
+}) {
+  const alignClass =
+    align === 'start' ? styles.pathTooltipAlignStart : styles.pathTooltipAlignCenter
+
+  return (
+    <span
+      className={`${styles.pathTooltip} ${alignClass}`}
+      role="tooltip"
+      data-node-id="3975:51738"
+    >
+      {path}
+    </span>
+  )
+}
+
+/** Figma Studio App Framework — Tooltip (3975:51736): inverse surface, Body small; shown below tab. */
+function TabWithPathTooltip({
+  path,
+  className,
+  children,
+  onMouseEnter,
+  onMouseLeave,
+  ...rest
+}: ComponentProps<'div'> & { path: string }) {
+  const tooltip = usePathTooltip(path, true)
 
   return (
     <div
       {...rest}
-      className={`${className ?? ''} ${styles.tabWithPathTooltip}`}
+      className={`${className ?? ''} ${styles.pathTooltipHost}`}
       onMouseEnter={(e) => {
         onMouseEnter?.(e)
-        hoveringRef.current = true
-        scheduleOpen()
+        tooltip.onMouseEnter(e)
       }}
       onMouseLeave={(e) => {
         onMouseLeave?.(e)
-        hoveringRef.current = false
-        clearOpenTimer()
-        setTipOpen(false)
+        tooltip.onMouseLeave()
       }}
     >
       {children}
-      {tipOpen ? (
-        <span className={styles.tabPathTooltip} role="tooltip" data-node-id="3975:51738">
-          {path}
-        </span>
-      ) : null}
+      {tooltip.tipOpen ? <PathTooltipBubble path={path} /> : null}
     </div>
   )
 }
@@ -451,6 +515,8 @@ function TabWithPathTooltip({
 type PanelChromeProps = {
   title: string
   assetVariant: 'explorer' | 'properties'
+  /** When set, the close control invokes this handler. */
+  onClose?: () => void
   /** Plain title or Explorer badge row: centered (default) vs left-aligned with panel padding. */
   titleAlign?: 'center' | 'left'
   /** Play mode: StatusBadge-style pill next to “Explorer” (Interaction settings). */
@@ -496,6 +562,139 @@ function ExplorerDocumentBadge({
   )
 }
 
+/**
+ * Progressive panel title truncation — collapse middle segments left-to-right, keep tail.
+ * e.g. Properties / Drone Racer / Client / Model "Door"
+ *   → Properties / ... / Client / Model "Door"
+ *   → Properties / ... / ... / Model "Door"
+ */
+function panelTitleTruncationLevels(title: string): readonly string[] {
+  const segments = title.split(' / ')
+  if (segments.length < 3) return [title]
+
+  const levels: string[] = [title]
+  const middleCount = segments.length - 2
+  for (let collapsed = 1; collapsed <= middleCount; collapsed++) {
+    levels.push(
+      [
+        segments[0],
+        ...Array<string>(collapsed).fill('...'),
+        ...segments.slice(1 + collapsed),
+      ].join(' / '),
+    )
+  }
+  return levels
+}
+
+const PANEL_CHROME_TITLE_ACTION_GAP_PX = 4
+
+function panelTitleLabelHost(el: HTMLElement): HTMLElement {
+  const parent = el.parentElement
+  if (parent?.classList.contains(styles.panelTitleWithBadge)) return parent
+  return el
+}
+
+function measurePanelTitleTextWidth(text: string): number {
+  const measure = document.createElement('span')
+  measure.className = `${styles.panelTitle} ${styles.panelTitleLabel}`
+  measure.style.cssText =
+    'position:absolute;visibility:hidden;pointer-events:none;white-space:nowrap;margin:0;'
+  measure.textContent = text
+  document.body.appendChild(measure)
+  const width = measure.scrollWidth
+  measure.remove()
+  return width
+}
+
+/** Space from title host left edge to panel actions (not shrink-wrapped label width). */
+function panelTitleAvailableWidth(el: HTMLElement): number {
+  const header = el.closest('header')
+  const actions = header?.querySelector(`.${styles.panelActions}`) as HTMLElement | null
+  if (!header || !actions) return 0
+  const host = panelTitleLabelHost(el)
+  const slotStart = host.getBoundingClientRect().left
+  const slotEnd = actions.getBoundingClientRect().left
+  return Math.max(slotEnd - slotStart - PANEL_CHROME_TITLE_ACTION_GAP_PX, 0)
+}
+
+function panelTitleRequiredWidth(el: HTMLElement, text: string, className: string): number {
+  const host = panelTitleLabelHost(el)
+  const textWidth = measurePanelTitleTextWidth(text)
+
+  if (host !== el) {
+    const badge = host.querySelector(':scope > span') as HTMLElement | null
+    const badgeWidth = badge?.getBoundingClientRect().width ?? 0
+    const gap = parseFloat(getComputedStyle(host).gap) || 10
+    return textWidth + badgeWidth + gap
+  }
+
+  if (className.includes(styles.panelTitleAlignCenter)) {
+    const slotWidth = host.getBoundingClientRect().width
+    return slotWidth / 2 + textWidth / 2
+  }
+
+  return textWidth
+}
+
+function panelTitleFits(el: HTMLElement, text: string, className: string): boolean {
+  const available = panelTitleAvailableWidth(el)
+  if (!Number.isFinite(available) || available <= 0) return false
+  return panelTitleRequiredWidth(el, text, className) <= available + 1
+}
+
+function pickPanelTitleDisplay(el: HTMLElement, title: string, className: string): string {
+  const levels = panelTitleTruncationLevels(title)
+  if (levels.length === 1) return title
+
+  const available = panelTitleAvailableWidth(el)
+  if (available <= 0) return title
+
+  if (panelTitleFits(el, title, className)) return title
+
+  for (let i = 1; i < levels.length; i++) {
+    const candidate = levels[i]!
+    if (panelTitleFits(el, candidate, className)) return candidate
+  }
+  return levels[levels.length - 1]!
+}
+
+function PanelChromeTitle({ title, className }: { title: string; className: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [displayTitle, setDisplayTitle] = useState(title)
+
+  const syncTitleDisplay = useCallback(() => {
+    const el = ref.current
+    if (!el || panelTitleAvailableWidth(el) <= 0) return
+    const next = pickPanelTitleDisplay(el, title, className)
+    setDisplayTitle((prev) => (prev === next ? prev : next))
+  }, [title, className])
+
+  useLayoutEffect(() => {
+    syncTitleDisplay()
+    const header = ref.current?.closest('header')
+    if (!header) return
+    const ro = new ResizeObserver(syncTitleDisplay)
+    ro.observe(header)
+    return () => ro.disconnect()
+  }, [syncTitleDisplay])
+
+  const isTruncated = displayTitle !== title
+  const tooltip = usePathTooltip(title, isTruncated)
+  const tooltipAlign = className.includes(styles.panelTitleAlignCenter) ? 'center' : 'start'
+
+  return (
+    <div
+      ref={ref}
+      className={`${styles.pathTooltipHost} ${className}`}
+      onMouseEnter={tooltip.onMouseEnter}
+      onMouseLeave={tooltip.onMouseLeave}
+    >
+      <span className={styles.panelTitleLabel}>{displayTitle}</span>
+      {tooltip.tipOpen ? <PathTooltipBubble path={title} align={tooltipAlign} /> : null}
+    </div>
+  )
+}
+
 function ExplorerFocusBadge({
   target,
   showIndicator,
@@ -531,6 +730,7 @@ function ExplorerFocusBadge({
 function PanelChrome({
   title,
   assetVariant,
+  onClose,
   titleAlign = 'center',
   explorerFocusBadgeTarget = null,
   explorerDocumentBadgeLabel = null,
@@ -583,7 +783,7 @@ function PanelChrome({
           role="group"
           aria-label={explorerAria}
         >
-          <p className={styles.panelTitlePlain}>{title}</p>
+          <PanelChromeTitle title={title} className={styles.panelTitlePlain} />
           {showSimExplorerBadge ? (
             <ExplorerFocusBadge
               target={explorerFocusBadgeTarget!}
@@ -604,7 +804,7 @@ function PanelChrome({
           )}
         </div>
       ) : (
-        <p className={`${styles.panelTitle} ${titleAlignClass}`}>{title}</p>
+        <PanelChromeTitle title={title} className={`${styles.panelTitle} ${titleAlignClass}`} />
       )}
       <div className={styles.panelActions}>
         <button type="button" className={styles.panelAction} aria-label="Pop out panel">
@@ -615,7 +815,12 @@ function PanelChrome({
             aria-hidden
           />
         </button>
-        <button type="button" className={styles.panelAction} aria-label="Close panel">
+        <button
+          type="button"
+          className={styles.panelAction}
+          aria-label="Close panel"
+          onClick={onClose}
+        >
           <img src={close} alt="" />
         </button>
       </div>
@@ -816,9 +1021,7 @@ function ExplorerTree({
 
   if (
     clientSim &&
-    (explorerWhileScriptFocus === 'edit-drone' ||
-      explorerWhileScriptFocus === 'sim-client' ||
-      explorerWhileScriptFocus === 'sim-server')
+    (explorerWhileScriptFocus === 'sim-client' || explorerWhileScriptFocus === 'sim-server')
   ) {
     return (
       <div className={styles.tree} {...explorerTreeProps}>
@@ -1244,10 +1447,8 @@ function DroneRacerWorkspace({
     (usePerColumnDocumentTabs
       ? splitClientPrimaryTabActive
         ? simFocus === 'client'
-        : clientDocumentTab === 'clientScript' ||
-          isDroneRacerMainScriptTab(clientDocumentTab)
+        : clientDocumentTab === 'clientScript'
       : mainDocumentEditorTab === 'clientScript' ||
-        isDroneRacerMainScriptTab(mainDocumentEditorTab) ||
         (simFocus === 'client' && !mainDocumentScriptOpen))
 
   const serverFocusChromeRing =
@@ -1493,7 +1694,7 @@ function DroneRacerWorkspace({
     <>
       {scriptATabOpen ? (
       <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_SCRIPT}
+        path={TAB_PATH_DRONE_RACER_SCRIPT_A}
         role="tab"
         tabIndex={0}
         aria-selected={activeTab === 'scriptA'}
@@ -1514,7 +1715,7 @@ function DroneRacerWorkspace({
       ) : null}
       {scriptBTabOpen ? (
       <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_SCRIPT}
+        path={TAB_PATH_DRONE_RACER_SCRIPT_B}
         role="tab"
         tabIndex={0}
         aria-selected={activeTab === 'scriptB'}
@@ -2183,6 +2384,9 @@ export default function StudioWindowsOS({
   const [explorerShowBreadcrumb, setExplorerShowBreadcrumb] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.explorerShowBreadcrumb,
   )
+  const [showFullBreadcrumbWhenDetached, setShowFullBreadcrumbWhenDetached] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.showFullBreadcrumbWhenDetached,
+  )
   /** Play mode: subtle full-frame tint by focused viewport (Interaction settings). */
   const [playModeFullTint, setPlayModeFullTint] = useState(false)
   /** Play mode: Explorer row hues by focused datamodel (Testing UI: Selection tint). */
@@ -2339,7 +2543,9 @@ export default function StudioWindowsOS({
 
     if (!explorerChromeScriptOpen) return null
 
-    if (isDroneRacerMainScriptTab(explorerChromeDocumentTab)) return null
+    if (isDroneRacerMainScriptTab(explorerChromeDocumentTab)) {
+      return clientSimActive ? 'edit-drone' : null
+    }
 
     if (!clientSimActive) return null
 
@@ -2430,10 +2636,19 @@ export default function StudioWindowsOS({
     explorerHeaderSimFocus,
   ])
 
+  const explorerBreadcrumbDisplaySegment = useMemo(
+    () =>
+      breadcrumbSegmentForDisplay(
+        explorerBreadcrumbSegment,
+        !showFullBreadcrumbWhenDetached,
+      ),
+    [explorerBreadcrumbSegment, showFullBreadcrumbWhenDetached],
+  )
+
   const explorerPanelTitle = explorerNoBadge
     ? 'Explorer'
-    : explorerShowBreadcrumb && explorerBreadcrumbSegment
-      ? `Explorer / ${explorerBreadcrumbSegment}`
+    : explorerShowBreadcrumb
+      ? formatExplorerPanelTitle(explorerBreadcrumbDisplaySegment)
       : clientSimActive && explorerFocusBadge
         ? 'Explorer'
         : explorerShowsClientServerFocusBadge
@@ -2463,12 +2678,32 @@ export default function StudioWindowsOS({
     ],
   )
 
+  const propertiesDatamodelTintFocus = useMemo(
+    () =>
+      resolveDatamodelTintFocus(
+        playModeSelectionTint,
+        clientSimActive,
+        explorerHeaderSimFocus,
+        explorerWhileScriptFocus,
+        explorerShowsDroneIsolationTree,
+        hideAssetTinting,
+      ),
+    [
+      playModeSelectionTint,
+      clientSimActive,
+      explorerHeaderSimFocus,
+      explorerWhileScriptFocus,
+      explorerShowsDroneIsolationTree,
+      hideAssetTinting,
+    ],
+  )
+
   /** Right rail: Explorer / Properties / Interaction panel — title alignment (Interaction settings). */
   const [panelTitlesLeftAligned, setPanelTitlesLeftAligned] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.panelTitlesLeftAligned,
   )
-  const [propertiesShowBreadcrumb, setPropertiesShowBreadcrumb] = useState<boolean>(
-    PROTOTYPE_SETTINGS_DEFAULTS.propertiesShowBreadcrumb,
+  const [floatingPropertiesOpen, setFloatingPropertiesOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.floatingPropertiesOpen,
   )
   const [editExplorerSelectedRowId, setEditExplorerSelectedRowId] = useState<string | null>(
     null,
@@ -2564,6 +2799,7 @@ export default function StudioWindowsOS({
     setExplorerBadgeShowIndicator(d.explorerBadgeShowIndicator)
     setExplorerOriginalDmBadge(d.explorerOriginalDmBadge)
     setExplorerShowBreadcrumb(d.explorerShowBreadcrumb)
+    setShowFullBreadcrumbWhenDetached(d.showFullBreadcrumbWhenDetached)
     setPlayModeFullTint(d.playModeFullTint)
     setPlayModeSelectionTint(d.playModeSelectionTint)
     setPlayModeFooterTint(d.playModeFooterTint)
@@ -2573,7 +2809,7 @@ export default function StudioWindowsOS({
     setHideAssetTinting(d.hideAssetTinting)
     setEditWorkspaceDocumentFocus(d.editWorkspaceDocumentFocus)
     setPanelTitlesLeftAligned(d.panelTitlesLeftAligned)
-    setPropertiesShowBreadcrumb(d.propertiesShowBreadcrumb)
+    setFloatingPropertiesOpen(d.floatingPropertiesOpen)
     setEditExplorerSelectedRowId(null)
     setMainDocumentEditorTab(d.mainDocumentEditorTab)
     setSplitClientDocumentTab(d.splitClientDocumentTab)
@@ -2632,21 +2868,41 @@ export default function StudioWindowsOS({
     editExplorerSelectedRowId,
   ])
 
-  const propertiesBreadcrumbContext = useMemo(() => {
-    if (explorerShowsDroneIsolationTree) return DRONE_WORKSPACE_TAB_LABEL
-    if (!clientSimActive) return null
-    return explorerSimFocusForTree === 'server' ? 'Server' : 'Client'
-  }, [clientSimActive, explorerShowsDroneIsolationTree, explorerSimFocusForTree])
+  const propertiesBreadcrumbSegmentDocked = useMemo(
+    () =>
+      breadcrumbSegmentForDisplay(
+        explorerBreadcrumbSegment,
+        !showFullBreadcrumbWhenDetached,
+      ),
+    [explorerBreadcrumbSegment, showFullBreadcrumbWhenDetached],
+  )
 
-  const propertiesPanelTitle =
-    propertiesShowBreadcrumb && activeExplorerRowForProperties
+  const propertiesBreadcrumbSegmentFloating = useMemo(
+    () => breadcrumbSegmentForDisplay(explorerBreadcrumbSegment, true),
+    [explorerBreadcrumbSegment],
+  )
+
+  const propertiesPanelTitleDocked =
+    explorerShowBreadcrumb && activeExplorerRowForProperties
       ? formatPropertiesPanelTitle(
           activeExplorerRowForProperties,
-          propertiesBreadcrumbContext,
+          propertiesBreadcrumbSegmentDocked,
+        )
+      : 'Properties'
+
+  const propertiesPanelTitleFloating =
+    explorerShowBreadcrumb && activeExplorerRowForProperties
+      ? formatPropertiesPanelTitle(
+          activeExplorerRowForProperties,
+          propertiesBreadcrumbSegmentFloating,
         )
       : 'Properties'
 
   const propertiesPanelEmpty = activeExplorerRowForProperties === null
+
+  const propertiesObjectLabel = activeExplorerRowForProperties
+    ? explorerRowMeta(activeExplorerRowForProperties).label
+    : null
 
   const panelChromeTitleAlign = panelTitlesLeftAligned ? ('left' as const) : ('center' as const)
 
@@ -2954,16 +3210,23 @@ export default function StudioWindowsOS({
               />
             </div>
           </div>
-          <div className={styles.panel} data-node-id="3841:115196">
-            <PanelChrome
-              title={propertiesPanelTitle}
-              assetVariant="properties"
-              titleAlign={panelChromeTitleAlign}
-            />
-            <div className={styles.panelBody} data-node-id="3841:115198">
-              <PropertiesPanel empty={propertiesPanelEmpty} />
+          {!floatingPropertiesOpen ? (
+            <div className={styles.panel} data-node-id="3841:115196">
+              <PanelChrome
+                title={propertiesPanelTitleDocked}
+                assetVariant="properties"
+                titleAlign={panelChromeTitleAlign}
+              />
+              <div className={styles.panelBody} data-node-id="3841:115198">
+                <PropertiesPanel
+                  empty={propertiesPanelEmpty}
+                  objectLabel={propertiesObjectLabel ?? undefined}
+                  selectionTintActive={playModeSelectionTint}
+                  datamodelTintFocus={propertiesDatamodelTintFocus}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
           <div className={`${styles.panel} ${styles.panelInteraction}`}>
             <PanelChrome
               title="Prototype settings"
@@ -2986,6 +3249,8 @@ export default function StudioWindowsOS({
                 onExplorerOriginalDmBadgeChange={setExplorerOriginalDmBadge}
                 explorerShowBreadcrumb={explorerShowBreadcrumb}
                 onExplorerShowBreadcrumbChange={setExplorerShowBreadcrumb}
+                showFullBreadcrumbWhenDetached={showFullBreadcrumbWhenDetached}
+                onShowFullBreadcrumbWhenDetachedChange={setShowFullBreadcrumbWhenDetached}
                 fullTint={playModeFullTint}
                 onFullTintChange={setPlayModeFullTint}
                 selectionTint={playModeSelectionTint}
@@ -3002,10 +3267,11 @@ export default function StudioWindowsOS({
                 onHideAssetTintingChange={setHideAssetTinting}
                 panelTitlesLeftAligned={panelTitlesLeftAligned}
                 onPanelTitlesLeftAlignedChange={setPanelTitlesLeftAligned}
-                propertiesShowBreadcrumb={propertiesShowBreadcrumb}
-                onPropertiesShowBreadcrumbChange={setPropertiesShowBreadcrumb}
                 bunnyAssetWindow={bunnyAssetWindow}
                 onOpenAssetWindow={bunnyAssetWindow ? undefined : onOpenAssetWindow}
+                onOpenFloatingProperties={
+                  bunnyAssetWindow ? undefined : () => setFloatingPropertiesOpen(true)
+                }
                 onOpenClientScript={bunnyAssetWindow ? undefined : openClientScriptTab}
                 onOpenServerScript={bunnyAssetWindow ? undefined : openServerScriptTab}
                 onThrowError={bunnyAssetWindow ? undefined : handleThrowError}
@@ -3023,6 +3289,27 @@ export default function StudioWindowsOS({
         questions={FOOTER_QUESTIONS}
         datamodelTintFocus={footerDatamodelTintFocus}
       />
+
+      {floatingPropertiesOpen ? (
+        <div className={styles.floatingProperties} data-name="Floating Properties">
+          <div className={styles.panel}>
+            <PanelChrome
+              title={propertiesPanelTitleFloating}
+              assetVariant="properties"
+              titleAlign={panelChromeTitleAlign}
+              onClose={() => setFloatingPropertiesOpen(false)}
+            />
+            <div className={styles.panelBody}>
+              <PropertiesPanel
+                empty={propertiesPanelEmpty}
+                objectLabel={propertiesObjectLabel ?? undefined}
+                selectionTintActive={playModeSelectionTint}
+                datamodelTintFocus={propertiesDatamodelTintFocus}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {tintActive ? (
         <div

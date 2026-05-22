@@ -68,8 +68,8 @@ function GalleryInteractionSettings() {
   const [panelTitlesLeftAligned, setPanelTitlesLeftAligned] = useState<boolean>(
     d.panelTitlesLeftAligned,
   )
-  const [propertiesShowBreadcrumb, setPropertiesShowBreadcrumb] = useState<boolean>(
-    d.propertiesShowBreadcrumb,
+  const [showFullBreadcrumbWhenDetached, setShowFullBreadcrumbWhenDetached] = useState<boolean>(
+    d.showFullBreadcrumbWhenDetached,
   )
 
   return (
@@ -88,6 +88,8 @@ function GalleryInteractionSettings() {
       onExplorerOriginalDmBadgeChange={setExplorerOriginalDmBadge}
       explorerShowBreadcrumb={explorerShowBreadcrumb}
       onExplorerShowBreadcrumbChange={setExplorerShowBreadcrumb}
+      showFullBreadcrumbWhenDetached={showFullBreadcrumbWhenDetached}
+      onShowFullBreadcrumbWhenDetachedChange={setShowFullBreadcrumbWhenDetached}
       fullTint={fullTint}
       onFullTintChange={setFullTint}
       selectionTint={selectionTint}
@@ -104,8 +106,7 @@ function GalleryInteractionSettings() {
       onHideAssetTintingChange={setHideAssetTinting}
       panelTitlesLeftAligned={panelTitlesLeftAligned}
       onPanelTitlesLeftAlignedChange={setPanelTitlesLeftAligned}
-      propertiesShowBreadcrumb={propertiesShowBreadcrumb}
-      onPropertiesShowBreadcrumbChange={setPropertiesShowBreadcrumb}
+      onOpenFloatingProperties={() => {}}
     />
   )
 }

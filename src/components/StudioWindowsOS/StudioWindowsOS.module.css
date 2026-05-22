@@ -96,8 +96,10 @@
     calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
     0.4
   );
-  /** Drone Racer + asset isolation — inset focus ring. */
+  /** Drone Racer + asset isolation — white inset focus ring (Has focus stroke). */
   --edit-workspace-focus-ring-width: 2px;
+  /** Client/Server viewport panel — semantic focus stroke (Has stroke). */
+  --panel-focus-stroke-width: 1px;
   --edit-workspace-focus-ring: hsla(
     calc(0 + var(--delta-hue)),
     calc(0% * var(--sat-multiplier)),
@@ -342,17 +344,15 @@
   border-bottom: none;
 }
 
-/** Figma Tooltip (3975:51736) — inverse surface; sits below tab with hover delay / chain timing. */
-.tabWithPathTooltip {
+/** Figma Tooltip (3975:51736) — inverse surface; sits below host with hover delay / chain timing. */
+.pathTooltipHost {
   position: relative;
 }
 
-.tabPathTooltip {
+.pathTooltip {
   position: absolute;
-  left: 50%;
   top: calc(100% + 6px);
   bottom: auto;
-  transform: translateX(-50%);
   z-index: 80;
   pointer-events: none;
   box-sizing: border-box;
@@ -364,7 +364,6 @@
   font-size: 12px;
   line-height: 18px;
   font-weight: 400;
-  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -372,6 +371,18 @@
     0 0 0 1px rgba(4, 4, 8, 0.08),
     0 2px 2px rgba(4, 4, 8, 0.25),
     0 10px 20px rgba(4, 4, 8, 0.22);
+}
+
+.pathTooltipAlignCenter {
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.pathTooltipAlignStart {
+  left: 0;
+  transform: none;
+  text-align: left;
 }
 
 .tabClose {
@@ -430,7 +441,7 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px #4ec8e9;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #4ec8e9;
 }
 
 .viewportAboveSimTint {
@@ -728,7 +739,7 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px #38bdf8;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #38bdf8;
 }
 
 .serverViewport {
@@ -745,7 +756,7 @@
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px #16a34a;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #47b84f;
 }
 
 .serverViewport img {
@@ -764,7 +775,7 @@
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px #16a34a;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #47b84f;
 }
 
 .right {
@@ -777,13 +788,36 @@
   background: var(--surface-0);
 }
 
+/** In-frame floating Properties — overlays center workspace; .frame is position: relative. */
+.floatingProperties {
+  position: absolute;
+  top: 68px;
+  right: calc(291px + var(--workspace-gutter) * 2);
+  bottom: 34px;
+  width: 291px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+  pointer-events: auto;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 1px var(--stroke-default),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.floatingProperties .panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
 .panel {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--surface-100);
-  overflow: hidden;
 }
 
 .panelInteraction {
@@ -803,6 +837,8 @@
 .panelHeader {
   flex: 0 0 24px;
   position: relative;
+  z-index: 20;
+  overflow: visible;
   background: rgba(208, 217, 251, 0.04);
 }
 
@@ -815,6 +851,13 @@
   color: var(--panel-chrome-title, #bcbec8);
 }
 
+.panelTitleLabel {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .panelTitleAlignCenter {
   left: 50%;
   transform: translate(-50%, -50%);
@@ -824,8 +867,10 @@
 
 .panelTitleAlignLeft {
   left: 8px;
+  right: 52px;
   transform: translateY(-50%);
-  max-width: calc(100% - 52px);
+  max-width: none;
+  width: auto;
   text-align: left;
 }
 
@@ -855,12 +900,13 @@
 }
 
 .panelTitlePlain {
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
   color: var(--panel-chrome-title, #bcbec8);
-  white-space: nowrap;
 }
 
 .explorerFocusBadge {

@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import { Anchor, Check, Globe, Lock, MoreHorizontal, Package2, X } from 'lucide-react'
+import type { DatamodelTintFocus } from './datamodelTint'
 import css from './PropertiesPanel.module.css'
+
+const FOCUSABLE_INPUT_PROPS = {
+  tabIndex: 0,
+  role: 'textbox' as const,
+}
 
 function ChevDownSm() {
   return (
@@ -91,7 +97,7 @@ function PropRow({
 
 function CheckboxControl({ checked }: { checked: boolean }) {
   return (
-    <div className={css.checkboxCell}>
+    <div className={css.checkboxCell} tabIndex={0} role="checkbox" aria-checked={checked}>
       {checked ? (
         <div className={css.checkbox}>
           <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
@@ -105,7 +111,7 @@ function CheckboxControl({ checked }: { checked: boolean }) {
 
 function NumberValue({ value }: { value: string }) {
   return (
-    <div className={`${css.inputShell} ${css.inputShellTight}`}>
+    <div className={`${css.inputShell} ${css.inputShellTight}`} {...FOCUSABLE_INPUT_PROPS}>
       <span className={`${css.mono} ${css.inputText}`}>{value}</span>
     </div>
   )
@@ -121,7 +127,7 @@ function DropdownValue({
   lead?: ReactNode
 }) {
   return (
-    <div className={`${css.inputShell} ${css.inputShellDropdown}`}>
+    <div className={`${css.inputShell} ${css.inputShellDropdown}`} {...FOCUSABLE_INPUT_PROPS}>
       {lead ?? null}
       <span className={css.inputText}>
         {text}
@@ -150,6 +156,7 @@ function Vec3Values({ values }: { values: [string, string, string] }) {
           className={`${css.numCell} ${
             index === 0 ? css.numCellFirst : index === 2 ? css.numCellLast : css.numCellMid
           }`}
+          {...FOCUSABLE_INPUT_PROPS}
         >
           <span className={`${css.axisLine} ${AXIS_LINE_CLASS[axes[index]]}`} />
           <span className={css.mono}>{value}</span>
@@ -169,6 +176,7 @@ function Vec3DegValues({ values }: { values: [string, string, string] }) {
           className={`${css.numCell} ${
             index === 0 ? css.numCellFirst : index === 2 ? css.numCellLast : css.numCellMid
           }`}
+          {...FOCUSABLE_INPUT_PROPS}
         >
           <span className={`${css.axisLine} ${AXIS_LINE_CLASS[axes[index]]}`} />
           <span className={css.mono}>{value}</span>
@@ -182,19 +190,19 @@ function Vec3DegValues({ values }: { values: [string, string, string] }) {
 function ColorRgbRow() {
   return (
     <div className={css.rgbRow}>
-      <div className={css.colorSwatchSeg}>
+      <div className={css.colorSwatchSeg} tabIndex={0} role="textbox" aria-label="Color swatch">
         <div className={css.swatchSq} />
       </div>
       <div className={css.vDiv} />
-      <div className={`${css.numCell} ${css.numCellFirst}`}>
+      <div className={`${css.numCell} ${css.numCellFirst}`} {...FOCUSABLE_INPUT_PROPS}>
         <span className={css.mono}>163</span>
       </div>
       <div className={css.vDiv} />
-      <div className={`${css.numCell} ${css.numCellMid}`}>
+      <div className={`${css.numCell} ${css.numCellMid}`} {...FOCUSABLE_INPUT_PROPS}>
         <span className={css.mono}>162</span>
       </div>
       <div className={css.vDiv} />
-      <div className={`${css.numCell} ${css.numCellLast}`}>
+      <div className={`${css.numCell} ${css.numCellLast}`} {...FOCUSABLE_INPUT_PROPS}>
         <span className={css.mono}>165</span>
       </div>
     </div>
@@ -203,7 +211,7 @@ function ColorRgbRow() {
 
 function ParentField() {
   return (
-    <div className={`${css.inputShell} ${css.parentInputShell}`}>
+    <div className={`${css.inputShell} ${css.parentInputShell}`} {...FOCUSABLE_INPUT_PROPS}>
       <div className={css.parentLeadIcon} aria-hidden>
         <Globe size={12} strokeWidth={1.75} className={css.parentGlobeIcon} />
       </div>
@@ -218,10 +226,20 @@ function ParentField() {
 type PropertiesPanelProps = {
   /** No Explorer selection — hide part inspector (client sim, etc.). */
   empty?: boolean
+  /** Explorer row display name for the title row (e.g. Shop, HoverScript). */
+  objectLabel?: string
+  /** Testing UI: Selection tint — input focus border follows focused datamodel inset. */
+  selectionTintActive?: boolean
+  datamodelTintFocus?: DatamodelTintFocus | null
 }
 
 /** Figma 4143:101971 — Properties panel (full slot). */
-export default function PropertiesPanel({ empty }: PropertiesPanelProps) {
+export default function PropertiesPanel({
+  empty,
+  objectLabel,
+  selectionTintActive = false,
+  datamodelTintFocus = null,
+}: PropertiesPanelProps) {
   if (empty) {
     return (
       <div className={css.root} data-node-id="4143:101971">
@@ -232,12 +250,17 @@ export default function PropertiesPanel({ empty }: PropertiesPanelProps) {
     )
   }
 
+  const tintDataAttr =
+    selectionTintActive && datamodelTintFocus != null
+      ? ({ 'data-properties-tint': datamodelTintFocus } as const)
+      : undefined
+
   return (
-    <div className={css.root} data-node-id="4143:101971">
+    <div className={css.root} data-node-id="4143:101971" {...tintDataAttr}>
       <div className={css.frontmatter}>
         <div className={css.titleRow}>
           <PartLeadingIcon />
-          <p className={css.titleText}>Mypart</p>
+          <p className={css.titleText}>{objectLabel ?? 'Mypart'}</p>
         </div>
         <div className={css.toggles}>
           <LockIcon />

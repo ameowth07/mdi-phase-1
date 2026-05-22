@@ -39,6 +39,9 @@ export type InteractionSettingsPanelProps = {
   /** Explorer title suffix for focused document (e.g. Explorer / Drone). */
   explorerShowBreadcrumb: boolean
   onExplorerShowBreadcrumbChange: (value: boolean) => void
+  /** Full workspace path in breadcrumbs when Properties is floating; shorten in-window when on. */
+  showFullBreadcrumbWhenDetached: boolean
+  onShowFullBreadcrumbWhenDetachedChange: (value: boolean) => void
   /** Full-frame 5% tint by focused viewport while simulating. */
   fullTint: boolean
   onFullTintChange: (value: boolean) => void
@@ -63,11 +66,10 @@ export type InteractionSettingsPanelProps = {
   /** Right-side panel headers: Explorer / Properties / Theme — title left-aligned vs centered. */
   panelTitlesLeftAligned: boolean
   onPanelTitlesLeftAlignedChange: (value: boolean) => void
-  /** Properties header: `Properties / Model "Shop"` from Explorer selection. */
-  propertiesShowBreadcrumb: boolean
-  onPropertiesShowBreadcrumbChange: (value: boolean) => void
   /** When set, shows control to spawn another full Studio frame (stacked in the app shell). */
   onOpenAssetWindow?: () => void
+  /** When set, shows control to open Properties as an in-frame floating panel. */
+  onOpenFloatingProperties?: () => void
   /** Opens a Client Script document tab in the main workspace. */
   onOpenClientScript?: () => void
   /** Opens a Server Script document tab in the main workspace. */
@@ -138,6 +140,8 @@ export default function InteractionSettingsPanel({
   onExplorerOriginalDmBadgeChange,
   explorerShowBreadcrumb,
   onExplorerShowBreadcrumbChange,
+  showFullBreadcrumbWhenDetached,
+  onShowFullBreadcrumbWhenDetachedChange,
   fullTint,
   onFullTintChange,
   selectionTint,
@@ -154,9 +158,8 @@ export default function InteractionSettingsPanel({
   onHideAssetTintingChange,
   panelTitlesLeftAligned,
   onPanelTitlesLeftAlignedChange,
-  propertiesShowBreadcrumb,
-  onPropertiesShowBreadcrumbChange,
   onOpenAssetWindow,
+  onOpenFloatingProperties,
   onOpenClientScript,
   onOpenServerScript,
   onThrowError,
@@ -167,8 +170,6 @@ export default function InteractionSettingsPanel({
   const [colorOperatorsOpen, setColorOperatorsOpen] = useState(false)
   const [miscOpen, setMiscOpen] = useState(false)
   const badgeOptionsDisabled = explorerNoBadge
-  const indicatorRowDisabled =
-    badgeOptionsDisabled || (!explorerFocusBadge && !explorerOriginalDmBadge)
 
   const hueSliderRef = useRef<HTMLInputElement>(null)
   const satSliderRef = useRef<HTMLInputElement>(null)
@@ -465,6 +466,17 @@ export default function InteractionSettingsPanel({
                     </button>
                   </div>
                 ) : null}
+                {onOpenFloatingProperties ? (
+                  <div className={css.openAssetRow}>
+                    <button
+                      type="button"
+                      className={css.openAssetBtn}
+                      onClick={onOpenFloatingProperties}
+                    >
+                      Open floating properties
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </section>
 
@@ -620,22 +632,58 @@ export default function InteractionSettingsPanel({
                   </button>
                   <span className={css.label}>Left-align panel titles</span>
                 </div>
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={propertiesShowBreadcrumb}
-                    aria-label="Show Properties breadcrumb"
-                    className={`${css.checkboxBtn} ${propertiesShowBreadcrumb ? css.checkboxBtnChecked : ''}`}
-                    onClick={() => onPropertiesShowBreadcrumbChange(!propertiesShowBreadcrumb)}
-                  >
-                    {propertiesShowBreadcrumb ? (
-                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-                    ) : null}
-                  </button>
-                  <span className={css.label}>Show Properties breadcrumb</span>
-                </div>
               </div>
+              <section className={css.subgroup} aria-labelledby="interaction-breadcrumb-heading">
+                <h3 id="interaction-breadcrumb-heading" className={css.subgroupLabel}>
+                  Breadcrumb
+                </h3>
+                <div
+                  className={css.options}
+                  role="radiogroup"
+                  aria-labelledby="interaction-breadcrumb-heading"
+                >
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={explorerShowBreadcrumb && !showFullBreadcrumbWhenDetached}
+                      aria-label="Show full breadcrumb"
+                      className={`${css.radioBtn} ${
+                        explorerShowBreadcrumb && !showFullBreadcrumbWhenDetached
+                          ? css.radioBtnChecked
+                          : ''
+                      }`}
+                      onClick={() => {
+                        onExplorerShowBreadcrumbChange(true)
+                        onShowFullBreadcrumbWhenDetachedChange(false)
+                      }}
+                    >
+                      <span className={css.radioMark} aria-hidden />
+                    </button>
+                    <span className={css.label}>Show full breadcrumb</span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={explorerShowBreadcrumb && showFullBreadcrumbWhenDetached}
+                      aria-label="Show full breadcrumb when detached"
+                      className={`${css.radioBtn} ${
+                        explorerShowBreadcrumb && showFullBreadcrumbWhenDetached
+                          ? css.radioBtnChecked
+                          : ''
+                      }`}
+                      onClick={() => {
+                        onExplorerShowBreadcrumbChange(true)
+                        onShowFullBreadcrumbWhenDetachedChange(true)
+                      }}
+                    >
+                      <span className={css.radioMark} aria-hidden />
+                    </button>
+                    <span className={css.label}>Show full breadcrumb when detached</span>
+                  </div>
+                </div>
+              </section>
               <section className={css.subgroup} aria-labelledby="interaction-badge-heading">
                 <h3 id="interaction-badge-heading" className={css.subgroupLabel}>
                   Badge
@@ -687,34 +735,30 @@ export default function InteractionSettingsPanel({
                       Show focus badge
                     </span>
                   </div>
-                  <div className={css.row}>
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={explorerBadgeShowIndicator}
-                      aria-label="Show indicator in badge"
-                      aria-disabled={indicatorRowDisabled}
-                      disabled={indicatorRowDisabled}
-                      className={`${css.checkboxBtn} ${explorerBadgeShowIndicator ? css.checkboxBtnChecked : ''}`}
-                      onClick={() =>
-                        onExplorerBadgeShowIndicatorChange(!explorerBadgeShowIndicator)
-                      }
-                    >
-                      {explorerBadgeShowIndicator ? (
-                        <Check
-                          size={10}
-                          strokeWidth={2.75}
-                          className={css.checkboxMark}
-                          aria-hidden
-                        />
-                      ) : null}
-                    </button>
-                    <span
-                      className={`${css.label} ${indicatorRowDisabled ? css.labelMuted : ''}`}
-                    >
-                      Show indicator in badge
-                    </span>
-                  </div>
+                  {explorerFocusBadge && !badgeOptionsDisabled ? (
+                    <div className={`${css.row} ${css.rowNested}`}>
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={explorerBadgeShowIndicator}
+                        aria-label="Show indicator in badge"
+                        className={`${css.checkboxBtn} ${explorerBadgeShowIndicator ? css.checkboxBtnChecked : ''}`}
+                        onClick={() =>
+                          onExplorerBadgeShowIndicatorChange(!explorerBadgeShowIndicator)
+                        }
+                      >
+                        {explorerBadgeShowIndicator ? (
+                          <Check
+                            size={10}
+                            strokeWidth={2.75}
+                            className={css.checkboxMark}
+                            aria-hidden
+                          />
+                        ) : null}
+                      </button>
+                      <span className={css.label}>Show indicator in badge</span>
+                    </div>
+                  ) : null}
                   <div className={css.row}>
                     <button
                       type="button"
@@ -739,32 +783,6 @@ export default function InteractionSettingsPanel({
                       className={`${css.label} ${badgeOptionsDisabled ? css.labelMuted : ''}`}
                     >
                       Show original DM badge
-                    </span>
-                  </div>
-                  <div className={css.row}>
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={explorerShowBreadcrumb}
-                      aria-label="Show breadcrumb"
-                      aria-disabled={badgeOptionsDisabled}
-                      disabled={badgeOptionsDisabled}
-                      className={`${css.checkboxBtn} ${explorerShowBreadcrumb ? css.checkboxBtnChecked : ''}`}
-                      onClick={() => onExplorerShowBreadcrumbChange(!explorerShowBreadcrumb)}
-                    >
-                      {explorerShowBreadcrumb ? (
-                        <Check
-                          size={10}
-                          strokeWidth={2.75}
-                          className={css.checkboxMark}
-                          aria-hidden
-                        />
-                      ) : null}
-                    </button>
-                    <span
-                      className={`${css.label} ${badgeOptionsDisabled ? css.labelMuted : ''}`}
-                    >
-                      Show breadcrumb
                     </span>
                   </div>
                 </div>
