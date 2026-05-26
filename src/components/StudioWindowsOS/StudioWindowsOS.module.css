@@ -112,6 +112,25 @@
   height: 904px;
   max-height: calc(100vh - 24px);
   position: relative;
+  /* Match docked Explorer / Properties height in the right rail (split above prototype settings). */
+  --frame-appbar-height: 32px;
+  --ribbon-block-height: 101px;
+  --frame-footer-block-height: 41px;
+  --prototype-settings-panel-height: 300px;
+  --studio-panels-region-height: calc(
+    100% - var(--frame-appbar-height) - var(--workspace-gutter) - var(--ribbon-block-height) -
+      var(--workspace-gutter) - var(--workspace-gutter) - var(--frame-footer-block-height)
+  );
+  --studio-right-docked-panel-height: calc(
+    (
+        var(--studio-panels-region-height) - var(--prototype-settings-panel-height) -
+          var(--workspace-gutter) * 2
+      ) / 2
+  );
+  --studio-right-panel-top: calc(
+    var(--frame-appbar-height) + var(--workspace-gutter) + var(--ribbon-block-height) +
+      var(--workspace-gutter)
+  );
   display: flex;
   flex-direction: column;
   background: var(--surface-0);
@@ -342,6 +361,21 @@
   background: var(--surface-0);
   color: var(--content-muted);
   border-bottom: none;
+}
+
+.tabDraggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.tabDragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+.tabDropTarget {
+  box-shadow: inset 2px 0 0 #2563eb;
 }
 
 /** Figma Tooltip (3975:51736) — inverse surface; sits below host with hover delay / chain timing. */
@@ -788,17 +822,18 @@
   background: var(--surface-0);
 }
 
-/** In-frame floating Properties — overlays center workspace; .frame is position: relative. */
+/** In-frame floating panels — same size/vertical slot as docked right-rail panels. */
+.floatingExplorer,
 .floatingProperties {
   position: absolute;
-  top: 68px;
+  top: var(--studio-right-panel-top);
   right: calc(291px + var(--workspace-gutter) * 2);
-  bottom: 34px;
   width: 291px;
-  z-index: 90;
+  height: var(--studio-right-docked-panel-height);
   display: flex;
   flex-direction: column;
-  min-height: 240px;
+  min-height: 0;
+  max-height: var(--studio-right-docked-panel-height);
   pointer-events: auto;
   border-radius: 4px;
   box-shadow:
@@ -806,6 +841,22 @@
     0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
+.floatingExplorer {
+  z-index: 89;
+}
+
+.floatingProperties {
+  top: calc(
+    var(--studio-right-panel-top) + var(--studio-right-docked-panel-height) + var(--workspace-gutter)
+  );
+  z-index: 90;
+}
+
+.frame[data-floating-explorer][data-floating-properties] .floatingExplorer {
+  right: calc(582px + var(--workspace-gutter) * 3);
+}
+
+.floatingExplorer .panel,
 .floatingProperties .panel {
   flex: 1 1 auto;
   min-height: 0;
@@ -840,6 +891,16 @@
   z-index: 20;
   overflow: visible;
   background: rgba(208, 217, 251, 0.04);
+}
+
+.panelHeaderDraggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.panelHeaderDraggable:active {
+  cursor: grabbing;
 }
 
 .panelTitle {

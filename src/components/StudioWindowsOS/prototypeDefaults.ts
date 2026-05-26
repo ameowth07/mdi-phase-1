@@ -32,6 +32,7 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   editWorkspaceDocumentFocus: 'main' as EditDocumentFocus,
   panelTitlesLeftAligned: true,
   floatingPropertiesOpen: false,
+  floatingExplorerOpen: false,
   mainDocumentEditorTab: 'droneRacer' as MainDocumentEditorTab,
   splitClientDocumentTab: 'droneRacer' as MainDocumentEditorTab,
   splitServerDocumentTab: 'droneRacer' as MainDocumentEditorTab,
@@ -39,6 +40,10 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   scriptBTabOpen: true,
   clientScriptTabOpen: false,
   serverScriptTabOpen: false,
+  simClientTabOpen: true,
+  simServerTabOpen: true,
+  /** Ribbon Client/Server toggle reopens closed datamodel tabs when switching focus. */
+  toggleOpensDmIfClosed: true,
   isolationTabOpen: true,
   hoverScriptTabOpen: true,
 } as const

@@ -37,15 +37,46 @@ export function resolveDatamodelTintFocus(
   let focus: DatamodelTintFocus | null = null
 
   if (droneDocumentFocused) focus = 'drone'
-  else if (
-    explorerWhileScriptFocus === 'drone-isolation' ||
-    explorerWhileScriptFocus === 'edit-drone'
-  ) {
+  else if (explorerWhileScriptFocus === 'drone-isolation') {
     focus = 'drone'
+  } else if (explorerWhileScriptFocus === 'edit-drone') {
+    // Test mode: Drone Racer script tabs use edit datamodel UI but keep Client/Server hues.
+    focus = clientSim ? simViewportFocus : 'drone'
   } else if (explorerWhileScriptFocus === 'sim-server') focus = 'server'
   else if (explorerWhileScriptFocus === 'sim-client') focus = 'client'
   else if (clientSim) focus = simViewportFocus
 
   if (focus === 'drone' && hideAssetTinting) return null
   return focus
+}
+
+/**
+ * Explorer row selection hue for test-mode Client/Server trees.
+ * - Flat sim trees (Client/Server script tabs): tint follows script datamodel.
+ * - Play hierarchy on Client/Server DM tabs: tint follows sim viewport focus.
+ * - Edit datamodel script tabs (Script A/B) and isolation: no Client/Server tint.
+ */
+export function resolveExplorerSelectionTintFocus(
+  selectionTintActive: boolean,
+  clientSim: boolean,
+  simViewportFocus: SimViewportFocus,
+  explorerWhileScriptFocus: ExplorerRetentionKind | null,
+): DatamodelTintFocus | null {
+  if (!selectionTintActive) return null
+
+  if (explorerWhileScriptFocus === 'sim-server') return 'server'
+  if (explorerWhileScriptFocus === 'sim-client') return 'client'
+
+  if (
+    explorerWhileScriptFocus === 'edit-drone' ||
+    explorerWhileScriptFocus === 'drone-isolation'
+  ) {
+    return null
+  }
+
+  if (clientSim && explorerWhileScriptFocus === null) {
+    return simViewportFocus
+  }
+
+  return null
 }

@@ -293,10 +293,10 @@
   box-shadow: none;
 }
 
-.openAssetRow {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--stroke-muted, rgba(208, 217, 251, 0.08));
+.layoutActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .openAssetBtn {

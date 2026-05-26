@@ -54,6 +54,9 @@ export type InteractionSettingsPanelProps = {
   /** Test mode: Client and Server as two columns instead of one tabbed document. */
   splitView: boolean
   onSplitViewChange: (value: boolean) => void
+  /** Ribbon toggle reopens closed Client/Server document tabs when switching focus. */
+  toggleOpensDmIfClosed: boolean
+  onToggleOpensDmIfClosedChange: (value: boolean) => void
   /** Asset isolation preview in the viewport (Theme settings → Misc). */
   showAssetInIsolation: boolean
   onShowAssetInIsolationChange: (value: boolean) => void
@@ -70,6 +73,8 @@ export type InteractionSettingsPanelProps = {
   onOpenAssetWindow?: () => void
   /** When set, shows control to open Properties as an in-frame floating panel. */
   onOpenFloatingProperties?: () => void
+  /** When set, shows control to open Explorer as an in-frame floating panel. */
+  onOpenFloatingExplorer?: () => void
   /** Opens a Client Script document tab in the main workspace. */
   onOpenClientScript?: () => void
   /** Opens a Server Script document tab in the main workspace. */
@@ -150,6 +155,8 @@ export default function InteractionSettingsPanel({
   onFooterTintChange,
   splitView,
   onSplitViewChange,
+  toggleOpensDmIfClosed,
+  onToggleOpensDmIfClosedChange,
   showAssetInIsolation,
   onShowAssetInIsolationChange,
   editDatamodelShowStroke,
@@ -160,6 +167,7 @@ export default function InteractionSettingsPanel({
   onPanelTitlesLeftAlignedChange,
   onOpenAssetWindow,
   onOpenFloatingProperties,
+  onOpenFloatingExplorer,
   onOpenClientScript,
   onOpenServerScript,
   onThrowError,
@@ -407,6 +415,29 @@ export default function InteractionSettingsPanel({
             role="region"
             aria-labelledby="theme-settings-misc-heading"
           >
+            <section className={css.group} aria-labelledby="interaction-testing-interactions-heading">
+              <h2 id="interaction-testing-interactions-heading" className={css.groupLabel}>
+                Testing interactions
+              </h2>
+              <div className={css.options}>
+                <div className={css.row}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={toggleOpensDmIfClosed}
+                    aria-label="Toggle opens DM if closed"
+                    className={`${css.checkboxBtn} ${toggleOpensDmIfClosed ? css.checkboxBtnChecked : ''}`}
+                    onClick={() => onToggleOpensDmIfClosedChange(!toggleOpensDmIfClosed)}
+                  >
+                    {toggleOpensDmIfClosed ? (
+                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                    ) : null}
+                  </button>
+                  <span className={css.label}>Toggle opens DM if closed</span>
+                </div>
+              </div>
+            </section>
+
             <section className={css.group} aria-labelledby="interaction-edit-datamodel-heading">
               <h2 id="interaction-edit-datamodel-heading" className={css.groupLabel}>
                 Edit datamodel UI
@@ -459,15 +490,21 @@ export default function InteractionSettingsPanel({
                   </button>
                   <span className={css.label}>Hide Asset tinting</span>
                 </div>
-                {onOpenAssetWindow ? (
-                  <div className={css.openAssetRow}>
+              </div>
+            </section>
+
+            {onOpenAssetWindow || onOpenFloatingProperties || onOpenFloatingExplorer ? (
+              <section className={css.group} aria-labelledby="interaction-layout-actions-heading">
+                <h2 id="interaction-layout-actions-heading" className={css.groupLabel}>
+                  Layout actions
+                </h2>
+                <div className={css.layoutActions}>
+                  {onOpenAssetWindow ? (
                     <button type="button" className={css.openAssetBtn} onClick={onOpenAssetWindow}>
                       Open asset window
                     </button>
-                  </div>
-                ) : null}
-                {onOpenFloatingProperties ? (
-                  <div className={css.openAssetRow}>
+                  ) : null}
+                  {onOpenFloatingProperties ? (
                     <button
                       type="button"
                       className={css.openAssetBtn}
@@ -475,10 +512,19 @@ export default function InteractionSettingsPanel({
                     >
                       Open floating properties
                     </button>
-                  </div>
-                ) : null}
-              </div>
-            </section>
+                  ) : null}
+                  {onOpenFloatingExplorer ? (
+                    <button
+                      type="button"
+                      className={css.openAssetBtn}
+                      onClick={onOpenFloatingExplorer}
+                    >
+                      Open floating Explorer
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
 
             <section className={css.group} aria-labelledby="interaction-testing-ui-heading">
               <h2 id="interaction-testing-ui-heading" className={css.groupLabel}>

@@ -60,6 +60,9 @@ function GalleryInteractionSettings() {
   const [selectionTint, setSelectionTint] = useState<boolean>(d.playModeSelectionTint)
   const [footerTint, setFooterTint] = useState<boolean>(d.playModeFooterTint)
   const [splitView, setSplitView] = useState<boolean>(d.playModeSplitView)
+  const [toggleOpensDmIfClosed, setToggleOpensDmIfClosed] = useState<boolean>(
+    d.toggleOpensDmIfClosed,
+  )
   const [showAssetInIsolation, setShowAssetInIsolation] = useState<boolean>(d.showAssetInIsolation)
   const [editDatamodelShowStroke, setEditDatamodelShowStroke] = useState<boolean>(
     d.editDatamodelShowStroke,
@@ -98,6 +101,8 @@ function GalleryInteractionSettings() {
       onFooterTintChange={setFooterTint}
       splitView={splitView}
       onSplitViewChange={setSplitView}
+      toggleOpensDmIfClosed={toggleOpensDmIfClosed}
+      onToggleOpensDmIfClosedChange={setToggleOpensDmIfClosed}
       showAssetInIsolation={showAssetInIsolation}
       onShowAssetInIsolationChange={setShowAssetInIsolation}
       editDatamodelShowStroke={editDatamodelShowStroke}
@@ -107,6 +112,7 @@ function GalleryInteractionSettings() {
       panelTitlesLeftAligned={panelTitlesLeftAligned}
       onPanelTitlesLeftAlignedChange={setPanelTitlesLeftAligned}
       onOpenFloatingProperties={() => {}}
+      onOpenFloatingExplorer={() => {}}
     />
   )
 }

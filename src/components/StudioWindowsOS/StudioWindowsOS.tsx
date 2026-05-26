@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ComponentProps, MouseEvent, Ref } from 'react'
+import type {
+  ComponentProps,
+  CSSProperties,
+  Dispatch,
+  MouseEvent,
+  PointerEvent,
+  Ref,
+  RefObject,
+  SetStateAction,
+} from 'react'
 import { Monitor, Server, SquareArrowOutUpRight } from 'lucide-react'
 import ClientSim from './ClientSim'
 import LegacyRibbon from './LegacyRibbon'
+import TestAppMenu, { type TestAppMenuFocusTarget } from './TestAppMenu'
 import ServerSim from './ServerSim'
 import AssetManagerPanel from './AssetManagerPanel'
 import OutputPanel, { type OutputLogEntry } from './OutputPanel'
@@ -19,19 +29,62 @@ import {
   SERVER_SCRIPT_TEST_COPY_SOURCE,
   type ClientScriptDocument,
 } from './clientScripts'
-import { resolveDatamodelTintFocus, type ExplorerRetentionKind } from './datamodelTint'
+import {
+  resolveDatamodelTintFocus,
+  resolveExplorerSelectionTintFocus,
+  type ExplorerRetentionKind,
+} from './datamodelTint'
 import InteractionSettingsPanel from './InteractionSettingsPanel'
 import StudioFooter from './StudioFooter'
 import PropertiesPanel from './PropertiesPanel'
 import { publicAssetUrl } from '../../publicAssetUrl'
 import {
+  buildDefaultSimDocumentTabOrder,
   closeTabFocusLeft,
   EDIT_ISOLATION_TAB_ORDER,
+  insertStripTabAfterAnchor,
   isMainScriptTabOpen,
   MAIN_SCRIPT_TAB_ORDER,
   type EditIsolationTabId,
   type MainScriptTabId,
+  type SimDocumentStripTab,
 } from './documentTabClose'
+import {
+  buildInitialExplorerSelectionByClient,
+  buildMultiClientSimDocumentTabOrder,
+  insertClientInstanceTabInOrder,
+  clientInstanceIndexFromStripTab,
+  explorerTreeForClientInstance,
+  isSimClientInstanceId,
+  isSimClientStripTab,
+  parseSimClientInstanceIndex,
+  simClientInstanceId,
+  simClientInstanceLabel,
+  type SimClientExplorerRow,
+} from './simMultiClient'
+import { mergeVisibleTabReorder } from './documentTabReorder'
+import {
+  buildDefaultPersistentZoneKeys,
+  isoTabKey,
+  mainScriptTabKey,
+  moveTabBetweenZones,
+  persistentKeysToCombined,
+  ensureMultiClientMainZoneKeys,
+  injectMultiClientMainZoneDefaults,
+  persistentMainZoneKeysForSimOrder,
+  reconcileCombinedZoneKeys,
+  reorderZoneTabKeys,
+  simTabKey,
+  syncAllDocumentOrdersFromPersistentZones,
+  syncScriptOrderFromSimOrder,
+  syncSimOrderFromScriptOrder,
+  tabKeyInZone,
+  type CombinedTabKey,
+  type CombinedTabStripZone,
+  type PersistentTabKey,
+} from './documentTabStripZone'
+import { useDualZoneTabDrag, tabDragClassesForDual, type DualZoneTabDragBindings } from './useDualZoneTabDrag'
+import { useTabRowDragReorder, type TabRowDragBindings } from './useTabRowDragReorder'
 import {
   PROTOTYPE_SETTINGS_DEFAULTS,
   type EditDocumentFocus,
@@ -174,6 +227,18 @@ const EXPLORER_ROW_META: Record<string, { label: string; className: string }> = 
   players: { label: 'Players', className: 'Model' },
   lighting: { label: 'Lighting', className: 'Model' },
   materialservice: { label: 'MaterialService', className: 'Model' },
+  'c2-replicated': { label: 'ReplicatedStorage', className: 'Folder' },
+  'c2-starter': { label: 'StarterPlayer', className: 'StarterPlayer' },
+  'c2-startergui': { label: 'StarterGui', className: 'StarterGui' },
+  'c2-sound': { label: 'SoundService', className: 'SoundService' },
+  'c3-workspace': { label: 'Workspace', className: 'Model' },
+  'c3-characters': { label: 'Characters', className: 'Folder' },
+  'c3-replicatedfirst': { label: 'ReplicatedFirst', className: 'ReplicatedFirst' },
+  'c3-text': { label: 'TextChatService', className: 'TextChatService' },
+  'c4-workspace': { label: 'Workspace', className: 'Model' },
+  'c4-players': { label: 'Players', className: 'Players' },
+  'c4-pathfinding': { label: 'PathfindingService', className: 'PathfindingService' },
+  'c4-localization': { label: 'LocalizationService', className: 'LocalizationService' },
   bunnyExplorerRow: { label: 'Bunny', className: 'Model' },
   [DRONE_ISOLATION_EXPLORER_ROW_ID]: { label: DRONE_WORKSPACE_TAB_LABEL, className: 'Model' },
   'drone-isolation-hover-script': { label: 'HoverScript', className: 'Script' },
@@ -223,6 +288,15 @@ function breadcrumbSegmentForDisplay(
 
 function formatExplorerPanelTitle(displaySegment: string | null): string {
   return displaySegment ? `Explorer / ${displaySegment}` : 'Explorer'
+}
+
+function simStripTabAnchor(
+  mainTab: MainDocumentEditorTab,
+  simFocus: SimViewportFocus,
+): SimDocumentStripTab {
+  if (mainTab === 'droneRacer') return simFocus
+  if (isScriptDocumentTab(mainTab)) return mainTab
+  return simFocus
 }
 
 /** Sim Explorer tree rows — no parent/child tint relationships in this mock. */
@@ -489,6 +563,7 @@ function TabWithPathTooltip({
   children,
   onMouseEnter,
   onMouseLeave,
+  onPointerDown,
   ...rest
 }: ComponentProps<'div'> & { path: string }) {
   const tooltip = usePathTooltip(path, true)
@@ -497,6 +572,7 @@ function TabWithPathTooltip({
     <div
       {...rest}
       className={`${className ?? ''} ${styles.pathTooltipHost}`}
+      onPointerDown={onPointerDown}
       onMouseEnter={(e) => {
         onMouseEnter?.(e)
         tooltip.onMouseEnter(e)
@@ -512,11 +588,133 @@ function TabWithPathTooltip({
   )
 }
 
+function tabDragClasses(drag: TabRowDragBindings, index: number): string {
+  return drag.tabClass(index, {
+    tabDraggable: styles.tabDraggable,
+    tabDragging: styles.tabDragging,
+    tabDropTarget: styles.tabDropTarget,
+  })
+}
+
+function tabActivateHandlers(drag: TabRowDragBindings, activate: () => void) {
+  return {
+    onClick: (e: MouseEvent<HTMLElement>) => {
+      e.stopPropagation()
+      if (drag.consumeClickAfterDrag()) return
+      activate()
+    },
+  }
+}
+
+function isDualZoneTabDrag(
+  drag: TabRowDragBindings | DualZoneTabDragBindings,
+): drag is DualZoneTabDragBindings {
+  return 'mainRowRef' in drag
+}
+
+const TAB_DRAG_STYLE_CLASSES = {
+  tabDraggable: styles.tabDraggable,
+  tabDragging: styles.tabDragging,
+  tabDropTarget: styles.tabDropTarget,
+} as const
+
+function tabDragClassesAny(
+  drag: TabRowDragBindings | DualZoneTabDragBindings,
+  index: number,
+  zone?: CombinedTabStripZone,
+): string {
+  if (isDualZoneTabDrag(drag)) {
+    return tabDragClassesForDual(drag, zone!, index, TAB_DRAG_STYLE_CLASSES)
+  }
+  return tabDragClasses(drag, index)
+}
+
+function tabPropsAny(
+  drag: TabRowDragBindings | DualZoneTabDragBindings,
+  index: number,
+  zone?: CombinedTabStripZone,
+) {
+  if (isDualZoneTabDrag(drag)) return drag.getTabProps(zone!, index)
+  return drag.getTabProps(index)
+}
+
+function tabActivateHandlersAny(
+  drag: TabRowDragBindings | DualZoneTabDragBindings,
+  activate: () => void,
+) {
+  return {
+    onClick: (e: MouseEvent<HTMLElement>) => {
+      e.stopPropagation()
+      if (drag.consumeClickAfterDrag()) return
+      activate()
+    },
+  }
+}
+
+function useFloatingPanelDrag(frameRef: RefObject<HTMLDivElement | null>) {
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
+
+  const resetPosition = useCallback(() => setPosition(null), [])
+
+  const onDragHandlePointerDown = useCallback(
+    (e: PointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return
+      if ((e.target as HTMLElement).closest('button')) return
+
+      const panelEl = (e.currentTarget as HTMLElement).closest(
+        '[data-floating-panel]',
+      ) as HTMLElement | null
+      const frame = frameRef.current
+      if (!panelEl || !frame) return
+
+      e.preventDefault()
+
+      const frameRect = frame.getBoundingClientRect()
+      const panelRect = panelEl.getBoundingClientRect()
+      const startPointerX = e.clientX
+      const startPointerY = e.clientY
+      const startLeft = position?.left ?? panelRect.left - frameRect.left
+      const startTop = position?.top ?? panelRect.top - frameRect.top
+
+      const onPointerMove = (ev: globalThis.PointerEvent) => {
+        const nextLeft = startLeft + (ev.clientX - startPointerX)
+        const nextTop = startTop + (ev.clientY - startPointerY)
+        const maxLeft = Math.max(0, frameRect.width - panelRect.width)
+        const maxTop = Math.max(0, frameRect.height - panelRect.height)
+        setPosition({
+          left: Math.min(Math.max(0, nextLeft), maxLeft),
+          top: Math.min(Math.max(0, nextTop), maxTop),
+        })
+      }
+
+      const onPointerUp = () => {
+        window.removeEventListener('pointermove', onPointerMove)
+        window.removeEventListener('pointerup', onPointerUp)
+        window.removeEventListener('pointercancel', onPointerUp)
+      }
+
+      window.addEventListener('pointermove', onPointerMove)
+      window.addEventListener('pointerup', onPointerUp)
+      window.addEventListener('pointercancel', onPointerUp)
+    },
+    [frameRef, position],
+  )
+
+  const style: CSSProperties | undefined = position
+    ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' }
+    : undefined
+
+  return { style, onDragHandlePointerDown, resetPosition }
+}
+
 type PanelChromeProps = {
   title: string
   assetVariant: 'explorer' | 'properties'
   /** When set, the close control invokes this handler. */
   onClose?: () => void
+  /** Floating panel: drag by header (excludes action buttons). */
+  draggable?: boolean
+  onDragHandlePointerDown?: (e: PointerEvent<HTMLElement>) => void
   /** Plain title or Explorer badge row: centered (default) vs left-aligned with panel padding. */
   titleAlign?: 'center' | 'left'
   /** Play mode: StatusBadge-style pill next to “Explorer” (Interaction settings). */
@@ -731,6 +929,8 @@ function PanelChrome({
   title,
   assetVariant,
   onClose,
+  draggable = false,
+  onDragHandlePointerDown,
   titleAlign = 'center',
   explorerFocusBadgeTarget = null,
   explorerDocumentBadgeLabel = null,
@@ -776,7 +976,10 @@ function PanelChrome({
       : styles.panelTitleWithBadgeAlignCenter
 
   return (
-    <header className={styles.panelHeader}>
+    <header
+      className={`${styles.panelHeader} ${draggable ? styles.panelHeaderDraggable : ''}`}
+      onPointerDown={draggable ? onDragHandlePointerDown : undefined}
+    >
       {showExplorerBadge ? (
         <div
           className={`${styles.panelTitleWithBadge} ${badgeAlignClass}`}
@@ -833,9 +1036,10 @@ function ExplorerTree({
   bunnyFlatExplorer,
   explorerWhileScriptFocus,
   droneDocumentFocused,
-  hideAssetTinting,
   selectionTintActive,
   simViewportFocus,
+  simMultiClientMode,
+  simActiveClientInstanceIndex,
   simSelectedRowId,
   onSimExplorerSelectRow,
   editSelectedRowId,
@@ -851,11 +1055,12 @@ function ExplorerTree({
   explorerWhileScriptFocus: ExplorerRetentionKind | null
   /** Drone isolation document focused — minimal Explorer (edit or test with asset in isolation). */
   droneDocumentFocused: boolean
-  /** Edit datamodel UI: suppress Drone/asset Explorer row tint (Client/Server unchanged). */
-  hideAssetTinting: boolean
   /** Testing UI: Selection tint — Explorer `data-explorer-tint` row hues (not viewport). */
   selectionTintActive: boolean
   simViewportFocus: SimViewportFocus
+  /** Server & Clients: distinct Explorer per client instance tab. */
+  simMultiClientMode?: boolean
+  simActiveClientInstanceIndex?: number
   /** Sim: selected Explorer row for the current sim focus (client vs server); null until user picks. */
   simSelectedRowId: string | null
   onSimExplorerSelectRow: (rowId: string) => void
@@ -865,22 +1070,13 @@ function ExplorerTree({
 }) {
   const explorerTintFocus = useMemo(
     () =>
-      resolveDatamodelTintFocus(
+      resolveExplorerSelectionTintFocus(
         selectionTintActive,
         clientSim,
         simViewportFocus,
         explorerWhileScriptFocus,
-        droneDocumentFocused,
-        hideAssetTinting,
       ),
-    [
-      selectionTintActive,
-      clientSim,
-      simViewportFocus,
-      explorerWhileScriptFocus,
-      droneDocumentFocused,
-      hideAssetTinting,
-    ],
+    [selectionTintActive, clientSim, simViewportFocus, explorerWhileScriptFocus],
   )
 
   const explorerTreeProps = explorerTintFocus
@@ -1023,32 +1219,30 @@ function ExplorerTree({
     clientSim &&
     (explorerWhileScriptFocus === 'sim-client' || explorerWhileScriptFocus === 'sim-server')
   ) {
+    const clientTreeRows: SimClientExplorerRow[] =
+      simMultiClientMode && simViewportFocus === 'client' && simActiveClientInstanceIndex != null
+        ? explorerTreeForClientInstance(simActiveClientInstanceIndex)
+        : [
+            { id: 'workspace', label: 'Workspace', icon: '●', iconColor: '#4a9eff' },
+            { id: 'players', label: 'Players', icon: '☺', iconColor: '#e8944a' },
+            { id: 'lighting', label: 'Lighting', icon: '💡' },
+            { id: 'materialservice', label: 'MaterialService', icon: '⌗' },
+          ]
+
     return (
       <div className={styles.tree} {...explorerTreeProps}>
-        <div {...bindFlatSimRow('workspace')}>
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon} style={{ color: '#4a9eff' }}>
-            ●
-          </span>
-          <span className={styles.treeLabel}>Workspace</span>
-        </div>
-        <div {...bindFlatSimRow('players')}>
-          <TreeChevron mode="spacer" />
-          <span className={styles.treeIcon} style={{ color: '#e8944a' }}>
-            ☺
-          </span>
-          <span className={styles.treeLabel}>Players</span>
-        </div>
-        <div {...bindFlatSimRow('lighting')}>
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon}>💡</span>
-          <span className={styles.treeLabel}>Lighting</span>
-        </div>
-        <div {...bindFlatSimRow('materialservice')}>
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon}>⌗</span>
-          <span className={styles.treeLabel}>MaterialService</span>
-        </div>
+        {clientTreeRows.map((row, rowIndex) => (
+          <div key={row.id} {...bindFlatSimRow(row.id)}>
+            <TreeChevron mode={rowIndex === 0 ? 'closed' : rowIndex === 1 ? 'spacer' : 'closed'} />
+            <span
+              className={styles.treeIcon}
+              style={row.iconColor != null ? { color: row.iconColor } : undefined}
+            >
+              {row.icon}
+            </span>
+            <span className={styles.treeLabel}>{row.label}</span>
+          </div>
+        ))}
       </div>
     )
   }
@@ -1174,17 +1368,42 @@ export type DroneRacerWorkspaceProps = {
   scriptBTabOpen?: boolean
   clientScriptTabOpen?: boolean
   serverScriptTabOpen?: boolean
+  /** Test mode: Client / Server document tabs in the tab strip. */
+  simClientTabOpen?: boolean
+  simServerTabOpen?: boolean
+  /** Test mode: left-to-right order for Client / Server / Script tabs in the strip. */
+  simDocumentTabOrder?: SimDocumentStripTab[]
+  onSimDocumentTabOrderChange?: Dispatch<SetStateAction<SimDocumentStripTab[]>>
+  /** Edit mode: Script tab order in the main document strip. */
+  scriptTabOrder?: MainScriptTabId[]
+  onScriptTabOrderChange?: Dispatch<SetStateAction<MainScriptTabId[]>>
+  /** Edit mode: asset isolation tab order. */
+  editIsolationTabOrder?: EditIsolationTabId[]
+  onEditIsolationTabOrderChange?: Dispatch<SetStateAction<EditIsolationTabId[]>>
+  /** Combined main/iso tab strip: explicit left-to-right tab keys per zone (null = default placement). */
+  combinedMainZoneKeys?: PersistentTabKey[] | null
+  combinedIsoZoneKeys?: PersistentTabKey[] | null
+  onCombinedMainZoneKeysChange?: Dispatch<SetStateAction<PersistentTabKey[] | null>>
+  onCombinedIsoZoneKeysChange?: Dispatch<SetStateAction<PersistentTabKey[] | null>>
   isolationTabOpen?: boolean
   hoverScriptTabOpen?: boolean
   onScriptATabOpenChange?: (open: boolean) => void
   onScriptBTabOpenChange?: (open: boolean) => void
   onClientScriptTabOpenChange?: (open: boolean) => void
   onServerScriptTabOpenChange?: (open: boolean) => void
+  onSimClientTabOpenChange?: (open: boolean) => void
+  onSimServerTabOpenChange?: (open: boolean) => void
   onIsolationTabOpenChange?: (open: boolean) => void
   onHoverScriptTabOpenChange?: (open: boolean) => void
   /** Test (play) mode: Client vs Server tab — datamodel stroke and tint follow this. */
   simViewportFocus?: SimViewportFocus
   onSimViewportFocusChange?: (focus: SimViewportFocus) => void
+  /** Server & Clients play: one datamodel tab per spawned client (`client-1` …). */
+  simMultiClientMode?: boolean
+  simClientInstanceCount?: number
+  /** Active Client / Server datamodel tab in the test strip. */
+  simFocusedStripTab?: SimDocumentStripTab
+  onSimFocusedStripTabChange?: (tab: SimDocumentStripTab) => void
   /** Test mode: semantic inset — brand cyan/green on Client/Server; neutral ring on Drone Racer scripts. */
   playModeHasStroke?: boolean
   /** Test mode: white inset focus ring (Testing UI: Has focus stroke). */
@@ -1215,16 +1434,34 @@ function DroneRacerWorkspace({
   scriptBTabOpen = true,
   clientScriptTabOpen = false,
   serverScriptTabOpen = false,
+  simClientTabOpen = true,
+  simServerTabOpen = true,
+  simDocumentTabOrder = ['client', 'server'],
+  onSimDocumentTabOrderChange,
+  scriptTabOrder = [...MAIN_SCRIPT_TAB_ORDER],
+  onScriptTabOrderChange,
+  editIsolationTabOrder = [...EDIT_ISOLATION_TAB_ORDER],
+  onEditIsolationTabOrderChange,
+  combinedMainZoneKeys = null,
+  combinedIsoZoneKeys = null,
+  onCombinedMainZoneKeysChange,
+  onCombinedIsoZoneKeysChange,
   isolationTabOpen = true,
   hoverScriptTabOpen = true,
   onScriptATabOpenChange,
   onScriptBTabOpenChange,
   onClientScriptTabOpenChange,
   onServerScriptTabOpenChange,
+  onSimClientTabOpenChange,
+  onSimServerTabOpenChange,
   onIsolationTabOpenChange,
   onHoverScriptTabOpenChange,
   simViewportFocus,
   onSimViewportFocusChange,
+  simMultiClientMode = false,
+  simClientInstanceCount = 1,
+  simFocusedStripTab = 'client',
+  onSimFocusedStripTabChange,
   playModeHasStroke,
   playModeHasFocusStroke,
   tintActive,
@@ -1297,6 +1534,273 @@ function DroneRacerWorkspace({
     [scriptATabOpen, scriptBTabOpen, clientScriptTabOpen, serverScriptTabOpen],
   )
 
+  const isSimStripTabOpen = useCallback(
+    (tab: SimDocumentStripTab) => {
+      if (tab === 'client') return simClientTabOpen && !simMultiClientMode
+      if (isSimClientInstanceId(tab)) {
+        if (!simMultiClientMode || !simClientTabOpen) return false
+        if (!simDocumentTabOrder.includes(tab)) return false
+        const index = parseSimClientInstanceIndex(tab)
+        return index >= 1 && index <= simClientInstanceCount
+      }
+      if (tab === 'server') return simServerTabOpen
+      return isMainScriptTabOpen(tab, scriptTabsOpen)
+    },
+    [
+      simClientTabOpen,
+      simServerTabOpen,
+      simMultiClientMode,
+      simClientInstanceCount,
+      simDocumentTabOrder,
+      scriptTabsOpen,
+    ],
+  )
+
+  const combinedStripMode = !!showAssetInIsolation && !playModeSplitView
+
+  const isPersistentTabKeyOpen = useCallback(
+    (key: PersistentTabKey) => {
+      if (key.startsWith('dm:')) {
+        if (key === 'dm:client') return simClientTabOpen && !simMultiClientMode
+        if (key === 'dm:server') return simServerTabOpen
+        if (/^dm:client-\d+$/.test(key)) {
+          const index = Number.parseInt(key.slice('dm:client-'.length), 10)
+          return (
+            simMultiClientMode &&
+            simClientTabOpen &&
+            index >= 1 &&
+            index <= simClientInstanceCount
+          )
+        }
+        return false
+      }
+      if (key.startsWith('iso:')) {
+        const id = key.slice(4) as EditIsolationTabId
+        return id === 'isolation' ? isolationTabOpen : hoverScriptTabOpen
+      }
+      return isMainScriptTabOpen(key.slice(7) as MainScriptTabId, scriptTabsOpen)
+    },
+    [
+      simClientTabOpen,
+      simServerTabOpen,
+      simMultiClientMode,
+      simClientInstanceCount,
+      isolationTabOpen,
+      hoverScriptTabOpen,
+      scriptTabsOpen,
+    ],
+  )
+
+  const combinedStripLayoutMode = clientSim ? 'sim' : 'edit'
+
+  const defaultCombinedMainZoneKeys = useMemo(
+    () =>
+      injectMultiClientMainZoneDefaults(
+        buildDefaultPersistentZoneKeys(
+          'main',
+          simDocumentTabOrder,
+          scriptTabOrder,
+          editIsolationTabOrder,
+          isPersistentTabKeyOpen,
+        ),
+        simClientInstanceCount,
+        !!clientSim && simMultiClientMode,
+      ),
+    [
+      simDocumentTabOrder,
+      editIsolationTabOrder,
+      scriptTabOrder,
+      isPersistentTabKeyOpen,
+      simClientInstanceCount,
+      clientSim,
+      simMultiClientMode,
+    ],
+  )
+
+  const defaultCombinedIsoZoneKeys = useMemo(
+    () =>
+      buildDefaultPersistentZoneKeys(
+        'iso',
+        simDocumentTabOrder,
+        scriptTabOrder,
+        editIsolationTabOrder,
+        isPersistentTabKeyOpen,
+      ),
+    [simDocumentTabOrder, editIsolationTabOrder, scriptTabOrder, isPersistentTabKeyOpen],
+  )
+
+  const {
+    main: combinedMainZonePersistentKeys,
+    iso: combinedIsoZonePersistentKeys,
+  } = useMemo(() => {
+    const reconciled = reconcileCombinedZoneKeys(
+      combinedMainZoneKeys,
+      combinedIsoZoneKeys,
+      defaultCombinedMainZoneKeys,
+      defaultCombinedIsoZoneKeys,
+    )
+    return {
+      main: ensureMultiClientMainZoneKeys(
+        reconciled.main,
+        simClientInstanceCount,
+        !!clientSim && simMultiClientMode,
+      ),
+      iso: reconciled.iso,
+    }
+  }, [
+    combinedMainZoneKeys,
+    combinedIsoZoneKeys,
+    defaultCombinedMainZoneKeys,
+    defaultCombinedIsoZoneKeys,
+    simClientInstanceCount,
+    clientSim,
+    simMultiClientMode,
+  ])
+
+  const combinedMainZoneTabKeys = useMemo(
+    () => persistentKeysToCombined(combinedMainZonePersistentKeys, combinedStripLayoutMode),
+    [combinedMainZonePersistentKeys, combinedStripLayoutMode],
+  )
+
+  const combinedIsoZoneTabKeys = useMemo(
+    () => persistentKeysToCombined(combinedIsoZonePersistentKeys, combinedStripLayoutMode),
+    [combinedIsoZonePersistentKeys, combinedStripLayoutMode],
+  )
+
+  const simDocumentTabOrderRef = useRef(simDocumentTabOrder)
+  simDocumentTabOrderRef.current = simDocumentTabOrder
+  const scriptTabOrderRef = useRef(scriptTabOrder)
+  scriptTabOrderRef.current = scriptTabOrder
+  const editIsolationTabOrderRef = useRef(editIsolationTabOrder)
+  editIsolationTabOrderRef.current = editIsolationTabOrder
+
+  const applyCombinedZonePersistentUpdate = useCallback(
+    (mainPersistent: PersistentTabKey[], isoPersistent: PersistentTabKey[]) => {
+      onCombinedMainZoneKeysChange?.(mainPersistent)
+      onCombinedIsoZoneKeysChange?.(isoPersistent)
+
+      const synced = syncAllDocumentOrdersFromPersistentZones(
+        mainPersistent,
+        isoPersistent,
+        simDocumentTabOrderRef.current,
+        scriptTabOrderRef.current,
+        editIsolationTabOrderRef.current,
+      )
+      onSimDocumentTabOrderChange?.(synced.simOrder)
+      onScriptTabOrderChange?.(synced.scriptOrder)
+      onEditIsolationTabOrderChange?.(synced.isoTabOrder)
+    },
+    [
+      onCombinedMainZoneKeysChange,
+      onCombinedIsoZoneKeysChange,
+      onSimDocumentTabOrderChange,
+      onScriptTabOrderChange,
+      onEditIsolationTabOrderChange,
+    ],
+  )
+
+  const combinedTabDrag = useDualZoneTabDrag({
+    onReorderWithin: (zone, from, to) => {
+      if (zone === 'main') {
+        applyCombinedZonePersistentUpdate(
+          reorderZoneTabKeys(combinedMainZonePersistentKeys, from, to),
+          combinedIsoZonePersistentKeys,
+        )
+      } else {
+        applyCombinedZonePersistentUpdate(
+          combinedMainZonePersistentKeys,
+          reorderZoneTabKeys(combinedIsoZonePersistentKeys, from, to),
+        )
+      }
+    },
+    onMoveBetween: (fromZone, fromIndex, toZone, toIndex) => {
+      const moved = moveTabBetweenZones(
+        combinedMainZonePersistentKeys,
+        combinedIsoZonePersistentKeys,
+        fromZone,
+        fromIndex,
+        toZone,
+        toIndex,
+      )
+      if (moved) applyCombinedZonePersistentUpdate(moved.mainKeys, moved.isoKeys)
+    },
+  })
+
+  const hoverScriptInMainZone =
+    combinedStripMode &&
+    tabKeyInZone(
+      isoTabKey('hoverScript'),
+      'main',
+      combinedMainZoneTabKeys,
+      combinedIsoZoneTabKeys,
+    )
+  const hoverScriptInIsoZone =
+    !combinedStripMode ||
+    tabKeyInZone(
+      isoTabKey('hoverScript'),
+      'iso',
+      combinedMainZoneTabKeys,
+      combinedIsoZoneTabKeys,
+    )
+  const isolationInMainZone =
+    combinedStripMode &&
+    tabKeyInZone(
+      isoTabKey('isolation'),
+      'main',
+      combinedMainZoneTabKeys,
+      combinedIsoZoneTabKeys,
+    )
+  const isolationInIsoZone =
+    !combinedStripMode ||
+    tabKeyInZone(
+      isoTabKey('isolation'),
+      'iso',
+      combinedMainZoneTabKeys,
+      combinedIsoZoneTabKeys,
+    )
+
+  const droneIsolationPreviewInIso =
+    !!showAssetInIsolation && editDocumentFocus === 'isolation' && isolationInIsoZone
+  const droneIsolationInMainViewport =
+    !!showAssetInIsolation && editDocumentFocus === 'isolation' && isolationInMainZone
+  const hoverScriptDocumentInIso =
+    !!showAssetInIsolation && editDocumentFocus === 'hoverScript' && hoverScriptInIsoZone
+  const hoverScriptInMainViewport =
+    !!showAssetInIsolation && editDocumentFocus === 'hoverScript' && hoverScriptInMainZone
+
+  const mainColumnDocumentFocused =
+    editDocumentFocus === 'main' ||
+    droneIsolationInMainViewport ||
+    hoverScriptInMainViewport
+
+  const simScriptTabInIsoZone = useCallback(
+    (tab: MainScriptTabId) =>
+      combinedStripMode &&
+      tabKeyInZone(simTabKey(tab), 'iso', combinedMainZoneTabKeys, combinedIsoZoneTabKeys),
+    [combinedStripMode, combinedMainZoneTabKeys, combinedIsoZoneTabKeys],
+  )
+
+  const simScriptTabInMainZone = useCallback(
+    (tab: MainScriptTabId) =>
+      !combinedStripMode ||
+      tabKeyInZone(simTabKey(tab), 'main', combinedMainZoneTabKeys, combinedIsoZoneTabKeys),
+    [combinedStripMode, combinedMainZoneTabKeys, combinedIsoZoneTabKeys],
+  )
+
+  const editScriptTabInIsoZone = useCallback(
+    (tab: MainScriptTabId) =>
+      combinedStripMode &&
+      tabKeyInZone(mainScriptTabKey(tab), 'iso', combinedMainZoneTabKeys, combinedIsoZoneTabKeys),
+    [combinedStripMode, combinedMainZoneTabKeys, combinedIsoZoneTabKeys],
+  )
+
+  const editScriptTabInMainZone = useCallback(
+    (tab: MainScriptTabId) =>
+      !combinedStripMode ||
+      tabKeyInZone(mainScriptTabKey(tab), 'main', combinedMainZoneTabKeys, combinedIsoZoneTabKeys),
+    [combinedStripMode, combinedMainZoneTabKeys, combinedIsoZoneTabKeys],
+  )
+
   const setScriptTabOpen = useCallback(
     (tab: MainScriptTabId, open: boolean) => {
       if (tab === 'scriptA') onScriptATabOpenChange?.(open)
@@ -1323,8 +1827,16 @@ function DroneRacerWorkspace({
         (t, open) => setScriptTabOpen(t, open),
         'droneRacer',
       )
+      onSimDocumentTabOrderChange?.(simDocumentTabOrder.filter((t) => t !== tab))
     },
-    [mainDocumentEditorTab, onMainDocumentEditorTabChange, scriptTabsOpen, setScriptTabOpen],
+    [
+      mainDocumentEditorTab,
+      onMainDocumentEditorTabChange,
+      scriptTabsOpen,
+      setScriptTabOpen,
+      onSimDocumentTabOrderChange,
+      simDocumentTabOrder,
+    ],
   )
 
   const closeSplitClientScriptTab = useCallback(
@@ -1339,8 +1851,16 @@ function DroneRacerWorkspace({
         (t, open) => setScriptTabOpen(t, open),
         'droneRacer',
       )
+      onSimDocumentTabOrderChange?.(simDocumentTabOrder.filter((t) => t !== tab))
     },
-    [clientDocumentTab, onSplitClientDocumentTabChange, scriptTabsOpen, setScriptTabOpen],
+    [
+      clientDocumentTab,
+      onSplitClientDocumentTabChange,
+      scriptTabsOpen,
+      setScriptTabOpen,
+      onSimDocumentTabOrderChange,
+      simDocumentTabOrder,
+    ],
   )
 
   const closeSplitServerScriptTab = useCallback(
@@ -1355,9 +1875,138 @@ function DroneRacerWorkspace({
         (t, open) => setScriptTabOpen(t, open),
         'droneRacer',
       )
+      onSimDocumentTabOrderChange?.(simDocumentTabOrder.filter((t) => t !== tab))
     },
-    [serverDocumentTab, onSplitServerDocumentTabChange, scriptTabsOpen, setScriptTabOpen],
+    [
+      serverDocumentTab,
+      onSplitServerDocumentTabChange,
+      scriptTabsOpen,
+      setScriptTabOpen,
+      onSimDocumentTabOrderChange,
+      simDocumentTabOrder,
+    ],
   )
+
+  const closeSimClientTab = useCallback(() => {
+    if (!onSimClientTabOpenChange) return
+    onSimClientTabOpenChange(false)
+    onSimDocumentTabOrderChange?.(
+      simDocumentTabOrder.filter((t) => t !== 'client' && !isSimClientInstanceId(t)),
+    )
+    if (!simServerTabOpen) return
+    if (simFocus === 'client') {
+      onSimViewportFocusChange?.('server')
+      onSimFocusedStripTabChange?.('server')
+      if (usePerColumnDocumentTabs) {
+        onSplitServerDocumentTabChange?.('droneRacer')
+      } else {
+        onMainDocumentEditorTabChange('droneRacer')
+      }
+      onEditDocumentFocusChange('main')
+    }
+  }, [
+    onSimClientTabOpenChange,
+    onSimDocumentTabOrderChange,
+    simDocumentTabOrder,
+    simServerTabOpen,
+    simFocus,
+    onSimViewportFocusChange,
+    onSimFocusedStripTabChange,
+    usePerColumnDocumentTabs,
+    onSplitServerDocumentTabChange,
+    onMainDocumentEditorTabChange,
+    onEditDocumentFocusChange,
+  ])
+
+  const closeSimClientInstanceTab = useCallback(
+    (tab: SimDocumentStripTab) => {
+      if (!isSimClientInstanceId(tab)) return
+      onSimDocumentTabOrderChange?.(simDocumentTabOrder.filter((t) => t !== tab))
+      const remainingClients = simDocumentTabOrder.filter(
+        (t) => t !== tab && isSimClientInstanceId(t) && isSimStripTabOpen(t),
+      )
+      if (simFocus === 'client' && simFocusedStripTab === tab) {
+        const fallback = remainingClients[0] ?? 'server'
+        if (fallback === 'server') {
+          onSimViewportFocusChange?.('server')
+          onSimFocusedStripTabChange?.('server')
+        } else {
+          onSimViewportFocusChange?.('client')
+          onSimFocusedStripTabChange?.(fallback)
+        }
+        onMainDocumentEditorTabChange('droneRacer')
+        onEditDocumentFocusChange('main')
+      }
+    },
+    [
+      simDocumentTabOrder,
+      onSimDocumentTabOrderChange,
+      simFocus,
+      simFocusedStripTab,
+      isSimStripTabOpen,
+      onSimViewportFocusChange,
+      onSimFocusedStripTabChange,
+      onMainDocumentEditorTabChange,
+      onEditDocumentFocusChange,
+    ],
+  )
+
+  const selectSimClientStripTab = useCallback(
+    (tab: SimDocumentStripTab) => {
+      onSimViewportFocusChange?.('client')
+      onSimFocusedStripTabChange?.(tab)
+      onMainDocumentEditorTabChange('droneRacer')
+      onEditDocumentFocusChange('main')
+    },
+    [
+      onSimViewportFocusChange,
+      onSimFocusedStripTabChange,
+      onMainDocumentEditorTabChange,
+      onEditDocumentFocusChange,
+    ],
+  )
+
+  const isSimClientStripTabActive = useCallback(
+    (tab: SimDocumentStripTab) => {
+      if (!isSimClientStripTab(tab)) return false
+      if (mainDocumentEditorTab !== 'droneRacer' || simFocus !== 'client') return false
+      if (simMultiClientMode) return simFocusedStripTab === tab
+      return tab === 'client'
+    },
+    [mainDocumentEditorTab, simFocus, simMultiClientMode, simFocusedStripTab],
+  )
+
+  const closeSimServerTab = useCallback(() => {
+    if (!onSimServerTabOpenChange) return
+    onSimServerTabOpenChange(false)
+    onSimDocumentTabOrderChange?.(simDocumentTabOrder.filter((t) => t !== 'server'))
+    if (!simClientTabOpen) return
+    if (simFocus === 'server') {
+      onSimViewportFocusChange?.('client')
+      onSimFocusedStripTabChange?.(
+        simMultiClientMode ? simClientInstanceId(1) : 'client',
+      )
+      if (usePerColumnDocumentTabs) {
+        onSplitClientDocumentTabChange?.('droneRacer')
+      } else {
+        onMainDocumentEditorTabChange('droneRacer')
+      }
+      onEditDocumentFocusChange('main')
+    }
+  }, [
+    onSimServerTabOpenChange,
+    onSimDocumentTabOrderChange,
+    simDocumentTabOrder,
+    simClientTabOpen,
+    simFocus,
+    simMultiClientMode,
+    onSimViewportFocusChange,
+    onSimFocusedStripTabChange,
+    usePerColumnDocumentTabs,
+    onSplitClientDocumentTabChange,
+    onMainDocumentEditorTabChange,
+    onEditDocumentFocusChange,
+  ])
 
   const closeEditIsolationTab = useCallback(
     (tab: EditIsolationTabId) => {
@@ -1385,9 +2034,8 @@ function DroneRacerWorkspace({
     ],
   )
 
-  /** Client / Server tab chrome: active only when that sim is focused and the 3D doc is selected (not Script). */
-  const simClientTabChromeActive = simFocus === 'client' && mainDocumentEditorTab === 'droneRacer'
-  const simServerTabChromeActive = simFocus === 'server' && mainDocumentEditorTab === 'droneRacer'
+  const simServerTabChromeActive =
+    simFocus === 'server' && mainDocumentEditorTab === 'droneRacer'
   const splitClientPrimaryTabActive = clientDocumentTab === 'droneRacer'
   const splitServerPrimaryTabActive = serverDocumentTab === 'droneRacer'
 
@@ -1400,24 +2048,22 @@ function DroneRacerWorkspace({
     onEditDocumentFocusChange('main')
   }, [onEditDocumentFocusChange, onMainDocumentEditorTabChange])
 
-  /** Edit: inset ring on main Drone Racer viewport (split = focused column; single = interaction “Has stroke”). */
+  /** Edit: inset ring on main Drone Racer viewport (split = focused column; single = main doc focused). */
   const mainEditInsetRing =
     !clientSim &&
     (showAssetInIsolation
-      ? editDocumentFocus === 'main'
-      : !!editDatamodelShowStroke || mainDocumentScriptOpen)
+      ? mainColumnDocumentFocused
+      : editDocumentFocus === 'main' &&
+        (mainDocumentEditorTab === 'droneRacer' ||
+          !!editDatamodelShowStroke ||
+          mainDocumentScriptOpen))
 
   /** Asset isolation column — inset ring when a document in that column has focus (Drone preview or HoverScript). */
-  const droneIsolationPreviewActive =
-    !!showAssetInIsolation && editDocumentFocus === 'isolation'
-  const hoverScriptDocumentActive =
-    !!showAssetInIsolation && editDocumentFocus === 'hoverScript'
   const isolationColumnEditInsetRing =
-    droneIsolationPreviewActive || hoverScriptDocumentActive
+    droneIsolationPreviewInIso || hoverScriptDocumentInIso
 
   /** Split workspace: inactive column — crop baked UI frame so only the focused column shows inset ring. */
-  const mainInactiveInSplit =
-    !!showAssetInIsolation && editDocumentFocus !== 'main'
+  const mainInactiveInSplit = !!showAssetInIsolation && !mainColumnDocumentFocused
 
   const strokeOn = !!playModeHasStroke
   const focusStrokeOn = !!playModeHasFocusStroke
@@ -1431,7 +2077,7 @@ function DroneRacerWorkspace({
    * the sim document strip has focus — not when Drone isolation is the active document.
    */
   const simDocumentChromeActive =
-    !clientSim || !showAssetInIsolation || editDocumentFocus === 'main'
+    !clientSim || !showAssetInIsolation || mainColumnDocumentFocused
 
   /** Test: datamodel stroke overlay on main viewport (per active script tab datamodel). */
   const showEditDatamodelStrokeOnMainViewport =
@@ -1679,10 +2325,133 @@ function DroneRacerWorkspace({
       <div className={styles.editWorkspaceInsetRing} aria-hidden />
     ) : null
 
+  const openEditScriptTabs = useMemo(
+    () => scriptTabOrder.filter((t) => isMainScriptTabOpen(t, scriptTabsOpen)),
+    [scriptTabOrder, scriptTabsOpen],
+  )
+
+  const clientColumnStripTabs: SimDocumentStripTab[] = [
+    'client',
+    'scriptA',
+    'scriptB',
+    'clientScript',
+  ]
+  const serverColumnStripTabs: SimDocumentStripTab[] = ['server', 'serverScript']
+
+  const openEditIsolationTabs = useMemo(
+    () =>
+      editIsolationTabOrder.filter((t) =>
+        t === 'isolation' ? isolationTabOpen : hoverScriptTabOpen,
+      ),
+    [editIsolationTabOrder, isolationTabOpen, hoverScriptTabOpen],
+  )
+
+  const simCombinedTabDrag = useTabRowDragReorder(
+    useCallback(
+      (from, to) => {
+        onSimDocumentTabOrderChange?.((order) => {
+          const next = mergeVisibleTabReorder(
+            order,
+            order.filter((t) => isSimStripTabOpen(t)),
+            from,
+            to,
+          )
+          onScriptTabOrderChange?.((scriptOrder) =>
+            syncScriptOrderFromSimOrder(next, scriptOrder),
+          )
+          return next
+        })
+      },
+      [onSimDocumentTabOrderChange, onScriptTabOrderChange, isSimStripTabOpen],
+    ),
+  )
+
+  const simSplitClientTabDrag = useTabRowDragReorder(
+    useCallback(
+      (from, to) => {
+        onSimDocumentTabOrderChange?.((order) => {
+          const visible = order.filter(
+            (t) => clientColumnStripTabs.includes(t) && isSimStripTabOpen(t),
+          )
+          return mergeVisibleTabReorder(order, visible, from, to)
+        })
+      },
+      [
+        onSimDocumentTabOrderChange,
+        simClientTabOpen,
+        simServerTabOpen,
+        scriptATabOpen,
+        scriptBTabOpen,
+        clientScriptTabOpen,
+        serverScriptTabOpen,
+      ],
+    ),
+  )
+
+  const simSplitServerTabDrag = useTabRowDragReorder(
+    useCallback(
+      (from, to) => {
+        onSimDocumentTabOrderChange?.((order) => {
+          const visible = order.filter(
+            (t) => serverColumnStripTabs.includes(t) && isSimStripTabOpen(t),
+          )
+          return mergeVisibleTabReorder(order, visible, from, to)
+        })
+      },
+      [
+        onSimDocumentTabOrderChange,
+        simClientTabOpen,
+        simServerTabOpen,
+        scriptATabOpen,
+        scriptBTabOpen,
+        clientScriptTabOpen,
+        serverScriptTabOpen,
+      ],
+    ),
+  )
+
+  const editScriptTabDrag = useTabRowDragReorder(
+    useCallback(
+      (from, to) => {
+        onScriptTabOrderChange?.((order) => {
+          const next = mergeVisibleTabReorder(
+            order,
+            order.filter((t) => isMainScriptTabOpen(t, scriptTabsOpen)),
+            from,
+            to,
+          )
+          onSimDocumentTabOrderChange?.((simOrder) =>
+            syncSimOrderFromScriptOrder(simOrder, next),
+          )
+          return next
+        })
+      },
+      [onScriptTabOrderChange, onSimDocumentTabOrderChange, scriptTabsOpen],
+    ),
+  )
+
+  const editIsolationTabDrag = useTabRowDragReorder(
+    useCallback(
+      (from, to) => {
+        onEditIsolationTabOrderChange?.((order) =>
+          mergeVisibleTabReorder(
+            order,
+            order.filter((t) => (t === 'isolation' ? isolationTabOpen : hoverScriptTabOpen)),
+            from,
+            to,
+          ),
+        )
+      },
+      [onEditIsolationTabOrderChange, isolationTabOpen, hoverScriptTabOpen],
+    ),
+  )
+
   const renderDocumentSecondaryTabs = (
     activeTab: MainDocumentEditorTab,
     onTabChange: (tab: MainDocumentEditorTab) => void,
     onCloseScriptTab: (tab: MainScriptTabId) => void,
+    orderedOpenTabs: MainScriptTabId[],
+    drag: TabRowDragBindings,
     extraTabs?: { clientScript?: boolean; serverScript?: boolean },
   ) => {
     const selectDroneRacerScriptTab = (tab: 'scriptA' | 'scriptB') => {
@@ -1690,98 +2459,194 @@ function DroneRacerWorkspace({
       onTabChange(tab)
     }
 
+    const showTab = (tabId: MainScriptTabId) => {
+      if (tabId === 'clientScript') return extraTabs?.clientScript ?? false
+      if (tabId === 'serverScript') return extraTabs?.serverScript ?? false
+      return isMainScriptTabOpen(tabId, scriptTabsOpen)
+    }
+
     return (
-    <>
-      {scriptATabOpen ? (
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_SCRIPT_A}
-        role="tab"
-        tabIndex={0}
-        aria-selected={activeTab === 'scriptA'}
-        className={`${styles.tab} ${activeTab === 'scriptA' ? styles.tabActive : styles.tabInactive}`}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          selectDroneRacerScriptTab('scriptA')
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          selectDroneRacerScriptTab('scriptA')
-        }}
-      >
-        <TabScriptEditIcon />
-        <span>Script</span>
-        <TabCloseButton onClose={() => onCloseScriptTab('scriptA')} />
-      </TabWithPathTooltip>
-      ) : null}
-      {scriptBTabOpen ? (
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_SCRIPT_B}
-        role="tab"
-        tabIndex={0}
-        aria-selected={activeTab === 'scriptB'}
-        className={`${styles.tab} ${
-          activeTab === 'scriptB' ? styles.tabActive : styles.tabInactive
-        }`}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          selectDroneRacerScriptTab('scriptB')
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          selectDroneRacerScriptTab('scriptB')
-        }}
-      >
-        <TabScriptEditIcon />
-        <span>Script</span>
-        <TabCloseButton onClose={() => onCloseScriptTab('scriptB')} />
-      </TabWithPathTooltip>
-      ) : null}
-      {extraTabs?.clientScript ? (
+      <>
+        {orderedOpenTabs.filter(showTab).map((tabId, tabIndex) => {
+          const tabClass = (selected: boolean) =>
+            `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClasses(drag, tabIndex)}`
+
+          switch (tabId) {
+            case 'scriptA':
+              return (
+                <TabWithPathTooltip
+                  key="scriptA"
+                  path={TAB_PATH_DRONE_RACER_SCRIPT_A}
+                  role="tab"
+                  tabIndex={0}
+                  aria-selected={activeTab === 'scriptA'}
+                  className={tabClass(activeTab === 'scriptA')}
+                  {...drag.getTabProps(tabIndex)}
+                  {...tabActivateHandlers(drag, () => selectDroneRacerScriptTab('scriptA'))}
+                >
+                  <TabScriptEditIcon />
+                  <span>Script</span>
+                  <TabCloseButton onClose={() => onCloseScriptTab('scriptA')} />
+                </TabWithPathTooltip>
+              )
+            case 'scriptB':
+              return (
+                <TabWithPathTooltip
+                  key="scriptB"
+                  path={TAB_PATH_DRONE_RACER_SCRIPT_B}
+                  role="tab"
+                  tabIndex={0}
+                  aria-selected={activeTab === 'scriptB'}
+                  className={tabClass(activeTab === 'scriptB')}
+                  {...drag.getTabProps(tabIndex)}
+                  {...tabActivateHandlers(drag, () => selectDroneRacerScriptTab('scriptB'))}
+                >
+                  <TabScriptEditIcon />
+                  <span>Script</span>
+                  <TabCloseButton onClose={() => onCloseScriptTab('scriptB')} />
+                </TabWithPathTooltip>
+              )
+            case 'clientScript':
+              return (
+                <TabWithPathTooltip
+                  key="clientScript"
+                  path={clientScriptDocument.tabPath}
+                  role="tab"
+                  tabIndex={0}
+                  aria-selected={activeTab === 'clientScript'}
+                  className={tabClass(activeTab === 'clientScript')}
+                  {...drag.getTabProps(tabIndex)}
+                  {...tabActivateHandlers(drag, () => {
+                    onTabChange('clientScript')
+                    if (clientSim) onSimViewportFocusChange?.('client')
+                  })}
+                >
+                  {clientSim ? <TabClientSimDocumentIcon /> : <TabLocalScriptEditIcon />}
+                  <span>{clientScriptDocument.tabLabel}</span>
+                  <TabCloseButton onClose={() => onCloseScriptTab('clientScript')} />
+                </TabWithPathTooltip>
+              )
+            case 'serverScript':
+              return (
+                <TabWithPathTooltip
+                  key="serverScript"
+                  path={SERVER_SCRIPT_TAB_PATH}
+                  role="tab"
+                  tabIndex={0}
+                  aria-selected={activeTab === 'serverScript'}
+                  className={tabClass(activeTab === 'serverScript')}
+                  {...drag.getTabProps(tabIndex)}
+                  {...tabActivateHandlers(drag, () => {
+                    onTabChange('serverScript')
+                    if (clientSim) onSimViewportFocusChange?.('server')
+                  })}
+                >
+                  {clientSim ? (
+                    <Server
+                      size={12}
+                      strokeWidth={1.5}
+                      className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
+                      color="#0c9b5a"
+                      aria-hidden
+                    />
+                  ) : (
+                    <TabScriptEditIcon />
+                  )}
+                  <span>{SERVER_SCRIPT_TAB_LABEL}</span>
+                  <TabCloseButton onClose={() => onCloseScriptTab('serverScript')} />
+                </TabWithPathTooltip>
+              )
+            default:
+              return null
+          }
+        })}
+      </>
+    )
+  }
+
+  const renderSimDocumentStripTab = (
+    tabId: SimDocumentStripTab,
+    tabIndex: number,
+    drag: TabRowDragBindings | DualZoneTabDragBindings,
+    strip: {
+      activeTab: MainDocumentEditorTab
+      onTabChange: (tab: MainDocumentEditorTab) => void
+      onCloseScriptTab: (tab: MainScriptTabId) => void
+      isClientTabActive: (tab: SimDocumentStripTab) => boolean
+      serverDmActive: boolean
+    },
+    dragZone?: CombinedTabStripZone,
+  ) => {
+    const selectDroneRacerScriptTab = (tab: 'scriptA' | 'scriptB') => {
+      onEditDocumentFocusChange('main')
+      strip.onTabChange(tab)
+    }
+
+    const simTabClass = (active: boolean) =>
+      `${documentTabClass(active)} ${tabDragClassesAny(drag, tabIndex, dragZone)}`
+
+    if (isSimClientInstanceId(tabId)) {
+      const clientIndex = parseSimClientInstanceIndex(tabId)
+      const clientActive = strip.isClientTabActive(tabId)
+      return (
         <TabWithPathTooltip
-          path={clientScriptDocument.tabPath}
+          key={tabId}
+          path={`${TAB_PATH_DRONE_RACER_CLIENT} (${simClientInstanceLabel(clientIndex)})`}
           role="tab"
           tabIndex={0}
-          aria-selected={activeTab === 'clientScript'}
-          className={`${styles.tab} ${
-            activeTab === 'clientScript' ? styles.tabActive : styles.tabInactive
-          }`}
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            onTabChange('clientScript')
-            if (clientSim) onSimViewportFocusChange?.('client')
-          }}
-          onClick={(e) => {
-            e.stopPropagation()
-            onTabChange('clientScript')
-            if (clientSim) onSimViewportFocusChange?.('client')
-          }}
+          aria-selected={clientActive}
+          className={simTabClass(clientActive)}
+          {...tabPropsAny(drag, tabIndex, dragZone)}
+          {...tabActivateHandlersAny(drag, () => {
+            strip.onTabChange('droneRacer')
+            selectSimClientStripTab(tabId)
+          })}
         >
-          {clientSim ? <TabClientSimDocumentIcon /> : <TabLocalScriptEditIcon />}
-          <span>{clientScriptDocument.tabLabel}</span>
-          <TabCloseButton onClose={() => onCloseScriptTab('clientScript')} />
+          <TabClientSimDocumentIcon />
+          <span>{simClientInstanceLabel(clientIndex)}</span>
+          <TabCloseButton onClose={() => closeSimClientInstanceTab(tabId)} />
         </TabWithPathTooltip>
-      ) : null}
-      {extraTabs?.serverScript ? (
-        <TabWithPathTooltip
-          path={SERVER_SCRIPT_TAB_PATH}
-          role="tab"
-          tabIndex={0}
-          aria-selected={activeTab === 'serverScript'}
-          className={`${styles.tab} ${
-            activeTab === 'serverScript' ? styles.tabActive : styles.tabInactive
-          }`}
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            onTabChange('serverScript')
-            if (clientSim) onSimViewportFocusChange?.('server')
-          }}
-          onClick={(e) => {
-            e.stopPropagation()
-            onTabChange('serverScript')
-            if (clientSim) onSimViewportFocusChange?.('server')
-          }}
-        >
-          {clientSim ? (
+      )
+    }
+
+    switch (tabId) {
+      case 'client':
+        return (
+          <TabWithPathTooltip
+            key="client"
+            path={TAB_PATH_DRONE_RACER_CLIENT}
+            role="tab"
+            tabIndex={0}
+            aria-selected={strip.isClientTabActive('client')}
+            className={simTabClass(strip.isClientTabActive('client'))}
+            {...tabPropsAny(drag, tabIndex, dragZone)}
+            {...tabActivateHandlersAny(drag, () => {
+              strip.onTabChange('droneRacer')
+              selectSimClientStripTab('client')
+            })}
+          >
+            <TabClientSimDocumentIcon />
+            <span>Client</span>
+            <TabCloseButton onClose={closeSimClientTab} />
+          </TabWithPathTooltip>
+        )
+      case 'server':
+        return (
+          <TabWithPathTooltip
+            key="server"
+            path={TAB_PATH_DRONE_RACER_SERVER}
+            role="tab"
+            tabIndex={0}
+            aria-selected={strip.serverDmActive}
+            className={simTabClass(strip.serverDmActive)}
+            {...tabPropsAny(drag, tabIndex, dragZone)}
+            {...tabActivateHandlersAny(drag, () => {
+              strip.onTabChange('droneRacer')
+              onSimViewportFocusChange?.('server')
+              onSimFocusedStripTabChange?.('server')
+              onEditDocumentFocusChange('main')
+            })}
+          >
             <Server
               size={12}
               strokeWidth={1.5}
@@ -1789,16 +2654,333 @@ function DroneRacerWorkspace({
               color="#0c9b5a"
               aria-hidden
             />
-          ) : (
+            <span>Server</span>
+            <TabCloseButton onClose={closeSimServerTab} />
+          </TabWithPathTooltip>
+        )
+      case 'scriptA':
+        return (
+          <TabWithPathTooltip
+            key="scriptA"
+            path={TAB_PATH_DRONE_RACER_SCRIPT_A}
+            role="tab"
+            tabIndex={0}
+            aria-selected={strip.activeTab === 'scriptA'}
+            className={simTabClass(strip.activeTab === 'scriptA')}
+            {...tabPropsAny(drag, tabIndex, dragZone)}
+            {...tabActivateHandlersAny(drag, () => selectDroneRacerScriptTab('scriptA'))}
+          >
             <TabScriptEditIcon />
+            <span>Script</span>
+            <TabCloseButton onClose={() => strip.onCloseScriptTab('scriptA')} />
+          </TabWithPathTooltip>
+        )
+      case 'scriptB':
+        return (
+          <TabWithPathTooltip
+            key="scriptB"
+            path={TAB_PATH_DRONE_RACER_SCRIPT_B}
+            role="tab"
+            tabIndex={0}
+            aria-selected={strip.activeTab === 'scriptB'}
+            className={simTabClass(strip.activeTab === 'scriptB')}
+            {...tabPropsAny(drag, tabIndex, dragZone)}
+            {...tabActivateHandlersAny(drag, () => selectDroneRacerScriptTab('scriptB'))}
+          >
+            <TabScriptEditIcon />
+            <span>Script</span>
+            <TabCloseButton onClose={() => strip.onCloseScriptTab('scriptB')} />
+          </TabWithPathTooltip>
+        )
+      case 'clientScript':
+        return (
+          <TabWithPathTooltip
+            key="clientScript"
+            path={clientScriptDocument.tabPath}
+            role="tab"
+            tabIndex={0}
+            aria-selected={strip.activeTab === 'clientScript'}
+            className={simTabClass(strip.activeTab === 'clientScript')}
+            {...tabPropsAny(drag, tabIndex, dragZone)}
+            {...tabActivateHandlersAny(drag, () => {
+              strip.onTabChange('clientScript')
+              if (clientSim) onSimViewportFocusChange?.('client')
+            })}
+          >
+            {clientSim ? <TabClientSimDocumentIcon /> : <TabLocalScriptEditIcon />}
+            <span>{clientScriptDocument.tabLabel}</span>
+            <TabCloseButton onClose={() => strip.onCloseScriptTab('clientScript')} />
+          </TabWithPathTooltip>
+        )
+      case 'serverScript':
+        return (
+          <TabWithPathTooltip
+            key="serverScript"
+            path={SERVER_SCRIPT_TAB_PATH}
+            role="tab"
+            tabIndex={0}
+            aria-selected={strip.activeTab === 'serverScript'}
+            className={simTabClass(strip.activeTab === 'serverScript')}
+            {...tabPropsAny(drag, tabIndex, dragZone)}
+            {...tabActivateHandlersAny(drag, () => {
+              strip.onTabChange('serverScript')
+              if (clientSim) onSimViewportFocusChange?.('server')
+            })}
+          >
+            {clientSim ? (
+              <Server
+                size={12}
+                strokeWidth={1.5}
+                className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
+                color="#0c9b5a"
+                aria-hidden
+              />
+            ) : (
+              <TabScriptEditIcon />
+            )}
+            <span>{SERVER_SCRIPT_TAB_LABEL}</span>
+            <TabCloseButton onClose={() => strip.onCloseScriptTab('serverScript')} />
+          </TabWithPathTooltip>
+        )
+      default:
+        return null
+    }
+  }
+
+  const renderSimDocumentStripRow = (
+    orderedTabs: SimDocumentStripTab[],
+    strip: {
+      activeTab: MainDocumentEditorTab
+      onTabChange: (tab: MainDocumentEditorTab) => void
+      onCloseScriptTab: (tab: MainScriptTabId) => void
+      isClientTabActive: (tab: SimDocumentStripTab) => boolean
+      serverDmActive: boolean
+    },
+    rowProps: { className?: string; 'data-node-id'?: string },
+    drag: TabRowDragBindings,
+  ) => (
+    <div
+      ref={drag.rowRef}
+      className={`${styles.tabRow} ${rowProps.className ?? ''}`.trim()}
+      data-node-id={rowProps['data-node-id']}
+    >
+      {orderedTabs
+        .filter(isSimStripTabOpen)
+        .map((tabId, tabIndex) => renderSimDocumentStripTab(tabId, tabIndex, drag, strip))}
+      <div className={styles.tabRowUnderline} aria-hidden>
+        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
+      </div>
+    </div>
+  )
+
+  const tabbedStripContext = {
+    activeTab: mainDocumentEditorTab,
+    onTabChange: onMainDocumentEditorTabChange,
+    onCloseScriptTab: closeMainDocumentScriptTab,
+    isClientTabActive: isSimClientStripTabActive,
+    serverDmActive: simServerTabChromeActive,
+  }
+
+  const renderCombinedIsolationTab = (
+    tabId: EditIsolationTabId,
+    tabIndex: number,
+    zone: CombinedTabStripZone,
+  ) => {
+    const tabClass = (selected: boolean) =>
+      `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClassesAny(combinedTabDrag, tabIndex, zone)}`
+
+    if (tabId === 'isolation') {
+      return (
+        <TabWithPathTooltip
+          key="isolation"
+          path={TAB_PATH_DRONE_ASSET}
+          role="tab"
+          tabIndex={0}
+          aria-selected={editDocumentFocus === 'isolation'}
+          className={tabClass(editDocumentFocus === 'isolation')}
+          {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
+          {...tabActivateHandlersAny(combinedTabDrag, () =>
+            onEditDocumentFocusChange('isolation'),
           )}
-          <span>{SERVER_SCRIPT_TAB_LABEL}</span>
-          <TabCloseButton onClose={() => onCloseScriptTab('serverScript')} />
+        >
+          <img
+            src={publicAssetUrl('assets/Model.png')}
+            alt=""
+            className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
+            aria-hidden
+          />
+          <span>{DRONE_WORKSPACE_TAB_LABEL}</span>
+          <TabCloseButton onClose={() => closeEditIsolationTab('isolation')} />
         </TabWithPathTooltip>
-      ) : null}
-    </>
+      )
+    }
+
+    return (
+      <TabWithPathTooltip
+        key="hoverScript"
+        path={TAB_PATH_DRONE_HOVERSCRIPT}
+        role="tab"
+        tabIndex={0}
+        aria-selected={editDocumentFocus === 'hoverScript'}
+        className={tabClass(editDocumentFocus === 'hoverScript')}
+        {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
+        {...tabActivateHandlersAny(combinedTabDrag, () =>
+          onEditDocumentFocusChange('hoverScript'),
+        )}
+      >
+        <TabDiamond />
+        <span>{HOVER_SCRIPT_TAB_LABEL}</span>
+        <TabCloseButton onClose={() => closeEditIsolationTab('hoverScript')} />
+      </TabWithPathTooltip>
     )
   }
+
+  const renderCombinedEditScriptTab = (
+    tabId: MainScriptTabId,
+    tabIndex: number,
+    zone: CombinedTabStripZone,
+  ) => {
+    const tabClass = (selected: boolean) =>
+      `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClassesAny(combinedTabDrag, tabIndex, zone)}`
+
+    const selectDroneRacerScriptTab = (tab: 'scriptA' | 'scriptB') => {
+      onEditDocumentFocusChange('main')
+      onMainDocumentEditorTabChange(tab)
+    }
+
+    switch (tabId) {
+      case 'scriptA':
+        return (
+          <TabWithPathTooltip
+            key="scriptA"
+            path={TAB_PATH_DRONE_RACER_SCRIPT_A}
+            role="tab"
+            tabIndex={0}
+            aria-selected={mainDocumentEditorTab === 'scriptA'}
+            className={tabClass(mainDocumentEditorTab === 'scriptA')}
+            {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
+            {...tabActivateHandlersAny(combinedTabDrag, () => selectDroneRacerScriptTab('scriptA'))}
+          >
+            <TabScriptEditIcon />
+            <span>Script</span>
+            <TabCloseButton onClose={() => closeMainDocumentScriptTab('scriptA')} />
+          </TabWithPathTooltip>
+        )
+      case 'scriptB':
+        return (
+          <TabWithPathTooltip
+            key="scriptB"
+            path={TAB_PATH_DRONE_RACER_SCRIPT_B}
+            role="tab"
+            tabIndex={0}
+            aria-selected={mainDocumentEditorTab === 'scriptB'}
+            className={tabClass(mainDocumentEditorTab === 'scriptB')}
+            {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
+            {...tabActivateHandlersAny(combinedTabDrag, () => selectDroneRacerScriptTab('scriptB'))}
+          >
+            <TabScriptEditIcon />
+            <span>Script</span>
+            <TabCloseButton onClose={() => closeMainDocumentScriptTab('scriptB')} />
+          </TabWithPathTooltip>
+        )
+      case 'clientScript':
+        return (
+          <TabWithPathTooltip
+            key="clientScript"
+            path={clientScriptDocument.tabPath}
+            role="tab"
+            tabIndex={0}
+            aria-selected={mainDocumentEditorTab === 'clientScript'}
+            className={tabClass(mainDocumentEditorTab === 'clientScript')}
+            {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
+            {...tabActivateHandlersAny(combinedTabDrag, () => {
+              onEditDocumentFocusChange('main')
+              onMainDocumentEditorTabChange('clientScript')
+            })}
+          >
+            <TabLocalScriptEditIcon />
+            <span>{clientScriptDocument.tabLabel}</span>
+            <TabCloseButton onClose={() => closeMainDocumentScriptTab('clientScript')} />
+          </TabWithPathTooltip>
+        )
+      case 'serverScript':
+        return (
+          <TabWithPathTooltip
+            key="serverScript"
+            path={SERVER_SCRIPT_TAB_PATH}
+            role="tab"
+            tabIndex={0}
+            aria-selected={mainDocumentEditorTab === 'serverScript'}
+            className={tabClass(mainDocumentEditorTab === 'serverScript')}
+            {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
+            {...tabActivateHandlersAny(combinedTabDrag, () => {
+              onEditDocumentFocusChange('main')
+              onMainDocumentEditorTabChange('serverScript')
+            })}
+          >
+            <TabScriptEditIcon />
+            <span>{SERVER_SCRIPT_TAB_LABEL}</span>
+            <TabCloseButton onClose={() => closeMainDocumentScriptTab('serverScript')} />
+          </TabWithPathTooltip>
+        )
+      default:
+        return null
+    }
+  }
+
+  const renderCombinedZoneTab = (
+    key: CombinedTabKey,
+    tabIndex: number,
+    zone: CombinedTabStripZone,
+  ) => {
+    if (key.startsWith('sim:')) {
+      return renderSimDocumentStripTab(
+        key.slice(4) as SimDocumentStripTab,
+        tabIndex,
+        combinedTabDrag,
+        tabbedStripContext,
+        zone,
+      )
+    }
+    if (key.startsWith('iso:')) {
+      return renderCombinedIsolationTab(key.slice(4) as EditIsolationTabId, tabIndex, zone)
+    }
+    return renderCombinedEditScriptTab(key.slice(5) as MainScriptTabId, tabIndex, zone)
+  }
+
+  const renderCombinedZoneTabRow = (
+    zone: CombinedTabStripZone,
+    keys: CombinedTabKey[],
+    rowProps: { className?: string; 'data-node-id'?: string },
+  ) => (
+    <div
+      ref={zone === 'main' ? combinedTabDrag.mainRowRef : combinedTabDrag.isoRowRef}
+      className={`${styles.tabRow} ${zone === 'iso' ? styles.assetIsolationTabRow : ''} ${rowProps.className ?? ''}`.trim()}
+      data-node-id={rowProps['data-node-id']}
+    >
+      {keys
+        .filter((key) => {
+          if (!clientSim || !key.startsWith('sim:')) return true
+          const tab = key.slice(4) as SimDocumentStripTab
+          return isSimStripTabOpen(tab)
+        })
+        .map((key, tabIndex) => renderCombinedZoneTab(key, tabIndex, zone))}
+      <div className={styles.tabRowUnderline} aria-hidden>
+        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
+      </div>
+    </div>
+  )
+
+  const simClientServerTabRow = combinedStripMode
+    ? renderCombinedZoneTabRow('main', combinedMainZoneTabKeys, {
+        'data-node-id': '3841:115140-sim-client-server',
+      })
+    : renderSimDocumentStripRow(
+        simDocumentTabOrder,
+        tabbedStripContext,
+        { 'data-node-id': '3841:115140-sim-client-server' },
+        simCombinedTabDrag,
+      )
 
   const combinedExtraScriptTabs = {
     clientScript: clientScriptTabOpen,
@@ -1811,236 +2993,102 @@ function DroneRacerWorkspace({
         mainDocumentEditorTab,
         onMainDocumentEditorTabChange,
         closeMainDocumentScriptTab,
+        openEditScriptTabs,
+        editScriptTabDrag,
         combinedExtraScriptTabs,
       )
 
-  const simClientServerTabRow = (
-    <div className={styles.tabRow} data-node-id="3841:115140-sim-client-server">
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_CLIENT}
-        role="tab"
-        tabIndex={0}
-        aria-selected={simClientTabChromeActive}
-        className={documentTabClass(simClientTabChromeActive)}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          onMainDocumentEditorTabChange('droneRacer')
-          onSimViewportFocusChange?.('client')
-          onEditDocumentFocusChange('main')
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onMainDocumentEditorTabChange('droneRacer')
-          onSimViewportFocusChange?.('client')
-          onEditDocumentFocusChange('main')
-        }}
-      >
-        <TabClientSimDocumentIcon />
-        <span>Client</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
-      </TabWithPathTooltip>
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_SERVER}
-        role="tab"
-        tabIndex={0}
-        aria-selected={simServerTabChromeActive}
-        className={documentTabClass(simServerTabChromeActive)}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          onMainDocumentEditorTabChange('droneRacer')
-          onSimViewportFocusChange?.('server')
-          onEditDocumentFocusChange('main')
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onMainDocumentEditorTabChange('droneRacer')
-          onSimViewportFocusChange?.('server')
-          onEditDocumentFocusChange('main')
-        }}
-      >
-        <Server
-          size={12}
-          strokeWidth={1.5}
-          className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-          color="#0c9b5a"
-          aria-hidden
-        />
-        <span>Server</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
-      </TabWithPathTooltip>
-      {optionalScriptTabs}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
-    </div>
+  const simSplitClientTabRow = renderSimDocumentStripRow(
+    simDocumentTabOrder.filter((tab) => clientColumnStripTabs.includes(tab)),
+    {
+      activeTab: clientDocumentTab,
+      onTabChange: onSplitClientDocumentTabChange!,
+      onCloseScriptTab: closeSplitClientScriptTab,
+      isClientTabActive: isSimClientStripTabActive,
+      serverDmActive: false,
+    },
+    {
+      className: styles.simSplitDocumentTabRow,
+      'data-node-id': '3841:115140-split-client-tabs',
+    },
+    simSplitClientTabDrag,
   )
 
-  const focusClientSim = () => {
-    if (usePerColumnDocumentTabs) {
-      onSplitClientDocumentTabChange!('droneRacer')
-    } else {
-      onMainDocumentEditorTabChange('droneRacer')
-    }
-    onSimViewportFocusChange?.('client')
-    onEditDocumentFocusChange('main')
-  }
-
-  const focusServerSim = () => {
-    if (usePerColumnDocumentTabs) {
-      onSplitServerDocumentTabChange!('droneRacer')
-    } else {
-      onMainDocumentEditorTabChange('droneRacer')
-    }
-    onSimViewportFocusChange?.('server')
-    onEditDocumentFocusChange('main')
-  }
-
-  const simSplitClientTabRow = (
-    <div
-      className={`${styles.tabRow} ${styles.simSplitDocumentTabRow}`}
-      data-node-id="3841:115140-split-client-tabs"
-    >
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_CLIENT}
-        role="tab"
-        tabIndex={0}
-        aria-selected={splitClientPrimaryTabActive}
-        className={documentTabClass(splitClientPrimaryTabActive)}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          focusClientSim()
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          focusClientSim()
-        }}
-      >
-        <TabClientSimDocumentIcon />
-        <span>Client</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
-      </TabWithPathTooltip>
-      {usePerColumnDocumentTabs
-        ? renderDocumentSecondaryTabs(
-            clientDocumentTab,
-            onSplitClientDocumentTabChange!,
-            closeSplitClientScriptTab,
-            { clientScript: !!clientSim && clientScriptTabOpen },
-          )
-        : optionalScriptTabs}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
-    </div>
+  const simSplitServerTabRow = renderSimDocumentStripRow(
+    simDocumentTabOrder.filter((tab) => serverColumnStripTabs.includes(tab)),
+    {
+      activeTab: serverDocumentTab,
+      onTabChange: onSplitServerDocumentTabChange!,
+      onCloseScriptTab: closeSplitServerScriptTab,
+      isClientTabActive: () => false,
+      serverDmActive: splitServerPrimaryTabActive,
+    },
+    {
+      className: styles.simSplitDocumentTabRow,
+      'data-node-id': '3841:113029-split-server-tabs',
+    },
+    simSplitServerTabDrag,
   )
 
-  const simSplitServerTabRow = (
+  const assetIsolationTabRow = combinedStripMode ? (
+    renderCombinedZoneTabRow('iso', combinedIsoZoneTabKeys, {
+      'data-node-id': '3841:115139-iso-tabs',
+    })
+  ) : (
     <div
-      className={`${styles.tabRow} ${styles.simSplitDocumentTabRow}`}
-      data-node-id="3841:113029-split-server-tabs"
-    >
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_RACER_SERVER}
-        role="tab"
-        tabIndex={0}
-        aria-selected={splitServerPrimaryTabActive}
-        className={documentTabClass(splitServerPrimaryTabActive)}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          focusServerSim()
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          focusServerSim()
-        }}
-      >
-        <Server
-          size={12}
-          strokeWidth={1.5}
-          className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-          color="#0c9b5a"
-          aria-hidden
-        />
-        <span>Server</span>
-        <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-        </button>
-      </TabWithPathTooltip>
-      {usePerColumnDocumentTabs
-        ? renderDocumentSecondaryTabs(
-            serverDocumentTab,
-            onSplitServerDocumentTabChange!,
-            closeSplitServerScriptTab,
-            { serverScript: !!clientSim && serverScriptTabOpen },
-          )
-        : optionalScriptTabs}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
-    </div>
-  )
-
-  const assetIsolationTabRow = (
-    <div
+      ref={editIsolationTabDrag.rowRef}
       className={`${styles.tabRow} ${styles.assetIsolationTabRow}`}
       data-node-id="3841:115139-iso-tabs"
     >
-      {isolationTabOpen ? (
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_ASSET}
-        role="tab"
-        tabIndex={0}
-        aria-selected={editDocumentFocus === 'isolation'}
-        className={`${styles.tab} ${
-          editDocumentFocus === 'isolation' ? styles.tabActive : styles.tabInactive
-        }`}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          onEditDocumentFocusChange('isolation')
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onEditDocumentFocusChange('isolation')
-        }}
-      >
-        <img
-          src={publicAssetUrl('assets/Model.png')}
-          alt=""
-          className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
-          aria-hidden
-        />
-        <span>{DRONE_WORKSPACE_TAB_LABEL}</span>
-        <TabCloseButton onClose={() => closeEditIsolationTab('isolation')} />
-      </TabWithPathTooltip>
-      ) : null}
-      {hoverScriptTabOpen ? (
-      <TabWithPathTooltip
-        path={TAB_PATH_DRONE_HOVERSCRIPT}
-        role="tab"
-        tabIndex={0}
-        aria-selected={editDocumentFocus === 'hoverScript'}
-        className={`${styles.tab} ${
-          editDocumentFocus === 'hoverScript' ? styles.tabActive : styles.tabInactive
-        }`}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          onEditDocumentFocusChange('hoverScript')
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onEditDocumentFocusChange('hoverScript')
-        }}
-      >
-        <TabDiamond />
-        <span>{HOVER_SCRIPT_TAB_LABEL}</span>
-        <TabCloseButton onClose={() => closeEditIsolationTab('hoverScript')} />
-      </TabWithPathTooltip>
-      ) : null}
+      {openEditIsolationTabs.map((tabId, tabIndex) => {
+        const tabClass = (selected: boolean) =>
+          `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClasses(editIsolationTabDrag, tabIndex)}`
+
+        if (tabId === 'isolation') {
+          return (
+            <TabWithPathTooltip
+              key="isolation"
+              path={TAB_PATH_DRONE_ASSET}
+              role="tab"
+              tabIndex={0}
+              aria-selected={editDocumentFocus === 'isolation'}
+              className={tabClass(editDocumentFocus === 'isolation')}
+              {...editIsolationTabDrag.getTabProps(tabIndex)}
+              {...tabActivateHandlers(editIsolationTabDrag, () =>
+                onEditDocumentFocusChange('isolation'),
+              )}
+            >
+              <img
+                src={publicAssetUrl('assets/Model.png')}
+                alt=""
+                className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
+                aria-hidden
+              />
+              <span>{DRONE_WORKSPACE_TAB_LABEL}</span>
+              <TabCloseButton onClose={() => closeEditIsolationTab('isolation')} />
+            </TabWithPathTooltip>
+          )
+        }
+
+        return (
+          <TabWithPathTooltip
+            key="hoverScript"
+            path={TAB_PATH_DRONE_HOVERSCRIPT}
+            role="tab"
+            tabIndex={0}
+            aria-selected={editDocumentFocus === 'hoverScript'}
+            className={tabClass(editDocumentFocus === 'hoverScript')}
+            {...editIsolationTabDrag.getTabProps(tabIndex)}
+            {...tabActivateHandlers(editIsolationTabDrag, () =>
+              onEditDocumentFocusChange('hoverScript'),
+            )}
+          >
+            <TabDiamond />
+            <span>{HOVER_SCRIPT_TAB_LABEL}</span>
+            <TabCloseButton onClose={() => closeEditIsolationTab('hoverScript')} />
+          </TabWithPathTooltip>
+        )
+      })}
       <div className={styles.tabRowUnderline} aria-hidden>
         <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
       </div>
@@ -2062,18 +3110,38 @@ function DroneRacerWorkspace({
           )
         }
       >
-        {hoverScriptDocumentActive ? (
-          <pre className={styles.hoverScriptEditor} spellCheck={false}>
-            hello world
-          </pre>
-        ) : (
-          <img
-            src={
-              droneIsolationPreviewActive ? ASSET_ISOLATION_IMAGE_FOCUSED : ASSET_ISOLATION_IMAGE
-            }
-            alt=""
-          />
-        )}
+        {(() => {
+          const isoColumnScriptTab =
+            combinedStripMode &&
+            editDocumentFocus === 'main' &&
+            mainDocumentScriptOpen &&
+            (clientSim
+              ? simScriptTabInIsoZone(mainDocumentEditorTab as MainScriptTabId)
+              : editScriptTabInIsoZone(mainDocumentEditorTab as MainScriptTabId))
+              ? mainDocumentEditorTab
+              : null
+
+          if (isoColumnScriptTab != null) {
+            return renderDocumentScriptBody(isoColumnScriptTab)
+          }
+          if (hoverScriptDocumentInIso) {
+            return (
+              <pre className={styles.hoverScriptEditor} spellCheck={false}>
+                hello world
+              </pre>
+            )
+          }
+          return (
+            <img
+              src={
+                droneIsolationPreviewInIso
+                  ? ASSET_ISOLATION_IMAGE_FOCUSED
+                  : ASSET_ISOLATION_IMAGE
+              }
+              alt=""
+            />
+          )
+        })()}
         {showIsolationColumnChromeRing ? (
           <div className={styles.editWorkspaceInsetRing} aria-hidden />
         ) : null}
@@ -2081,14 +3149,98 @@ function DroneRacerWorkspace({
     </aside>
   )
 
+  const mainViewportScriptTab =
+    editDocumentFocus === 'main' &&
+    mainDocumentScriptOpen &&
+    (clientSim
+      ? simScriptTabInMainZone(mainDocumentEditorTab as MainScriptTabId)
+      : editScriptTabInMainZone(mainDocumentEditorTab as MainScriptTabId))
+      ? mainDocumentEditorTab
+      : null
+
+  const renderMainColumnBody = () => {
+    if (droneIsolationInMainViewport) {
+      return (
+        <img
+          src={
+            editDocumentFocus === 'isolation'
+              ? ASSET_ISOLATION_IMAGE_FOCUSED
+              : ASSET_ISOLATION_IMAGE
+          }
+          alt=""
+        />
+      )
+    }
+    if (hoverScriptInMainViewport) {
+      return (
+        <pre className={styles.hoverScriptEditor} spellCheck={false}>
+          hello world
+        </pre>
+      )
+    }
+    if (mainViewportScriptTab != null) {
+      return renderDocumentScriptBody(mainViewportScriptTab)
+    }
+    return null
+  }
+
   /** Single tabbed Client/Server + Script strip: Script lives in client viewport; Server sim is server viewport. */
-  const simTabbedBodyViewport =
-    mainDocumentScriptOpen || simFocus === 'client'
-      ? renderMainViewport(
-          simDocumentChromeActive,
-          mainDocumentScriptOpen ? mainDocumentEditorTab : null,
-        )
-      : renderServerTestViewport(simDocumentChromeActive)
+  const simTabbedBodyViewport = (() => {
+    /**
+     * Drone Racer script tabs must use `renderMainViewport` so play-mode semantic / focus
+     * inset rings apply. The generic main-column wrapper only renders `mainEditInsetRing`,
+     * which is edit-only (`!clientSim`) — rings vanished when Client/Server tabs were closed.
+     */
+    if (
+      mainViewportScriptTab != null &&
+      !droneIsolationInMainViewport &&
+      !hoverScriptInMainViewport
+    ) {
+      if (!simClientTabOpen && simServerTabOpen) {
+        return renderServerTestViewport(simDocumentChromeActive)
+      }
+      return renderMainViewport(simDocumentChromeActive, mainViewportScriptTab)
+    }
+
+    const mainColumnOverride = renderMainColumnBody()
+    if (mainColumnOverride != null) {
+      return (
+        <div
+          className={[styles.viewport, mainInactiveInSplit ? styles.editWorkspaceInactiveBleedCrop : null]
+            .filter(Boolean)
+            .join(' ')}
+          onPointerDown={() => {
+            if (clientSim) onSimViewportFocusChange?.('client')
+            onEditDocumentFocusChange(
+              hoverScriptInMainViewport
+                ? 'hoverScript'
+                : droneIsolationInMainViewport
+                  ? 'isolation'
+                  : 'main',
+            )
+          }}
+        >
+          {mainColumnOverride}
+          {mainEditInsetRing ? (
+            <div className={styles.editWorkspaceInsetRing} aria-hidden />
+          ) : null}
+        </div>
+      )
+    }
+    if (!simClientTabOpen && simServerTabOpen) {
+      return renderServerTestViewport(simDocumentChromeActive)
+    }
+    if (
+      simClientTabOpen &&
+      (!simServerTabOpen || simFocus === 'client')
+    ) {
+      return renderMainViewport(simDocumentChromeActive, null)
+    }
+    if (simServerTabOpen) {
+      return renderServerTestViewport(simDocumentChromeActive)
+    }
+    return null
+  })()
 
   const simTabbedClientServerStack = (
     <>
@@ -2103,64 +3255,72 @@ function DroneRacerWorkspace({
         return (
           <div className={styles.documentPanel} data-node-id="3841:115139">
             <div className={styles.testTriptychTabStrip}>
-              <div
-                className={styles.testTriptychTabCol}
-                onPointerDown={() => {
-                  onSimViewportFocusChange?.('client')
-                  onEditDocumentFocusChange('main')
-                }}
-              >
-                {simSplitClientTabRow}
-              </div>
-              <div
-                className={styles.testTriptychTabCol}
-                onPointerDown={() => {
-                  onSimViewportFocusChange?.('server')
-                  onEditDocumentFocusChange('main')
-                }}
-              >
-                {simSplitServerTabRow}
-              </div>
+              {simClientTabOpen ? (
+                <div
+                  className={styles.testTriptychTabCol}
+                  onPointerDown={() => {
+                    onSimViewportFocusChange?.('client')
+                    onEditDocumentFocusChange('main')
+                  }}
+                >
+                  {simSplitClientTabRow}
+                </div>
+              ) : null}
+              {simServerTabOpen ? (
+                <div
+                  className={styles.testTriptychTabCol}
+                  onPointerDown={() => {
+                    onSimViewportFocusChange?.('server')
+                    onEditDocumentFocusChange('main')
+                  }}
+                >
+                  {simSplitServerTabRow}
+                </div>
+              ) : null}
               <div className={styles.editTabStripIso}>
                 {assetIsolationTabRow}
               </div>
             </div>
             <div className={styles.testTriptychBodyRow}>
-              <div
-                className={[styles.simSplitClientWrap, splitClientBrandSemanticStrokeClass]
-                  .filter(Boolean)
-                  .join(' ')}
-                onPointerDown={() => {
-                  onSimViewportFocusChange?.('client')
-                  onEditDocumentFocusChange('main')
-                }}
-              >
-                {splitClientFocusChrome}
-                <div className={styles.simTabbedBody}>
-                  {renderMainViewport(
-                    simDocumentChromeActive,
-                    clientDocumentScriptOpen ? clientDocumentTab : null,
-                    'client',
-                  )}
+              {simClientTabOpen ? (
+                <div
+                  className={[styles.simSplitClientWrap, splitClientBrandSemanticStrokeClass]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onPointerDown={() => {
+                    onSimViewportFocusChange?.('client')
+                    onEditDocumentFocusChange('main')
+                  }}
+                >
+                  {splitClientFocusChrome}
+                  <div className={styles.simTabbedBody}>
+                    {renderMainViewport(
+                      simDocumentChromeActive,
+                      clientDocumentScriptOpen ? clientDocumentTab : null,
+                      'client',
+                    )}
+                  </div>
                 </div>
-              </div>
-              <section
-                className={[styles.simSplitServerWrap, splitServerBrandSemanticStrokeClass]
-                  .filter(Boolean)
-                  .join(' ')}
-                aria-label="Server simulation view"
-                onPointerDown={() => {
-                  onSimViewportFocusChange?.('server')
-                  onEditDocumentFocusChange('main')
-                }}
-              >
-                {splitServerFocusChrome}
-                <div className={styles.simTabbedBody}>
-                  {serverDocumentScriptOpen
-                    ? renderMainViewport(simDocumentChromeActive, serverDocumentTab, 'server')
-                    : renderServerTestViewport(simDocumentChromeActive)}
-                </div>
-              </section>
+              ) : null}
+              {simServerTabOpen ? (
+                <section
+                  className={[styles.simSplitServerWrap, splitServerBrandSemanticStrokeClass]
+                    .filter(Boolean)
+                    .join(' ')}
+                  aria-label="Server simulation view"
+                  onPointerDown={() => {
+                    onSimViewportFocusChange?.('server')
+                    onEditDocumentFocusChange('main')
+                  }}
+                >
+                  {splitServerFocusChrome}
+                  <div className={styles.simTabbedBody}>
+                    {serverDocumentScriptOpen
+                      ? renderMainViewport(simDocumentChromeActive, serverDocumentTab, 'server')
+                      : renderServerTestViewport(simDocumentChromeActive)}
+                  </div>
+                </section>
+              ) : null}
               {assetIsolationColumnAside}
             </div>
           </div>
@@ -2193,43 +3353,47 @@ function DroneRacerWorkspace({
       return (
         <div className={styles.documentPanel} data-node-id="3841:115139">
           <div className={styles.simSplitViewportRow}>
-            <div
-              className={[styles.simSplitClientWrap, splitClientBrandSemanticStrokeClass]
-                .filter(Boolean)
-                .join(' ')}
-              onPointerDown={() => {
-                onSimViewportFocusChange?.('client')
-                onEditDocumentFocusChange('main')
-              }}
-            >
-              {splitClientFocusChrome}
-              {simSplitClientTabRow}
-              <div className={styles.simTabbedBody}>
-                {renderMainViewport(
+            {simClientTabOpen ? (
+              <div
+                className={[styles.simSplitClientWrap, splitClientBrandSemanticStrokeClass]
+                  .filter(Boolean)
+                  .join(' ')}
+                onPointerDown={() => {
+                  onSimViewportFocusChange?.('client')
+                  onEditDocumentFocusChange('main')
+                }}
+              >
+                {splitClientFocusChrome}
+                {simSplitClientTabRow}
+                <div className={styles.simTabbedBody}>
+                  {renderMainViewport(
                     simDocumentChromeActive,
                     clientDocumentScriptOpen ? clientDocumentTab : null,
                     'client',
                   )}
+                </div>
               </div>
-            </div>
-            <section
-              className={[styles.simSplitServerWrap, splitServerBrandSemanticStrokeClass]
-                .filter(Boolean)
-                .join(' ')}
-              aria-label="Server simulation view"
-              onPointerDown={() => {
-                onSimViewportFocusChange?.('server')
-                onEditDocumentFocusChange('main')
-              }}
-            >
-              {splitServerFocusChrome}
-              {simSplitServerTabRow}
-              <div className={styles.simTabbedBody}>
-                {serverDocumentScriptOpen
-                  ? renderMainViewport(simDocumentChromeActive, serverDocumentTab, 'server')
-                  : renderServerTestViewport(simDocumentChromeActive)}
-              </div>
-            </section>
+            ) : null}
+            {simServerTabOpen ? (
+              <section
+                className={[styles.simSplitServerWrap, splitServerBrandSemanticStrokeClass]
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-label="Server simulation view"
+                onPointerDown={() => {
+                  onSimViewportFocusChange?.('server')
+                  onEditDocumentFocusChange('main')
+                }}
+              >
+                {splitServerFocusChrome}
+                {simSplitServerTabRow}
+                <div className={styles.simTabbedBody}>
+                  {serverDocumentScriptOpen
+                    ? renderMainViewport(simDocumentChromeActive, serverDocumentTab, 'server')
+                    : renderServerTestViewport(simDocumentChromeActive)}
+                </div>
+              </section>
+            ) : null}
           </div>
         </div>
       )
@@ -2242,7 +3406,11 @@ function DroneRacerWorkspace({
   }
 
   const mainDocumentTabRow = (
-    <div className={styles.tabRow} data-node-id="3841:115140">
+    <div
+      ref={combinedStripMode ? combinedTabDrag.mainRowRef : editScriptTabDrag.rowRef}
+      className={styles.tabRow}
+      data-node-id="3841:115140"
+    >
       <TabWithPathTooltip
         path={bunnyAssetWindow ? TAB_PATH_BUNNY_DOCUMENT : TAB_PATH_DRONE_RACER_DOCUMENT}
         role="tab"
@@ -2266,7 +3434,11 @@ function DroneRacerWorkspace({
           <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
         </button>
       </TabWithPathTooltip>
-      {optionalScriptTabs}
+      {combinedStripMode
+        ? combinedMainZoneTabKeys.map((key, tabIndex) =>
+            renderCombinedZoneTab(key, tabIndex, 'main'),
+          )
+        : optionalScriptTabs}
       <div className={styles.tabRowUnderline} aria-hidden>
         <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
       </div>
@@ -2304,17 +3476,35 @@ function DroneRacerWorkspace({
       )}
       {showAssetInIsolation && !clientSim ? (
         <div className={styles.editWorkspaceSplit}>
-          {renderMainViewport(
-            true,
-            mainDocumentScriptOpen ? mainDocumentEditorTab : null,
-          )}
+          {(() => {
+            const mainColumnOverride = renderMainColumnBody()
+            if (mainColumnOverride != null) {
+              return (
+                <div
+                  className={styles.viewport}
+                  onPointerDown={() =>
+                    onEditDocumentFocusChange(
+                      hoverScriptInMainViewport
+                        ? 'hoverScript'
+                        : droneIsolationInMainViewport
+                          ? 'isolation'
+                          : 'main',
+                    )
+                  }
+                >
+                  {mainColumnOverride}
+                  {mainEditInsetRing ? (
+                    <div className={styles.editWorkspaceInsetRing} aria-hidden />
+                  ) : null}
+                </div>
+              )
+            }
+            return renderMainViewport(false, mainViewportScriptTab)
+          })()}
           {assetIsolationColumnAside}
         </div>
       ) : (
-        renderMainViewport(
-          true,
-          mainDocumentScriptOpen ? mainDocumentEditorTab : null,
-        )
+        renderMainViewport(false, mainViewportScriptTab)
       )}
     </div>
   )
@@ -2359,6 +3549,13 @@ export default function StudioWindowsOS({
   const [simExplorerSelectedRowClient, setSimExplorerSelectedRowClient] = useState<string | null>(null)
   /** Sim Explorer: selected row while Server viewport has sim focus (null until user selects). */
   const [simExplorerSelectedRowServer, setSimExplorerSelectedRowServer] = useState<string | null>(null)
+  /** Server & Clients: one Explorer selection per client instance tab. */
+  const [simExplorerSelectionByClient, setSimExplorerSelectionByClient] = useState<
+    Record<number, string | null>
+  >({})
+  const [simMultiClientMode, setSimMultiClientMode] = useState(false)
+  const [simClientInstanceCount, setSimClientInstanceCount] = useState(1)
+  const [simFocusedStripTab, setSimFocusedStripTab] = useState<SimDocumentStripTab>('client')
   /** Play mode: inset ring on focused client/server viewport — brand hue (Testing UI: Has semantic stroke). */
   const [playModeHasStroke, setPlayModeHasStroke] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.playModeHasStroke,
@@ -2434,6 +3631,33 @@ export default function StudioWindowsOS({
   const [serverScriptTabOpen, setServerScriptTabOpen] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.serverScriptTabOpen,
   )
+  const [simClientTabOpen, setSimClientTabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.simClientTabOpen,
+  )
+  const [simServerTabOpen, setSimServerTabOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.simServerTabOpen,
+  )
+  const [toggleOpensDmIfClosed, setToggleOpensDmIfClosed] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.toggleOpensDmIfClosed,
+  )
+  const [simDocumentTabOrder, setSimDocumentTabOrder] = useState<SimDocumentStripTab[]>(() =>
+    buildDefaultSimDocumentTabOrder({
+      client: PROTOTYPE_SETTINGS_DEFAULTS.simClientTabOpen,
+      server: PROTOTYPE_SETTINGS_DEFAULTS.simServerTabOpen,
+      scriptA: PROTOTYPE_SETTINGS_DEFAULTS.scriptATabOpen,
+      scriptB: PROTOTYPE_SETTINGS_DEFAULTS.scriptBTabOpen,
+      clientScript: PROTOTYPE_SETTINGS_DEFAULTS.clientScriptTabOpen,
+      serverScript: PROTOTYPE_SETTINGS_DEFAULTS.serverScriptTabOpen,
+    }),
+  )
+  const [scriptTabOrder, setScriptTabOrder] = useState<MainScriptTabId[]>(() => [
+    ...MAIN_SCRIPT_TAB_ORDER,
+  ])
+  const [editIsolationTabOrder, setEditIsolationTabOrder] = useState<EditIsolationTabId[]>(() => [
+    ...EDIT_ISOLATION_TAB_ORDER,
+  ])
+  const [combinedMainZoneKeys, setCombinedMainZoneKeys] = useState<PersistentTabKey[] | null>(null)
+  const [combinedIsoZoneKeys, setCombinedIsoZoneKeys] = useState<PersistentTabKey[] | null>(null)
   const [isolationTabOpen, setIsolationTabOpen] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.isolationTabOpen,
   )
@@ -2444,9 +3668,65 @@ export default function StudioWindowsOS({
     DEFAULT_CLIENT_SCRIPT_DOCUMENT,
   )
 
+  const focusTestMenuView = useCallback(
+    (target: TestAppMenuFocusTarget) => {
+      if (!clientSimActive) return
+
+      const anchor = simStripTabAnchor(mainDocumentEditorTab, simViewportFocus)
+
+      if (target === 'server') {
+        if (toggleOpensDmIfClosed && !simServerTabOpen) {
+          setSimServerTabOpen(true)
+          setSimDocumentTabOrder((order) =>
+            insertStripTabAfterAnchor(order, 'server', anchor),
+          )
+        }
+        setSimViewportFocus('server')
+        setSimFocusedStripTab('server')
+      } else if (target === 'client') {
+        if (toggleOpensDmIfClosed && !simClientTabOpen) {
+          setSimClientTabOpen(true)
+          setSimDocumentTabOrder((order) =>
+            insertStripTabAfterAnchor(order, 'client', anchor),
+          )
+        }
+        setSimViewportFocus('client')
+        setSimFocusedStripTab('client')
+      } else {
+        const tab = simClientInstanceId(target.clientIndex)
+        setSimClientTabOpen(true)
+        setSimViewportFocus('client')
+        setSimFocusedStripTab(tab)
+        setSimDocumentTabOrder((order) =>
+          order.includes(tab)
+            ? order
+            : insertClientInstanceTabInOrder(order, tab, simClientInstanceCount),
+        )
+      }
+
+      setMainDocumentEditorTab('droneRacer')
+      setEditWorkspaceDocumentFocus('main')
+    },
+    [
+      clientSimActive,
+      mainDocumentEditorTab,
+      simViewportFocus,
+      toggleOpensDmIfClosed,
+      simServerTabOpen,
+      simClientTabOpen,
+      simClientInstanceCount,
+    ],
+  )
+
   const openCameraZoomScript = useCallback(() => {
     setClientScriptDocument(CAMERA_ZOOM_SCRIPT_DOCUMENT)
     setClientScriptTabOpen(true)
+    if (clientSimActive) {
+      const anchor = simStripTabAnchor(mainDocumentEditorTab, simViewportFocus)
+      setSimDocumentTabOrder((order) =>
+        insertStripTabAfterAnchor(order, 'clientScript', anchor),
+      )
+    }
     if (clientSimActive && playModeSplitView) {
       setSplitClientDocumentTab('clientScript')
       setSimViewportFocus('client')
@@ -2454,11 +3734,17 @@ export default function StudioWindowsOS({
       setMainDocumentEditorTab('clientScript')
     }
     setEditWorkspaceDocumentFocus('main')
-  }, [clientSimActive, playModeSplitView])
+  }, [clientSimActive, playModeSplitView, mainDocumentEditorTab, simViewportFocus])
 
   const openClientScriptTab = useCallback(() => {
     setClientScriptDocument(DEFAULT_CLIENT_SCRIPT_DOCUMENT)
     setClientScriptTabOpen(true)
+    if (clientSimActive) {
+      const anchor = simStripTabAnchor(mainDocumentEditorTab, simViewportFocus)
+      setSimDocumentTabOrder((order) =>
+        insertStripTabAfterAnchor(order, 'clientScript', anchor),
+      )
+    }
     if (clientSimActive && playModeSplitView) {
       setSplitClientDocumentTab('clientScript')
       setSimViewportFocus('client')
@@ -2466,7 +3752,7 @@ export default function StudioWindowsOS({
       setMainDocumentEditorTab('clientScript')
     }
     setEditWorkspaceDocumentFocus('main')
-  }, [clientSimActive, playModeSplitView])
+  }, [clientSimActive, playModeSplitView, mainDocumentEditorTab, simViewportFocus])
 
   /** Migrate stale client script tabs that still use the old "Script" label. */
   useEffect(() => {
@@ -2494,6 +3780,12 @@ export default function StudioWindowsOS({
 
   const openServerScriptTab = useCallback(() => {
     setServerScriptTabOpen(true)
+    if (clientSimActive) {
+      const anchor = simStripTabAnchor(mainDocumentEditorTab, simViewportFocus)
+      setSimDocumentTabOrder((order) =>
+        insertStripTabAfterAnchor(order, 'serverScript', anchor),
+      )
+    }
     if (clientSimActive && playModeSplitView) {
       setSplitServerDocumentTab('serverScript')
       setSimViewportFocus('server')
@@ -2501,7 +3793,7 @@ export default function StudioWindowsOS({
       setMainDocumentEditorTab('serverScript')
     }
     setEditWorkspaceDocumentFocus('main')
-  }, [clientSimActive, playModeSplitView])
+  }, [clientSimActive, playModeSplitView, mainDocumentEditorTab, simViewportFocus])
 
   const focusedColumnDocumentTab =
     clientSimActive && playModeSplitView
@@ -2568,6 +3860,11 @@ export default function StudioWindowsOS({
     return simViewportFocus
   }, [explorerChromeDocumentTab, simViewportFocus])
 
+  const simActiveClientInstanceIndex = useMemo(() => {
+    if (!simMultiClientMode || explorerSimFocusForTree !== 'client') return null
+    return clientInstanceIndexFromStripTab(simFocusedStripTab) ?? 1
+  }, [simMultiClientMode, explorerSimFocusForTree, simFocusedStripTab])
+
   const explorerShowsSimClientServerChrome =
     clientSimActive &&
     explorerChromeScriptOpen &&
@@ -2621,6 +3918,13 @@ export default function StudioWindowsOS({
       if (explorerChromeDocumentTab === 'clientScript') return 'Drone Racer / Client'
       if (explorerChromeDocumentTab === 'serverScript') return 'Drone Racer / Server'
       if (isDroneRacerMainScriptTab(explorerChromeDocumentTab)) return 'Drone Racer'
+      if (
+        simMultiClientMode &&
+        explorerHeaderSimFocus === 'client' &&
+        simActiveClientInstanceIndex != null
+      ) {
+        return `Drone Racer / ${simClientInstanceLabel(simActiveClientInstanceIndex)}`
+      }
       return explorerHeaderSimFocus === 'server' ? 'Drone Racer / Server' : 'Drone Racer / Client'
     }
 
@@ -2634,6 +3938,8 @@ export default function StudioWindowsOS({
     clientSimActive,
     explorerChromeDocumentTab,
     explorerHeaderSimFocus,
+    simMultiClientMode,
+    simActiveClientInstanceIndex,
   ])
 
   const explorerBreadcrumbDisplaySegment = useMemo(
@@ -2645,17 +3951,44 @@ export default function StudioWindowsOS({
     [explorerBreadcrumbSegment, showFullBreadcrumbWhenDetached],
   )
 
-  const explorerPanelTitle = explorerNoBadge
-    ? 'Explorer'
-    : explorerShowBreadcrumb
-      ? formatExplorerPanelTitle(explorerBreadcrumbDisplaySegment)
-      : clientSimActive && explorerFocusBadge
+  const explorerBreadcrumbSegmentFloating = useMemo(
+    () => breadcrumbSegmentForDisplay(explorerBreadcrumbSegment, true),
+    [explorerBreadcrumbSegment],
+  )
+
+  const explorerPanelTitleBase = useCallback(
+    (displaySegment: string | null) =>
+      explorerNoBadge
         ? 'Explorer'
-        : explorerShowsClientServerFocusBadge
-          ? explorerHeaderSimFocus === 'server'
-            ? 'Explorer (Server)'
-            : 'Explorer (Client)'
-          : 'Explorer'
+        : explorerShowBreadcrumb
+          ? formatExplorerPanelTitle(displaySegment)
+          : clientSimActive && explorerFocusBadge
+            ? 'Explorer'
+            : explorerShowsClientServerFocusBadge
+              ? explorerHeaderSimFocus === 'server'
+                ? 'Explorer (Server)'
+                : simMultiClientMode && simActiveClientInstanceIndex != null
+                  ? `Explorer (${simClientInstanceLabel(simActiveClientInstanceIndex)})`
+                  : 'Explorer (Client)'
+              : 'Explorer',
+    [
+      explorerNoBadge,
+      explorerShowBreadcrumb,
+      clientSimActive,
+      explorerFocusBadge,
+      explorerShowsClientServerFocusBadge,
+      explorerHeaderSimFocus,
+      simMultiClientMode,
+      simActiveClientInstanceIndex,
+    ],
+  )
+
+  const explorerPanelTitleDocked = explorerPanelTitleBase(explorerBreadcrumbDisplaySegment)
+  const explorerPanelTitleFloating = explorerPanelTitleBase(
+    showFullBreadcrumbWhenDetached
+      ? explorerBreadcrumbSegmentFloating
+      : explorerBreadcrumbDisplaySegment,
+  )
 
   const footerDatamodelTintFocus = useMemo(
     () =>
@@ -2705,6 +4038,9 @@ export default function StudioWindowsOS({
   const [floatingPropertiesOpen, setFloatingPropertiesOpen] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.floatingPropertiesOpen,
   )
+  const [floatingExplorerOpen, setFloatingExplorerOpen] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.floatingExplorerOpen,
+  )
   const [editExplorerSelectedRowId, setEditExplorerSelectedRowId] = useState<string | null>(
     null,
   )
@@ -2732,8 +4068,20 @@ export default function StudioWindowsOS({
         return
       case 'flatSim': {
         const [clientRow, serverRow] = pickDistinctRandomExplorerRows(FLAT_SIM_EXPLORER_ROWS)
-        setSimExplorerSelectedRowClient(clientRow)
         setSimExplorerSelectedRowServer(serverRow)
+        if (simMultiClientMode) {
+          const byClient: Record<number, string | null> = {}
+          for (let i = 1; i <= simClientInstanceCount; i++) {
+            const rows = explorerTreeForClientInstance(i).map((r) => r.id)
+            byClient[i] = pickRandomExplorerRow(rows)
+          }
+          setSimExplorerSelectionByClient(byClient)
+          const activeIndex = clientInstanceIndexFromStripTab(simFocusedStripTab) ?? 1
+          setSimExplorerSelectedRowClient(byClient[activeIndex] ?? clientRow)
+        } else {
+          setSimExplorerSelectedRowClient(clientRow)
+          setSimExplorerSelectionByClient({})
+        }
         return
       }
       case 'droneRacerHierarchy': {
@@ -2745,7 +4093,7 @@ export default function StudioWindowsOS({
         }
       }
     }
-  }, [clientSimActive])
+  }, [clientSimActive, simMultiClientMode, simClientInstanceCount, simFocusedStripTab])
 
   useEffect(() => {
     seedExplorerSelectionForTreeKind(explorerTreeKind)
@@ -2753,6 +4101,8 @@ export default function StudioWindowsOS({
     explorerTreeKind,
     explorerSelectionSeedEpoch,
     clientSimActive,
+    simMultiClientMode,
+    simClientInstanceCount,
     seedExplorerSelectionForTreeKind,
   ])
 
@@ -2760,6 +4110,16 @@ export default function StudioWindowsOS({
   const [outputLogEntries, setOutputLogEntries] = useState<OutputLogEntry[]>(INITIAL_OUTPUT_LOG)
 
   const frameRef = useRef<HTMLDivElement | null>(null)
+  const floatingExplorerDrag = useFloatingPanelDrag(frameRef)
+  const floatingPropertiesDrag = useFloatingPanelDrag(frameRef)
+
+  useEffect(() => {
+    if (!floatingExplorerOpen) floatingExplorerDrag.resetPosition()
+  }, [floatingExplorerOpen, floatingExplorerDrag.resetPosition])
+
+  useEffect(() => {
+    if (!floatingPropertiesOpen) floatingPropertiesDrag.resetPosition()
+  }, [floatingPropertiesOpen, floatingPropertiesDrag.resetPosition])
   const focusHoleRef = useRef<HTMLDivElement | null>(null)
   /** Edit-mode document tabs when entering Test — restored on exit. */
   const editDocumentBeforePlayRef = useRef<{
@@ -2776,16 +4136,24 @@ export default function StudioWindowsOS({
   /** Last test-mode document + sim focus — restored on re-enter. */
   const playModeSessionRef = useRef<{
     simViewportFocus: SimViewportFocus
+    simFocusedStripTab: SimDocumentStripTab
+    simMultiClientMode: boolean
+    simClientInstanceCount: number
     mainDocumentEditorTab: MainDocumentEditorTab
     splitClientDocumentTab: MainDocumentEditorTab
     splitServerDocumentTab: MainDocumentEditorTab
   }>({
     simViewportFocus: 'client',
+    simFocusedStripTab: 'client',
+    simMultiClientMode: false,
+    simClientInstanceCount: 1,
     mainDocumentEditorTab: 'droneRacer',
     splitClientDocumentTab: 'droneRacer',
     splitServerDocumentTab: 'droneRacer',
   })
   const prevClientSimActiveRef = useRef(clientSimActive)
+  /** Play button configured test state this tick — skip stale session restore in the sim-toggle effect. */
+  const playConfiguredRef = useRef(false)
   const [tintClipPath, setTintClipPath] = useState<string | undefined>()
 
   const handlePrototypeReset = useCallback(() => {
@@ -2810,6 +4178,7 @@ export default function StudioWindowsOS({
     setEditWorkspaceDocumentFocus(d.editWorkspaceDocumentFocus)
     setPanelTitlesLeftAligned(d.panelTitlesLeftAligned)
     setFloatingPropertiesOpen(d.floatingPropertiesOpen)
+    setFloatingExplorerOpen(d.floatingExplorerOpen)
     setEditExplorerSelectedRowId(null)
     setMainDocumentEditorTab(d.mainDocumentEditorTab)
     setSplitClientDocumentTab(d.splitClientDocumentTab)
@@ -2818,6 +4187,23 @@ export default function StudioWindowsOS({
     setScriptBTabOpen(d.scriptBTabOpen)
     setClientScriptTabOpen(d.clientScriptTabOpen)
     setServerScriptTabOpen(d.serverScriptTabOpen)
+    setSimClientTabOpen(d.simClientTabOpen)
+    setSimServerTabOpen(d.simServerTabOpen)
+    setSimDocumentTabOrder(
+      buildDefaultSimDocumentTabOrder({
+        client: d.simClientTabOpen,
+        server: d.simServerTabOpen,
+        scriptA: d.scriptATabOpen,
+        scriptB: d.scriptBTabOpen,
+        clientScript: d.clientScriptTabOpen,
+        serverScript: d.serverScriptTabOpen,
+      }),
+    )
+    setScriptTabOrder([...MAIN_SCRIPT_TAB_ORDER])
+    setEditIsolationTabOrder([...EDIT_ISOLATION_TAB_ORDER])
+    setCombinedMainZoneKeys(null)
+    setCombinedIsoZoneKeys(null)
+    setToggleOpensDmIfClosed(d.toggleOpensDmIfClosed)
     setIsolationTabOpen(d.isolationTabOpen)
     setHoverScriptTabOpen(d.hoverScriptTabOpen)
     setClientScriptDocument(DEFAULT_CLIENT_SCRIPT_DOCUMENT)
@@ -2825,6 +4211,10 @@ export default function StudioWindowsOS({
     setOutputLogEntries(INITIAL_OUTPUT_LOG)
     setSimExplorerSelectedRowClient(null)
     setSimExplorerSelectedRowServer(null)
+    setSimExplorerSelectionByClient({})
+    setSimMultiClientMode(false)
+    setSimClientInstanceCount(1)
+    setSimFocusedStripTab('client')
     setExplorerSelectionSeedEpoch((epoch) => epoch + 1)
     editDocumentBeforePlayRef.current = {
       mainDocumentEditorTab: d.mainDocumentEditorTab,
@@ -2834,6 +4224,9 @@ export default function StudioWindowsOS({
     }
     playModeSessionRef.current = {
       simViewportFocus: d.simViewportFocus,
+      simFocusedStripTab: 'client',
+      simMultiClientMode: false,
+      simClientInstanceCount: 1,
       mainDocumentEditorTab: d.mainDocumentEditorTab,
       splitClientDocumentTab: d.splitClientDocumentTab,
       splitServerDocumentTab: d.splitServerDocumentTab,
@@ -2842,19 +4235,42 @@ export default function StudioWindowsOS({
 
   const tintActive = clientSimActive && playModeFullTint
 
-  const simExplorerSelectedRowId =
-    clientSimActive && explorerSimFocusForTree === 'client'
-      ? simExplorerSelectedRowClient
-      : clientSimActive && explorerSimFocusForTree === 'server'
-        ? simExplorerSelectedRowServer
-        : null
+  const simExplorerSelectedRowId = useMemo(() => {
+    if (!clientSimActive) return null
+    if (explorerSimFocusForTree === 'server') return simExplorerSelectedRowServer
+    if (simMultiClientMode && simActiveClientInstanceIndex != null) {
+      return (
+        simExplorerSelectionByClient[simActiveClientInstanceIndex] ??
+        simExplorerSelectedRowClient
+      )
+    }
+    return simExplorerSelectedRowClient
+  }, [
+    clientSimActive,
+    explorerSimFocusForTree,
+    simMultiClientMode,
+    simActiveClientInstanceIndex,
+    simExplorerSelectionByClient,
+    simExplorerSelectedRowClient,
+    simExplorerSelectedRowServer,
+  ])
 
   const onSimExplorerSelectRow = useCallback(
     (rowId: string) => {
-      if (explorerSimFocusForTree === 'client') setSimExplorerSelectedRowClient(rowId)
-      else setSimExplorerSelectedRowServer(rowId)
+      if (explorerSimFocusForTree === 'server') {
+        setSimExplorerSelectedRowServer(rowId)
+        return
+      }
+      if (simMultiClientMode && simActiveClientInstanceIndex != null) {
+        setSimExplorerSelectionByClient((prev) => ({
+          ...prev,
+          [simActiveClientInstanceIndex]: rowId,
+        }))
+        return
+      }
+      setSimExplorerSelectedRowClient(rowId)
     },
-    [explorerSimFocusForTree],
+    [explorerSimFocusForTree, simMultiClientMode, simActiveClientInstanceIndex],
   )
 
   const activeExplorerRowForProperties = useMemo(() => {
@@ -2971,16 +4387,26 @@ export default function StudioWindowsOS({
         splitServerDocumentTab,
         editWorkspaceDocumentFocus,
       }
-      const session = playModeSessionRef.current
-      setSimViewportFocus(session.simViewportFocus)
-      setMainDocumentEditorTab(session.mainDocumentEditorTab)
-      setSplitClientDocumentTab(session.splitClientDocumentTab)
-      setSplitServerDocumentTab(session.splitServerDocumentTab)
-      setEditWorkspaceDocumentFocus('main')
+      if (!playConfiguredRef.current) {
+        const session = playModeSessionRef.current
+        setSimViewportFocus(session.simViewportFocus)
+        setSimFocusedStripTab(session.simFocusedStripTab)
+        setSimMultiClientMode(session.simMultiClientMode)
+        setSimClientInstanceCount(session.simClientInstanceCount)
+        setMainDocumentEditorTab(session.mainDocumentEditorTab)
+        setSplitClientDocumentTab(session.splitClientDocumentTab)
+        setSplitServerDocumentTab(session.splitServerDocumentTab)
+        setEditWorkspaceDocumentFocus('main')
+      } else {
+        playConfiguredRef.current = false
+      }
     }
     if (wasSim && !clientSimActive) {
       playModeSessionRef.current = {
         simViewportFocus,
+        simFocusedStripTab,
+        simMultiClientMode,
+        simClientInstanceCount,
         mainDocumentEditorTab,
         splitClientDocumentTab,
         splitServerDocumentTab,
@@ -3012,6 +4438,30 @@ export default function StudioWindowsOS({
     // editWorkspaceDocumentFocus intentionally omitted: only snapshot on sim toggle, not each focus tick.
   }, [clientSimActive, showAssetInIsolation])
 
+  /** Keep script/sim strip orders aligned with combined-zone placement (drag / iso column). */
+  useEffect(() => {
+    if (!showAssetInIsolation || playModeSplitView) return
+    if (combinedMainZoneKeys == null && combinedIsoZoneKeys == null) return
+    if (simMultiClientMode) return
+
+    const synced = syncAllDocumentOrdersFromPersistentZones(
+      combinedMainZoneKeys ?? [],
+      combinedIsoZoneKeys ?? [],
+      simDocumentTabOrder,
+      scriptTabOrder,
+      editIsolationTabOrder,
+    )
+    setSimDocumentTabOrder(synced.simOrder)
+    setScriptTabOrder(synced.scriptOrder)
+    setEditIsolationTabOrder(synced.isoTabOrder)
+  }, [
+    combinedMainZoneKeys,
+    combinedIsoZoneKeys,
+    showAssetInIsolation,
+    playModeSplitView,
+    simMultiClientMode,
+  ])
+
   useEffect(() => {
     if (!showAssetInIsolation) setEditWorkspaceDocumentFocus('main')
   }, [showAssetInIsolation])
@@ -3022,6 +4472,8 @@ export default function StudioWindowsOS({
       className={styles.frame}
       data-node-id="3841:114990"
       data-name="Studio - Windows OS"
+      {...(floatingExplorerOpen ? { 'data-floating-explorer': '' as const } : {})}
+      {...(floatingPropertiesOpen ? { 'data-floating-properties': '' as const } : {})}
     >
       <header className={styles.appBar} data-node-id="3842:134467">
         <div className={styles.appBarLeft}>
@@ -3029,11 +4481,24 @@ export default function StudioWindowsOS({
             <img src={publicAssetUrl('assets/appbar-logo.svg')} alt="" />
           </button>
           <nav className={styles.menu} aria-label="Application menu">
-            {MENUS.map((label) => (
-              <span key={label} className={styles.menuItem}>
-                {label}
-              </span>
-            ))}
+            {MENUS.map((label) =>
+              label === 'Test' ? (
+                <TestAppMenu
+                  key={label}
+                  disabled={bunnyAssetWindow}
+                  simulating={clientSimActive}
+                  simMultiClientMode={simMultiClientMode}
+                  simClientInstanceCount={simClientInstanceCount}
+                  simViewportFocus={simViewportFocus}
+                  simFocusedStripTab={simFocusedStripTab}
+                  onFocusView={focusTestMenuView}
+                />
+              ) : (
+                <span key={label} className={styles.menuItem}>
+                  {label}
+                </span>
+              ),
+            )}
           </nav>
         </div>
         <h1 className={styles.title}>{bunnyAssetWindow ? 'Bunny' : 'Drone Racer'}</h1>
@@ -3060,9 +4525,111 @@ export default function StudioWindowsOS({
 
       <LegacyRibbon
         simulating={clientSimActive}
+        simViewportFocus={simViewportFocus}
+        onSimViewportFocusToggle={() => {
+          const nextFocus = simViewportFocus === 'client' ? 'server' : 'client'
+          const anchor = simStripTabAnchor(mainDocumentEditorTab, simViewportFocus)
+          if (toggleOpensDmIfClosed) {
+            if (nextFocus === 'server' && !simServerTabOpen) {
+              setSimServerTabOpen(true)
+              setSimDocumentTabOrder((order) =>
+                insertStripTabAfterAnchor(order, 'server', anchor),
+              )
+            }
+            if (nextFocus === 'client' && !simClientTabOpen) {
+              setSimClientTabOpen(true)
+              const clientTab: SimDocumentStripTab = simMultiClientMode
+                ? simClientInstanceId(1)
+                : 'client'
+              setSimDocumentTabOrder((order) =>
+                insertStripTabAfterAnchor(order, clientTab, anchor),
+              )
+            }
+          }
+          setSimViewportFocus(nextFocus)
+          setSimFocusedStripTab(
+            nextFocus === 'server'
+              ? 'server'
+              : simMultiClientMode
+                ? isSimClientInstanceId(simFocusedStripTab)
+                  ? simFocusedStripTab
+                  : simClientInstanceId(1)
+                : 'client',
+          )
+          setMainDocumentEditorTab('droneRacer')
+          setEditWorkspaceDocumentFocus('main')
+        }}
         testPlaybackDisabled={bunnyAssetWindow}
-        onPlay={() => setClientSimActive(true)}
-        onStop={() => setClientSimActive(false)}
+        onPlay={({ testRunMode, clientSpawnCount }) => {
+          playConfiguredRef.current = true
+          setClientSimActive(true)
+          setSimClientTabOpen(true)
+          setSimServerTabOpen(true)
+          setSimViewportFocus('client')
+          setMainDocumentEditorTab('droneRacer')
+          setEditWorkspaceDocumentFocus('main')
+
+          const scriptOpen = {
+            scriptA: scriptATabOpen,
+            scriptB: scriptBTabOpen,
+            clientScript: clientScriptTabOpen,
+            serverScript: serverScriptTabOpen,
+          }
+
+          const isScriptOpen = (tab: MainScriptTabId) => scriptOpen[tab]
+
+          if (testRunMode === 'serverAndClients') {
+            setSimMultiClientMode(true)
+            setSimClientInstanceCount(clientSpawnCount)
+            setSimFocusedStripTab(simClientInstanceId(1))
+            const byClient = buildInitialExplorerSelectionByClient(clientSpawnCount)
+            setSimExplorerSelectionByClient(byClient)
+            setSimExplorerSelectedRowClient(byClient[1] ?? null)
+            const multiClientSimOrder = buildMultiClientSimDocumentTabOrder(
+              clientSpawnCount,
+              { server: true, ...scriptOpen },
+              scriptTabOrder,
+            )
+            setSimDocumentTabOrder(multiClientSimOrder)
+            if (showAssetInIsolation && !playModeSplitView) {
+              setCombinedMainZoneKeys(
+                persistentMainZoneKeysForSimOrder(
+                  multiClientSimOrder,
+                  scriptTabOrder,
+                  isScriptOpen,
+                ),
+              )
+            }
+          } else {
+            setSimMultiClientMode(false)
+            setSimClientInstanceCount(1)
+            setSimFocusedStripTab('client')
+            setSimExplorerSelectionByClient({})
+            const singleTestSimOrder = buildDefaultSimDocumentTabOrder({
+              client: true,
+              server: true,
+              ...scriptOpen,
+            })
+            setSimDocumentTabOrder(singleTestSimOrder)
+            if (showAssetInIsolation && !playModeSplitView) {
+              setCombinedMainZoneKeys(
+                persistentMainZoneKeysForSimOrder(
+                  singleTestSimOrder,
+                  scriptTabOrder,
+                  isScriptOpen,
+                ),
+              )
+            }
+          }
+        }}
+        onStop={() => {
+          setClientSimActive(false)
+          setSimMultiClientMode(false)
+          setSimClientInstanceCount(1)
+          setSimFocusedStripTab('client')
+          setSimExplorerSelectionByClient({})
+          setCombinedMainZoneKeys(null)
+        }}
       />
 
       <div className={styles.workspaceGutter} aria-hidden />
@@ -3093,6 +4660,10 @@ export default function StudioWindowsOS({
                   showAssetInIsolation={showAssetInIsolation}
                   simViewportFocus={simViewportFocus}
                   onSimViewportFocusChange={setSimViewportFocus}
+                  simMultiClientMode={simMultiClientMode}
+                  simClientInstanceCount={simClientInstanceCount}
+                  simFocusedStripTab={simFocusedStripTab}
+                  onSimFocusedStripTabChange={setSimFocusedStripTab}
                   mainDocumentEditorTab={mainDocumentEditorTab}
                   onMainDocumentEditorTabChange={setMainDocumentEditorTab}
                   splitClientDocumentTab={splitClientDocumentTab}
@@ -3109,6 +4680,20 @@ export default function StudioWindowsOS({
                   onScriptBTabOpenChange={setScriptBTabOpen}
                   onClientScriptTabOpenChange={setClientScriptTabOpen}
                   onServerScriptTabOpenChange={setServerScriptTabOpen}
+                  simClientTabOpen={simClientTabOpen}
+                  simServerTabOpen={simServerTabOpen}
+                  simDocumentTabOrder={simDocumentTabOrder}
+                  onSimDocumentTabOrderChange={setSimDocumentTabOrder}
+                  scriptTabOrder={scriptTabOrder}
+                  onScriptTabOrderChange={setScriptTabOrder}
+                  editIsolationTabOrder={editIsolationTabOrder}
+                  onEditIsolationTabOrderChange={setEditIsolationTabOrder}
+                  combinedMainZoneKeys={combinedMainZoneKeys}
+                  combinedIsoZoneKeys={combinedIsoZoneKeys}
+                  onCombinedMainZoneKeysChange={setCombinedMainZoneKeys}
+                  onCombinedIsoZoneKeysChange={setCombinedIsoZoneKeys}
+                  onSimClientTabOpenChange={setSimClientTabOpen}
+                  onSimServerTabOpenChange={setSimServerTabOpen}
                   onIsolationTabOpenChange={setIsolationTabOpen}
                   onHoverScriptTabOpenChange={setHoverScriptTabOpen}
                   playModeHasStroke={playModeHasStroke}
@@ -3148,6 +4733,14 @@ export default function StudioWindowsOS({
                   scriptBTabOpen={scriptBTabOpen}
                   clientScriptTabOpen={clientScriptTabOpen}
                   serverScriptTabOpen={serverScriptTabOpen}
+                  scriptTabOrder={scriptTabOrder}
+                  onScriptTabOrderChange={setScriptTabOrder}
+                  editIsolationTabOrder={editIsolationTabOrder}
+                  onEditIsolationTabOrderChange={setEditIsolationTabOrder}
+                  combinedMainZoneKeys={combinedMainZoneKeys}
+                  combinedIsoZoneKeys={combinedIsoZoneKeys}
+                  onCombinedMainZoneKeysChange={setCombinedMainZoneKeys}
+                  onCombinedIsoZoneKeysChange={setCombinedIsoZoneKeys}
                   isolationTabOpen={isolationTabOpen}
                   hoverScriptTabOpen={hoverScriptTabOpen}
                   onScriptATabOpenChange={setScriptATabOpen}
@@ -3165,51 +4758,54 @@ export default function StudioWindowsOS({
         )}
 
         <aside className={styles.right} data-node-id="3841:115190">
-          <div className={styles.panel} data-node-id="3841:115191">
-            <PanelChrome
-              title={explorerPanelTitle}
-              assetVariant="explorer"
-              titleAlign={panelChromeTitleAlign}
-              explorerFocusBadgeTarget={
-                explorerNoBadge
-                  ? null
-                  : explorerFocusBadge && explorerShowsClientServerFocusBadge
-                    ? explorerHeaderSimFocus
-                    : null
-              }
-              explorerDocumentBadgeLabel={
-                explorerNoBadge
-                  ? null
-                  : (explorerFocusBadge || explorerOriginalDmBadge) &&
-                      showAssetInIsolation &&
-                      editWorkspaceDocumentFocus !== 'main'
-                    ? DRONE_WORKSPACE_TAB_LABEL
-                    : null
-              }
-              explorerOriginalDmBadgeLabel={
-                explorerNoBadge ? null : explorerOriginalDmBadgeLabel
-              }
-              explorerOriginalDmBadgeShowDot={explorerBadgeShowIndicator}
-              explorerBadgeShowDot={
-                !explorerFocusBadge || explorerBadgeShowIndicator
-              }
-            />
-            <div className={styles.panelBody} data-node-id="3841:115193">
-              <ExplorerTree
-                clientSim={clientSimActive}
-                bunnyFlatExplorer={bunnyAssetWindow}
-                explorerWhileScriptFocus={explorerWhileScriptFocus}
-                droneDocumentFocused={explorerShowsDroneIsolationTree}
-                hideAssetTinting={hideAssetTinting}
-                selectionTintActive={playModeSelectionTint}
-                simViewportFocus={explorerHeaderSimFocus}
-                simSelectedRowId={simExplorerSelectedRowId}
-                onSimExplorerSelectRow={onSimExplorerSelectRow}
-                editSelectedRowId={editExplorerSelectedRowId}
-                onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
+          {!floatingExplorerOpen ? (
+            <div className={styles.panel} data-node-id="3841:115191">
+              <PanelChrome
+                title={explorerPanelTitleDocked}
+                assetVariant="explorer"
+                titleAlign={panelChromeTitleAlign}
+                explorerFocusBadgeTarget={
+                  explorerNoBadge
+                    ? null
+                    : explorerFocusBadge && explorerShowsClientServerFocusBadge
+                      ? explorerHeaderSimFocus
+                      : null
+                }
+                explorerDocumentBadgeLabel={
+                  explorerNoBadge
+                    ? null
+                    : (explorerFocusBadge || explorerOriginalDmBadge) &&
+                        showAssetInIsolation &&
+                        editWorkspaceDocumentFocus !== 'main'
+                      ? DRONE_WORKSPACE_TAB_LABEL
+                      : null
+                }
+                explorerOriginalDmBadgeLabel={
+                  explorerNoBadge ? null : explorerOriginalDmBadgeLabel
+                }
+                explorerOriginalDmBadgeShowDot={explorerBadgeShowIndicator}
+                explorerBadgeShowDot={
+                  !explorerFocusBadge || explorerBadgeShowIndicator
+                }
               />
+              <div className={styles.panelBody} data-node-id="3841:115193">
+                <ExplorerTree
+                  clientSim={clientSimActive}
+                  bunnyFlatExplorer={bunnyAssetWindow}
+                  explorerWhileScriptFocus={explorerWhileScriptFocus}
+                  droneDocumentFocused={explorerShowsDroneIsolationTree}
+                  selectionTintActive={playModeSelectionTint}
+                  simViewportFocus={explorerHeaderSimFocus}
+                  simMultiClientMode={simMultiClientMode}
+                  simActiveClientInstanceIndex={simActiveClientInstanceIndex ?? undefined}
+                  simSelectedRowId={simExplorerSelectedRowId}
+                  onSimExplorerSelectRow={onSimExplorerSelectRow}
+                  editSelectedRowId={editExplorerSelectedRowId}
+                  onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
           {!floatingPropertiesOpen ? (
             <div className={styles.panel} data-node-id="3841:115196">
               <PanelChrome
@@ -3259,6 +4855,8 @@ export default function StudioWindowsOS({
                 onFooterTintChange={setPlayModeFooterTint}
                 splitView={playModeSplitView}
                 onSplitViewChange={setPlayModeSplitView}
+                toggleOpensDmIfClosed={toggleOpensDmIfClosed}
+                onToggleOpensDmIfClosedChange={setToggleOpensDmIfClosed}
                 showAssetInIsolation={showAssetInIsolation}
                 onShowAssetInIsolationChange={setShowAssetInIsolation}
                 editDatamodelShowStroke={editDatamodelShowStroke}
@@ -3271,6 +4869,9 @@ export default function StudioWindowsOS({
                 onOpenAssetWindow={bunnyAssetWindow ? undefined : onOpenAssetWindow}
                 onOpenFloatingProperties={
                   bunnyAssetWindow ? undefined : () => setFloatingPropertiesOpen(true)
+                }
+                onOpenFloatingExplorer={
+                  bunnyAssetWindow ? undefined : () => setFloatingExplorerOpen(true)
                 }
                 onOpenClientScript={bunnyAssetWindow ? undefined : openClientScriptTab}
                 onOpenServerScript={bunnyAssetWindow ? undefined : openServerScriptTab}
@@ -3290,13 +4891,79 @@ export default function StudioWindowsOS({
         datamodelTintFocus={footerDatamodelTintFocus}
       />
 
+      {floatingExplorerOpen ? (
+        <div
+          className={styles.floatingExplorer}
+          data-floating-panel
+          data-name="Floating Explorer"
+          style={floatingExplorerDrag.style}
+        >
+          <div className={styles.panel}>
+            <PanelChrome
+              title={explorerPanelTitleFloating}
+              assetVariant="explorer"
+              titleAlign={panelChromeTitleAlign}
+              draggable
+              onDragHandlePointerDown={floatingExplorerDrag.onDragHandlePointerDown}
+              onClose={() => setFloatingExplorerOpen(false)}
+              explorerFocusBadgeTarget={
+                explorerNoBadge
+                  ? null
+                  : explorerFocusBadge && explorerShowsClientServerFocusBadge
+                    ? explorerHeaderSimFocus
+                    : null
+              }
+              explorerDocumentBadgeLabel={
+                explorerNoBadge
+                  ? null
+                  : (explorerFocusBadge || explorerOriginalDmBadge) &&
+                      showAssetInIsolation &&
+                      editWorkspaceDocumentFocus !== 'main'
+                    ? DRONE_WORKSPACE_TAB_LABEL
+                    : null
+              }
+              explorerOriginalDmBadgeLabel={
+                explorerNoBadge ? null : explorerOriginalDmBadgeLabel
+              }
+              explorerOriginalDmBadgeShowDot={explorerBadgeShowIndicator}
+              explorerBadgeShowDot={
+                !explorerFocusBadge || explorerBadgeShowIndicator
+              }
+            />
+            <div className={styles.panelBody}>
+              <ExplorerTree
+                clientSim={clientSimActive}
+                bunnyFlatExplorer={bunnyAssetWindow}
+                explorerWhileScriptFocus={explorerWhileScriptFocus}
+                droneDocumentFocused={explorerShowsDroneIsolationTree}
+                selectionTintActive={playModeSelectionTint}
+                simViewportFocus={explorerHeaderSimFocus}
+                simMultiClientMode={simMultiClientMode}
+                simActiveClientInstanceIndex={simActiveClientInstanceIndex ?? undefined}
+                simSelectedRowId={simExplorerSelectedRowId}
+                onSimExplorerSelectRow={onSimExplorerSelectRow}
+                editSelectedRowId={editExplorerSelectedRowId}
+                onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {floatingPropertiesOpen ? (
-        <div className={styles.floatingProperties} data-name="Floating Properties">
+        <div
+          className={styles.floatingProperties}
+          data-floating-panel
+          data-name="Floating Properties"
+          style={floatingPropertiesDrag.style}
+        >
           <div className={styles.panel}>
             <PanelChrome
               title={propertiesPanelTitleFloating}
               assetVariant="properties"
               titleAlign={panelChromeTitleAlign}
+              draggable
+              onDragHandlePointerDown={floatingPropertiesDrag.onDragHandlePointerDown}
               onClose={() => setFloatingPropertiesOpen(false)}
             />
             <div className={styles.panelBody}>
