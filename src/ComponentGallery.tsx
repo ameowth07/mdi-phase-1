@@ -45,6 +45,7 @@ function GalleryInteractionSettings() {
   const d = PROTOTYPE_SETTINGS_DEFAULTS
   const [hasStroke, setHasStroke] = useState<boolean>(d.playModeHasStroke)
   const [hasFocusStroke, setHasFocusStroke] = useState<boolean>(d.playModeHasFocusStroke)
+  const [tabStroke, setTabStroke] = useState<boolean>(d.playModeTabStroke)
   const [explorerNoBadge, setExplorerNoBadge] = useState<boolean>(d.explorerNoBadge)
   const [explorerFocusBadge, setExplorerFocusBadge] = useState<boolean>(d.explorerFocusBadge)
   const [explorerBadgeShowIndicator, setExplorerBadgeShowIndicator] = useState<boolean>(
@@ -81,6 +82,8 @@ function GalleryInteractionSettings() {
       onHasStrokeChange={setHasStroke}
       hasFocusStroke={hasFocusStroke}
       onHasFocusStrokeChange={setHasFocusStroke}
+      tabStroke={tabStroke}
+      onTabStrokeChange={setTabStroke}
       explorerNoBadge={explorerNoBadge}
       onExplorerNoBadgeChange={setExplorerNoBadge}
       explorerFocusBadge={explorerFocusBadge}

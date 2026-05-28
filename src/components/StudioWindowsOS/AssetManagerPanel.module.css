@@ -23,10 +23,24 @@
   width: 100%;
 }
 
+.rootEmbedded {
+  border: none;
+}
+
 .header {
   flex: 0 0 24px;
   position: relative;
   background: rgba(208, 217, 251, 0.04);
+}
+
+.headerDraggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.headerDraggable:active {
+  cursor: grabbing;
 }
 
 .title {

@@ -18,12 +18,15 @@ const SURFACE_PRESET_BUTTONS: { id: SurfacePresetId; label: string }[] = [
 ]
 
 export type InteractionSettingsPanelProps = {
-  /** Inset focus ring on client / server viewports while simulating. */
+  /** Play focus: brand-hue semantic stroke with color tinting (mutually exclusive with focus stroke). */
   hasStroke: boolean
   onHasStrokeChange: (value: boolean) => void
-  /** Sim focus ring — white inset on Client/Server/Drone script viewports (replaces semantic stroke when on). */
+  /** Play focus: neutral white inset — no color tinting on focus (mutually exclusive with semantic stroke). */
   hasFocusStroke: boolean
   onHasFocusStrokeChange: (value: boolean) => void
+  /** Active document tab — 1px top edge stroke (semantic hue when Has semantic stroke is on). */
+  tabStroke: boolean
+  onTabStrokeChange: (value: boolean) => void
   /** Explorer header: plain “Explorer” only — no pills, dots, or title suffixes. */
   explorerNoBadge: boolean
   onExplorerNoBadgeChange: (value: boolean) => void
@@ -75,6 +78,8 @@ export type InteractionSettingsPanelProps = {
   onOpenFloatingProperties?: () => void
   /** When set, shows control to open Explorer as an in-frame floating panel. */
   onOpenFloatingExplorer?: () => void
+  /** When set, undocks Drone / HoverScript into a floating document window. */
+  onUndockDocument?: () => void
   /** Opens a Client Script document tab in the main workspace. */
   onOpenClientScript?: () => void
   /** Opens a Server Script document tab in the main workspace. */
@@ -135,6 +140,8 @@ export default function InteractionSettingsPanel({
   onHasStrokeChange,
   hasFocusStroke,
   onHasFocusStrokeChange,
+  tabStroke,
+  onTabStrokeChange,
   explorerNoBadge,
   onExplorerNoBadgeChange,
   explorerFocusBadge,
@@ -168,6 +175,7 @@ export default function InteractionSettingsPanel({
   onOpenAssetWindow,
   onOpenFloatingProperties,
   onOpenFloatingExplorer,
+  onUndockDocument,
   onOpenClientScript,
   onOpenServerScript,
   onThrowError,
@@ -493,7 +501,7 @@ export default function InteractionSettingsPanel({
               </div>
             </section>
 
-            {onOpenAssetWindow || onOpenFloatingProperties || onOpenFloatingExplorer ? (
+            {onOpenAssetWindow || onOpenFloatingProperties || onOpenFloatingExplorer || onUndockDocument ? (
               <section className={css.group} aria-labelledby="interaction-layout-actions-heading">
                 <h2 id="interaction-layout-actions-heading" className={css.groupLabel}>
                   Layout actions
@@ -504,13 +512,18 @@ export default function InteractionSettingsPanel({
                       Open asset window
                     </button>
                   ) : null}
+                  {onUndockDocument ? (
+                    <button type="button" className={css.openAssetBtn} onClick={onUndockDocument}>
+                      Undock document
+                    </button>
+                  ) : null}
                   {onOpenFloatingProperties ? (
                     <button
                       type="button"
                       className={css.openAssetBtn}
                       onClick={onOpenFloatingProperties}
                     >
-                      Open floating properties
+                      Undock Properties
                     </button>
                   ) : null}
                   {onOpenFloatingExplorer ? (
@@ -519,7 +532,7 @@ export default function InteractionSettingsPanel({
                       className={css.openAssetBtn}
                       onClick={onOpenFloatingExplorer}
                     >
-                      Open floating Explorer
+                      Undock Explorer
                     </button>
                   ) : null}
                 </div>
@@ -530,36 +543,61 @@ export default function InteractionSettingsPanel({
               <h2 id="interaction-testing-ui-heading" className={css.groupLabel}>
                 Focus stroke
               </h2>
-              <div className={css.options}>
+              <div
+                className={css.options}
+                role="radiogroup"
+                aria-labelledby="interaction-testing-ui-heading"
+              >
                 <div className={css.row}>
                   <button
                     type="button"
-                    role="checkbox"
-                    aria-checked={hasStroke}
+                    role="radio"
+                    aria-checked={hasStroke && !hasFocusStroke}
                     aria-label="Has semantic stroke"
-                    className={`${css.checkboxBtn} ${hasStroke ? css.checkboxBtnChecked : ''}`}
-                    onClick={() => onHasStrokeChange(!hasStroke)}
+                    className={`${css.radioBtn} ${
+                      hasStroke && !hasFocusStroke ? css.radioBtnChecked : ''
+                    }`}
+                    onClick={() => {
+                      onHasStrokeChange(true)
+                      onHasFocusStrokeChange(false)
+                    }}
                   >
-                    {hasStroke ? (
-                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-                    ) : null}
+                    <span className={css.radioMark} aria-hidden />
                   </button>
                   <span className={css.label}>Has semantic stroke</span>
                 </div>
                 <div className={css.row}>
                   <button
                     type="button"
-                    role="checkbox"
-                    aria-checked={hasFocusStroke}
+                    role="radio"
+                    aria-checked={hasFocusStroke && !hasStroke}
                     aria-label="Has focus stroke"
-                    className={`${css.checkboxBtn} ${hasFocusStroke ? css.checkboxBtnChecked : ''}`}
-                    onClick={() => onHasFocusStrokeChange(!hasFocusStroke)}
+                    className={`${css.radioBtn} ${
+                      hasFocusStroke && !hasStroke ? css.radioBtnChecked : ''
+                    }`}
+                    onClick={() => {
+                      onHasStrokeChange(false)
+                      onHasFocusStrokeChange(true)
+                    }}
                   >
-                    {hasFocusStroke ? (
+                    <span className={css.radioMark} aria-hidden />
+                  </button>
+                  <span className={css.label}>Has focus stroke</span>
+                </div>
+                <div className={css.row}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={tabStroke}
+                    aria-label="Tab stroke"
+                    className={`${css.checkboxBtn} ${tabStroke ? css.checkboxBtnChecked : ''}`}
+                    onClick={() => onTabStrokeChange(!tabStroke)}
+                  >
+                    {tabStroke ? (
                       <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
                     ) : null}
                   </button>
-                  <span className={css.label}>Has focus stroke</span>
+                  <span className={css.label}>Tab stroke</span>
                 </div>
               </div>
               <section className={css.subgroup} aria-labelledby="interaction-tints-heading">

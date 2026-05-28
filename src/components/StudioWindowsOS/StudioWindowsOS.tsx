@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type {
   ComponentProps,
-  CSSProperties,
   Dispatch,
   MouseEvent,
   PointerEvent,
@@ -30,6 +30,7 @@ import {
   type ClientScriptDocument,
 } from './clientScripts'
 import {
+  DATAMODEL_INSET_FOCUS_BORDER,
   resolveDatamodelTintFocus,
   resolveExplorerSelectionTintFocus,
   type ExplorerRetentionKind,
@@ -53,6 +54,8 @@ import {
   buildInitialExplorerSelectionByClient,
   buildMultiClientSimDocumentTabOrder,
   insertClientInstanceTabInOrder,
+  openClientIndicesFromSessionOrder,
+  resolvePlaySessionFocus,
   clientInstanceIndexFromStripTab,
   explorerTreeForClientInstance,
   isSimClientInstanceId,
@@ -71,6 +74,7 @@ import {
   persistentKeysToCombined,
   ensureMultiClientMainZoneKeys,
   injectMultiClientMainZoneDefaults,
+  mergeOpenTabOrder,
   persistentMainZoneKeysForSimOrder,
   reconcileCombinedZoneKeys,
   reorderZoneTabKeys,
@@ -85,6 +89,27 @@ import {
 } from './documentTabStripZone'
 import { useDualZoneTabDrag, tabDragClassesForDual, type DualZoneTabDragBindings } from './useDualZoneTabDrag'
 import { useTabRowDragReorder, type TabRowDragBindings } from './useTabRowDragReorder'
+import PanelDockZone from './PanelDockZone'
+import FloatingPanelWindow from './FloatingPanelWindow'
+import FloatingDocumentWindow from './FloatingDocumentWindow'
+import type { FloatingDocumentPosition } from './floatingDocument'
+import { createFloatingDocumentWindow } from './floatingDocument'
+import {
+  createFloatingWindow,
+  findFloatingWindowWithTab,
+  mergeFloatingWindows,
+  removeFloatingSidePanelTab,
+  type FloatingPanelWindowState,
+  type FloatingSidePanelId,
+} from './floatingSidePanel'
+import {
+  createDefaultPanelDockLayout,
+  layoutWithoutPanels,
+  syncOutputPanelInLayout,
+  type DockPanelId,
+  type PanelDockLayoutState,
+} from './panelDock'
+import { usePanelDockDrag } from './usePanelDockDrag'
 import {
   PROTOTYPE_SETTINGS_DEFAULTS,
   type EditDocumentFocus,
@@ -324,6 +349,21 @@ function scriptTabDatamodelFocus(tab: MainDocumentEditorTab): ScriptDatamodelFoc
   return 'drone'
 }
 
+function simStripTabDatamodel(tabId: SimDocumentStripTab): ScriptDatamodelFocus {
+  if (tabId === 'server') return 'server'
+  if (tabId === 'client' || isSimClientInstanceId(tabId)) return 'client'
+  if (tabId === 'clientScript') return 'client'
+  if (tabId === 'serverScript') return 'server'
+  return 'drone'
+}
+
+function droneRacerDocumentTabDatamodel(
+  simFocus: SimViewportFocus,
+  clientSim: boolean,
+): ScriptDatamodelFocus {
+  return clientSim ? simFocus : 'drone'
+}
+
 function resolveViewportDatamodelFocus(
   activeScriptTab: MainDocumentEditorTab | null,
   simFocus: SimViewportFocus,
@@ -391,14 +431,27 @@ function TabCloseButton({ onClose }: { onClose: (e: React.MouseEvent) => void })
   )
 }
 
-/** Client sim — Drone Racer tab: same Lucide pattern as Server tab (`Server`), client brand hue. */
+/** Client sim — Drone Racer tab: brand hue matches semantic Client stroke. */
 function TabClientSimDocumentIcon() {
   return (
     <Monitor
       size={12}
       strokeWidth={1.5}
       className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-      color="#2563eb"
+      color={DATAMODEL_INSET_FOCUS_BORDER.client}
+      aria-hidden
+    />
+  )
+}
+
+/** Server sim — Drone Racer tab: brand hue matches semantic Server stroke. */
+function TabServerSimDocumentIcon() {
+  return (
+    <Server
+      size={12}
+      strokeWidth={1.5}
+      className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
+      color={DATAMODEL_INSET_FOCUS_BORDER.server}
       aria-hidden
     />
   )
@@ -651,62 +704,6 @@ function tabActivateHandlersAny(
   }
 }
 
-function useFloatingPanelDrag(frameRef: RefObject<HTMLDivElement | null>) {
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
-
-  const resetPosition = useCallback(() => setPosition(null), [])
-
-  const onDragHandlePointerDown = useCallback(
-    (e: PointerEvent<HTMLElement>) => {
-      if (e.button !== 0) return
-      if ((e.target as HTMLElement).closest('button')) return
-
-      const panelEl = (e.currentTarget as HTMLElement).closest(
-        '[data-floating-panel]',
-      ) as HTMLElement | null
-      const frame = frameRef.current
-      if (!panelEl || !frame) return
-
-      e.preventDefault()
-
-      const frameRect = frame.getBoundingClientRect()
-      const panelRect = panelEl.getBoundingClientRect()
-      const startPointerX = e.clientX
-      const startPointerY = e.clientY
-      const startLeft = position?.left ?? panelRect.left - frameRect.left
-      const startTop = position?.top ?? panelRect.top - frameRect.top
-
-      const onPointerMove = (ev: globalThis.PointerEvent) => {
-        const nextLeft = startLeft + (ev.clientX - startPointerX)
-        const nextTop = startTop + (ev.clientY - startPointerY)
-        const maxLeft = Math.max(0, frameRect.width - panelRect.width)
-        const maxTop = Math.max(0, frameRect.height - panelRect.height)
-        setPosition({
-          left: Math.min(Math.max(0, nextLeft), maxLeft),
-          top: Math.min(Math.max(0, nextTop), maxTop),
-        })
-      }
-
-      const onPointerUp = () => {
-        window.removeEventListener('pointermove', onPointerMove)
-        window.removeEventListener('pointerup', onPointerUp)
-        window.removeEventListener('pointercancel', onPointerUp)
-      }
-
-      window.addEventListener('pointermove', onPointerMove)
-      window.addEventListener('pointerup', onPointerUp)
-      window.addEventListener('pointercancel', onPointerUp)
-    },
-    [frameRef, position],
-  )
-
-  const style: CSSProperties | undefined = position
-    ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' }
-    : undefined
-
-  return { style, onDragHandlePointerDown, resetPosition }
-}
-
 type PanelChromeProps = {
   title: string
   assetVariant: 'explorer' | 'properties'
@@ -715,6 +712,8 @@ type PanelChromeProps = {
   /** Floating panel: drag by header (excludes action buttons). */
   draggable?: boolean
   onDragHandlePointerDown?: (e: PointerEvent<HTMLElement>) => void
+  /** Dock layout: drag panel between zones/stacks by header. */
+  onPanelDockDragPointerDown?: (e: PointerEvent<HTMLElement>) => void
   /** Plain title or Explorer badge row: centered (default) vs left-aligned with panel padding. */
   titleAlign?: 'center' | 'left'
   /** Play mode: StatusBadge-style pill next to “Explorer” (Interaction settings). */
@@ -931,6 +930,7 @@ function PanelChrome({
   onClose,
   draggable = false,
   onDragHandlePointerDown,
+  onPanelDockDragPointerDown,
   titleAlign = 'center',
   explorerFocusBadgeTarget = null,
   explorerDocumentBadgeLabel = null,
@@ -975,10 +975,15 @@ function PanelChrome({
       ? styles.panelTitleWithBadgeAlignLeft
       : styles.panelTitleWithBadgeAlignCenter
 
+  const headerDraggable = draggable || onPanelDockDragPointerDown != null
+  const onHeaderPointerDown = draggable
+    ? onDragHandlePointerDown
+    : onPanelDockDragPointerDown
+
   return (
     <header
-      className={`${styles.panelHeader} ${draggable ? styles.panelHeaderDraggable : ''}`}
-      onPointerDown={draggable ? onDragHandlePointerDown : undefined}
+      className={`${styles.panelHeader} ${headerDraggable ? styles.panelHeaderDraggable : ''}`}
+      onPointerDown={headerDraggable ? onHeaderPointerDown : undefined}
     >
       {showExplorerBadge ? (
         <div
@@ -1408,6 +1413,15 @@ export type DroneRacerWorkspaceProps = {
   playModeHasStroke?: boolean
   /** Test mode: white inset focus ring (Testing UI: Has focus stroke). */
   playModeHasFocusStroke?: boolean
+  /** Test mode: 1px top stroke on the active document tab (Testing UI: Tab stroke). */
+  playModeTabStroke?: boolean
+  /** Asset isolation column undocked as a floating document window. */
+  documentUndocked?: boolean
+  floatingDocumentPosition?: FloatingDocumentPosition | null
+  onFloatingDocumentPositionChange?: (position: FloatingDocumentPosition) => void
+  onDockDocument?: () => void
+  frameRef?: RefObject<HTMLDivElement | null>
+  panelChromeTitleAlign?: 'center' | 'left'
   /** Test mode: full-frame tint hole punch (`clientSimActive && playModeFullTint` at shell). */
   tintActive?: boolean
   focusHoleRef?: Ref<HTMLDivElement | null>
@@ -1464,12 +1478,30 @@ function DroneRacerWorkspace({
   onSimFocusedStripTabChange,
   playModeHasStroke,
   playModeHasFocusStroke,
+  playModeTabStroke,
+  documentUndocked = false,
+  floatingDocumentPosition = null,
+  onFloatingDocumentPositionChange,
+  onDockDocument,
+  frameRef,
+  panelChromeTitleAlign = 'center',
   tintActive,
   focusHoleRef,
   playModeSplitView,
   clientScriptDocument = DEFAULT_CLIENT_SCRIPT_DOCUMENT,
 }: DroneRacerWorkspaceProps) {
   const [bunnyEditViewportFocused, setBunnyEditViewportFocused] = useState(false)
+  const [framePortalTarget, setFramePortalTarget] = useState<HTMLElement | null>(null)
+
+  const showIsolationDocked = !!showAssetInIsolation && !documentUndocked
+
+  useLayoutEffect(() => {
+    setFramePortalTarget(frameRef?.current ?? null)
+  })
+
+  useEffect(() => {
+    if (!showAssetInIsolation && documentUndocked) onDockDocument?.()
+  }, [showAssetInIsolation, documentUndocked, onDockDocument])
 
   useEffect(() => {
     if (clientSim) setBunnyEditViewportFocused(false)
@@ -1921,18 +1953,20 @@ function DroneRacerWorkspace({
   const closeSimClientInstanceTab = useCallback(
     (tab: SimDocumentStripTab) => {
       if (!isSimClientInstanceId(tab)) return
-      onSimDocumentTabOrderChange?.(simDocumentTabOrder.filter((t) => t !== tab))
-      const remainingClients = simDocumentTabOrder.filter(
-        (t) => t !== tab && isSimClientInstanceId(t) && isSimStripTabOpen(t),
-      )
+      const nextOrder = simDocumentTabOrder.filter((t) => t !== tab)
+      onSimDocumentTabOrderChange?.(nextOrder)
+      const remainingClients = nextOrder.filter(isSimClientInstanceId)
+      if (remainingClients.length === 0) {
+        onSimClientTabOpenChange?.(false)
+      }
       if (simFocus === 'client' && simFocusedStripTab === tab) {
-        const fallback = remainingClients[0] ?? 'server'
-        if (fallback === 'server') {
+        const fallbackClient = remainingClients[0]
+        if (fallbackClient == null) {
           onSimViewportFocusChange?.('server')
           onSimFocusedStripTabChange?.('server')
         } else {
           onSimViewportFocusChange?.('client')
-          onSimFocusedStripTabChange?.(fallback)
+          onSimFocusedStripTabChange?.(fallbackClient)
         }
         onMainDocumentEditorTabChange('droneRacer')
         onEditDocumentFocusChange('main')
@@ -1941,9 +1975,9 @@ function DroneRacerWorkspace({
     [
       simDocumentTabOrder,
       onSimDocumentTabOrderChange,
+      onSimClientTabOpenChange,
       simFocus,
       simFocusedStripTab,
-      isSimStripTabOpen,
       onSimViewportFocusChange,
       onSimFocusedStripTabChange,
       onMainDocumentEditorTabChange,
@@ -2039,9 +2073,36 @@ function DroneRacerWorkspace({
   const splitClientPrimaryTabActive = clientDocumentTab === 'droneRacer'
   const splitServerPrimaryTabActive = serverDocumentTab === 'droneRacer'
 
+  const strokeOn = !!playModeHasStroke
+  const focusStrokeOn = !!playModeHasFocusStroke
+  const tabStrokeOn = !!playModeTabStroke
+  /** Main document strip: top stroke only while the main column has focus. */
+  const mainStripTabStrokeActive = editDocumentFocus === 'main'
+
   /** Active = this tab is the visible document (only one active tab per strip). */
-  const documentTabClass = (active: boolean) =>
-    `${styles.tab} ${active ? styles.tabActive : styles.tabInactive}`
+  const buildTabClass = (
+    active: boolean,
+    datamodel: ScriptDatamodelFocus | null,
+    dragClass = '',
+    tabStrokeActive?: boolean,
+  ) => {
+    const parts = [styles.tab, active ? styles.tabActive : styles.tabInactive]
+    const showTabStroke = tabStrokeActive ?? active
+    if (showTabStroke && tabStrokeOn) {
+      parts.push(styles.tabActiveTopStroke)
+      if (strokeOn && datamodel != null) {
+        parts.push(
+          datamodel === 'client'
+            ? styles.tabActiveTopStrokeClient
+            : datamodel === 'server'
+              ? styles.tabActiveTopStrokeServer
+              : styles.tabActiveTopStrokeDrone,
+        )
+      }
+    }
+    if (dragClass) parts.push(dragClass)
+    return parts.join(' ')
+  }
 
   const selectMainDroneRacerTab = useCallback(() => {
     onMainDocumentEditorTabChange('droneRacer')
@@ -2065,8 +2126,6 @@ function DroneRacerWorkspace({
   /** Split workspace: inactive column — crop baked UI frame so only the focused column shows inset ring. */
   const mainInactiveInSplit = !!showAssetInIsolation && !mainColumnDocumentFocused
 
-  const strokeOn = !!playModeHasStroke
-  const focusStrokeOn = !!playModeHasFocusStroke
   const simTintHoleActive = !!tintActive
   /** Isolation / HoverScript column ring — edit always; test only when a stroke setting is on. */
   const showIsolationColumnChromeRing =
@@ -2469,7 +2528,12 @@ function DroneRacerWorkspace({
       <>
         {orderedOpenTabs.filter(showTab).map((tabId, tabIndex) => {
           const tabClass = (selected: boolean) =>
-            `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClasses(drag, tabIndex)}`
+            buildTabClass(
+              selected,
+              selected ? scriptTabDatamodelFocus(tabId as MainDocumentEditorTab) : null,
+              tabDragClasses(drag, tabIndex),
+              selected && mainStripTabStrokeActive,
+            )
 
           switch (tabId) {
             case 'scriptA':
@@ -2541,17 +2605,7 @@ function DroneRacerWorkspace({
                     if (clientSim) onSimViewportFocusChange?.('server')
                   })}
                 >
-                  {clientSim ? (
-                    <Server
-                      size={12}
-                      strokeWidth={1.5}
-                      className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-                      color="#0c9b5a"
-                      aria-hidden
-                    />
-                  ) : (
-                    <TabScriptEditIcon />
-                  )}
+                  {clientSim ? <TabServerSimDocumentIcon /> : <TabScriptEditIcon />}
                   <span>{SERVER_SCRIPT_TAB_LABEL}</span>
                   <TabCloseButton onClose={() => onCloseScriptTab('serverScript')} />
                 </TabWithPathTooltip>
@@ -2582,8 +2636,13 @@ function DroneRacerWorkspace({
       strip.onTabChange(tab)
     }
 
-    const simTabClass = (active: boolean) =>
-      `${documentTabClass(active)} ${tabDragClassesAny(drag, tabIndex, dragZone)}`
+    const simTabClass = (active: boolean, tabId: SimDocumentStripTab) =>
+      buildTabClass(
+        active,
+        active ? simStripTabDatamodel(tabId) : null,
+        tabDragClassesAny(drag, tabIndex, dragZone),
+        active && mainStripTabStrokeActive,
+      )
 
     if (isSimClientInstanceId(tabId)) {
       const clientIndex = parseSimClientInstanceIndex(tabId)
@@ -2595,7 +2654,7 @@ function DroneRacerWorkspace({
           role="tab"
           tabIndex={0}
           aria-selected={clientActive}
-          className={simTabClass(clientActive)}
+          className={simTabClass(clientActive, tabId)}
           {...tabPropsAny(drag, tabIndex, dragZone)}
           {...tabActivateHandlersAny(drag, () => {
             strip.onTabChange('droneRacer')
@@ -2618,7 +2677,7 @@ function DroneRacerWorkspace({
             role="tab"
             tabIndex={0}
             aria-selected={strip.isClientTabActive('client')}
-            className={simTabClass(strip.isClientTabActive('client'))}
+            className={simTabClass(strip.isClientTabActive('client'), 'client')}
             {...tabPropsAny(drag, tabIndex, dragZone)}
             {...tabActivateHandlersAny(drag, () => {
               strip.onTabChange('droneRacer')
@@ -2638,7 +2697,7 @@ function DroneRacerWorkspace({
             role="tab"
             tabIndex={0}
             aria-selected={strip.serverDmActive}
-            className={simTabClass(strip.serverDmActive)}
+            className={simTabClass(strip.serverDmActive, 'server')}
             {...tabPropsAny(drag, tabIndex, dragZone)}
             {...tabActivateHandlersAny(drag, () => {
               strip.onTabChange('droneRacer')
@@ -2647,13 +2706,7 @@ function DroneRacerWorkspace({
               onEditDocumentFocusChange('main')
             })}
           >
-            <Server
-              size={12}
-              strokeWidth={1.5}
-              className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-              color="#0c9b5a"
-              aria-hidden
-            />
+            <TabServerSimDocumentIcon />
             <span>Server</span>
             <TabCloseButton onClose={closeSimServerTab} />
           </TabWithPathTooltip>
@@ -2666,7 +2719,7 @@ function DroneRacerWorkspace({
             role="tab"
             tabIndex={0}
             aria-selected={strip.activeTab === 'scriptA'}
-            className={simTabClass(strip.activeTab === 'scriptA')}
+            className={simTabClass(strip.activeTab === 'scriptA', 'scriptA')}
             {...tabPropsAny(drag, tabIndex, dragZone)}
             {...tabActivateHandlersAny(drag, () => selectDroneRacerScriptTab('scriptA'))}
           >
@@ -2683,7 +2736,7 @@ function DroneRacerWorkspace({
             role="tab"
             tabIndex={0}
             aria-selected={strip.activeTab === 'scriptB'}
-            className={simTabClass(strip.activeTab === 'scriptB')}
+            className={simTabClass(strip.activeTab === 'scriptB', 'scriptB')}
             {...tabPropsAny(drag, tabIndex, dragZone)}
             {...tabActivateHandlersAny(drag, () => selectDroneRacerScriptTab('scriptB'))}
           >
@@ -2700,7 +2753,7 @@ function DroneRacerWorkspace({
             role="tab"
             tabIndex={0}
             aria-selected={strip.activeTab === 'clientScript'}
-            className={simTabClass(strip.activeTab === 'clientScript')}
+            className={simTabClass(strip.activeTab === 'clientScript', 'clientScript')}
             {...tabPropsAny(drag, tabIndex, dragZone)}
             {...tabActivateHandlersAny(drag, () => {
               strip.onTabChange('clientScript')
@@ -2720,24 +2773,14 @@ function DroneRacerWorkspace({
             role="tab"
             tabIndex={0}
             aria-selected={strip.activeTab === 'serverScript'}
-            className={simTabClass(strip.activeTab === 'serverScript')}
+            className={simTabClass(strip.activeTab === 'serverScript', 'serverScript')}
             {...tabPropsAny(drag, tabIndex, dragZone)}
             {...tabActivateHandlersAny(drag, () => {
               strip.onTabChange('serverScript')
               if (clientSim) onSimViewportFocusChange?.('server')
             })}
           >
-            {clientSim ? (
-              <Server
-                size={12}
-                strokeWidth={1.5}
-                className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-                color="#0c9b5a"
-                aria-hidden
-              />
-            ) : (
-              <TabScriptEditIcon />
-            )}
+            {clientSim ? <TabServerSimDocumentIcon /> : <TabScriptEditIcon />}
             <span>{SERVER_SCRIPT_TAB_LABEL}</span>
             <TabCloseButton onClose={() => strip.onCloseScriptTab('serverScript')} />
           </TabWithPathTooltip>
@@ -2787,7 +2830,7 @@ function DroneRacerWorkspace({
     zone: CombinedTabStripZone,
   ) => {
     const tabClass = (selected: boolean) =>
-      `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClassesAny(combinedTabDrag, tabIndex, zone)}`
+      buildTabClass(selected, selected ? 'drone' : null, tabDragClassesAny(combinedTabDrag, tabIndex, zone))
 
     if (tabId === 'isolation') {
       return (
@@ -2841,7 +2884,12 @@ function DroneRacerWorkspace({
     zone: CombinedTabStripZone,
   ) => {
     const tabClass = (selected: boolean) =>
-      `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClassesAny(combinedTabDrag, tabIndex, zone)}`
+      buildTabClass(
+        selected,
+        selected ? scriptTabDatamodelFocus(tabId as MainDocumentEditorTab) : null,
+        tabDragClassesAny(combinedTabDrag, tabIndex, zone),
+        zone === 'main' ? selected && mainStripTabStrokeActive : undefined,
+      )
 
     const selectDroneRacerScriptTab = (tab: 'scriptA' | 'scriptB') => {
       onEditDocumentFocusChange('main')
@@ -3040,9 +3088,9 @@ function DroneRacerWorkspace({
       className={`${styles.tabRow} ${styles.assetIsolationTabRow}`}
       data-node-id="3841:115139-iso-tabs"
     >
-      {openEditIsolationTabs.map((tabId, tabIndex) => {
+        {openEditIsolationTabs.map((tabId, tabIndex) => {
         const tabClass = (selected: boolean) =>
-          `${styles.tab} ${selected ? styles.tabActive : styles.tabInactive} ${tabDragClasses(editIsolationTabDrag, tabIndex)}`
+          buildTabClass(selected, selected ? 'drone' : null, tabDragClasses(editIsolationTabDrag, tabIndex))
 
         if (tabId === 'isolation') {
           return (
@@ -3113,7 +3161,6 @@ function DroneRacerWorkspace({
         {(() => {
           const isoColumnScriptTab =
             combinedStripMode &&
-            editDocumentFocus === 'main' &&
             mainDocumentScriptOpen &&
             (clientSim
               ? simScriptTabInIsoZone(mainDocumentEditorTab as MainScriptTabId)
@@ -3149,8 +3196,40 @@ function DroneRacerWorkspace({
     </aside>
   )
 
+  const floatingDocumentPortal =
+    documentUndocked &&
+    showAssetInIsolation &&
+    framePortalTarget != null &&
+    onFloatingDocumentPositionChange != null &&
+    onDockDocument != null &&
+    frameRef != null
+      ? createPortal(
+          <FloatingDocumentWindow
+            frameRef={frameRef}
+            title="Drone Racer"
+            position={floatingDocumentPosition}
+            onPositionChange={onFloatingDocumentPositionChange}
+            onDock={onDockDocument}
+            titleAlign={panelChromeTitleAlign}
+          >
+            <div
+              className={styles.floatingDocumentTabStrip}
+              onPointerDown={() =>
+                onEditDocumentFocusChange(
+                  editDocumentFocus === 'hoverScript' ? 'hoverScript' : 'isolation',
+                )
+              }
+            >
+              {assetIsolationTabRow}
+            </div>
+            {assetIsolationColumnAside}
+          </FloatingDocumentWindow>,
+          framePortalTarget,
+        )
+      : null
+
+  /** Zone placement decides which column shows the script; not `editDocumentFocus` (iso panel chrome). */
   const mainViewportScriptTab =
-    editDocumentFocus === 'main' &&
     mainDocumentScriptOpen &&
     (clientSim
       ? simScriptTabInMainZone(mainDocumentEditorTab as MainScriptTabId)
@@ -3196,9 +3275,6 @@ function DroneRacerWorkspace({
       !droneIsolationInMainViewport &&
       !hoverScriptInMainViewport
     ) {
-      if (!simClientTabOpen && simServerTabOpen) {
-        return renderServerTestViewport(simDocumentChromeActive)
-      }
       return renderMainViewport(simDocumentChromeActive, mainViewportScriptTab)
     }
 
@@ -3227,9 +3303,6 @@ function DroneRacerWorkspace({
         </div>
       )
     }
-    if (!simClientTabOpen && simServerTabOpen) {
-      return renderServerTestViewport(simDocumentChromeActive)
-    }
     if (
       simClientTabOpen &&
       (!simServerTabOpen || simFocus === 'client')
@@ -3253,7 +3326,8 @@ function DroneRacerWorkspace({
     if (showAssetInIsolation) {
       if (playModeSplitView) {
         return (
-          <div className={styles.documentPanel} data-node-id="3841:115139">
+          <>
+            <div className={styles.documentPanel} data-node-id="3841:115139">
             <div className={styles.testTriptychTabStrip}>
               {simClientTabOpen ? (
                 <div
@@ -3277,9 +3351,9 @@ function DroneRacerWorkspace({
                   {simSplitServerTabRow}
                 </div>
               ) : null}
-              <div className={styles.editTabStripIso}>
-                {assetIsolationTabRow}
-              </div>
+              {showIsolationDocked ? (
+                <div className={styles.editTabStripIso}>{assetIsolationTabRow}</div>
+              ) : null}
             </div>
             <div className={styles.testTriptychBodyRow}>
               {simClientTabOpen ? (
@@ -3321,13 +3395,16 @@ function DroneRacerWorkspace({
                   </div>
                 </section>
               ) : null}
-              {assetIsolationColumnAside}
+              {showIsolationDocked ? assetIsolationColumnAside : null}
             </div>
           </div>
+            {floatingDocumentPortal}
+          </>
         )
       }
       return (
-        <div className={styles.documentPanel} data-node-id="3841:115139">
+        <>
+          <div className={styles.documentPanel} data-node-id="3841:115139">
           <div className={styles.editCombinedTabStrip}>
             <div
               className={styles.editTabStripMain}
@@ -3335,17 +3412,19 @@ function DroneRacerWorkspace({
             >
               {simClientServerTabRow}
             </div>
-            <div className={styles.editTabStripIso}>
-              {assetIsolationTabRow}
-            </div>
+            {showIsolationDocked ? (
+              <div className={styles.editTabStripIso}>{assetIsolationTabRow}</div>
+            ) : null}
           </div>
           <div className={styles.editWorkspaceSplit}>
             <div className={styles.testSimClientServerHost}>
               <div className={styles.simTabbedBody}>{simTabbedBodyViewport}</div>
             </div>
-            {assetIsolationColumnAside}
+            {showIsolationDocked ? assetIsolationColumnAside : null}
           </div>
         </div>
+          {floatingDocumentPortal}
+        </>
       )
     }
 
@@ -3416,9 +3495,14 @@ function DroneRacerWorkspace({
         role="tab"
         tabIndex={0}
         aria-selected={mainDocumentEditorTab === 'droneRacer'}
-        className={`${styles.tab} ${
-          mainDocumentEditorTab === 'droneRacer' ? styles.tabActive : styles.tabInactive
-        }`}
+        className={buildTabClass(
+          mainDocumentEditorTab === 'droneRacer',
+          mainDocumentEditorTab === 'droneRacer'
+            ? droneRacerDocumentTabDatamodel(simFocus, !!clientSim)
+            : null,
+          '',
+          mainDocumentEditorTab === 'droneRacer' && mainStripTabStrokeActive,
+        )}
         onPointerDown={(e) => {
           e.stopPropagation()
           selectMainDroneRacerTab()
@@ -3457,56 +3541,57 @@ function DroneRacerWorkspace({
       : {}
 
   return (
-    <div
-      className={styles.documentPanel}
-      data-node-id="3841:115139"
-      {...documentPanelBunnyFocusProps}
-    >
-      {showAssetInIsolation && !clientSim ? (
-        <div className={styles.editCombinedTabStrip}>
-          <div className={styles.editTabStripMain} onPointerDown={() => onEditDocumentFocusChange('main')}>
-            {mainDocumentTabRow}
+    <>
+      <div
+        className={styles.documentPanel}
+        data-node-id="3841:115139"
+        {...documentPanelBunnyFocusProps}
+      >
+        {showIsolationDocked && !clientSim ? (
+          <div className={styles.editCombinedTabStrip}>
+            <div className={styles.editTabStripMain} onPointerDown={() => onEditDocumentFocusChange('main')}>
+              {mainDocumentTabRow}
+            </div>
+            <div className={styles.editTabStripIso}>{assetIsolationTabRow}</div>
           </div>
-          <div className={styles.editTabStripIso}>
-            {assetIsolationTabRow}
+        ) : (
+          mainDocumentTabRow
+        )}
+        {showIsolationDocked && !clientSim ? (
+          <div className={styles.editWorkspaceSplit}>
+            {(() => {
+              const mainColumnOverride = renderMainColumnBody()
+              if (mainColumnOverride != null) {
+                return (
+                  <div
+                    className={styles.viewport}
+                    onPointerDown={() =>
+                      onEditDocumentFocusChange(
+                        hoverScriptInMainViewport
+                          ? 'hoverScript'
+                          : droneIsolationInMainViewport
+                            ? 'isolation'
+                            : 'main',
+                      )
+                    }
+                  >
+                    {mainColumnOverride}
+                    {mainEditInsetRing ? (
+                      <div className={styles.editWorkspaceInsetRing} aria-hidden />
+                    ) : null}
+                  </div>
+                )
+              }
+              return renderMainViewport(false, mainViewportScriptTab)
+            })()}
+            {assetIsolationColumnAside}
           </div>
-        </div>
-      ) : (
-        mainDocumentTabRow
-      )}
-      {showAssetInIsolation && !clientSim ? (
-        <div className={styles.editWorkspaceSplit}>
-          {(() => {
-            const mainColumnOverride = renderMainColumnBody()
-            if (mainColumnOverride != null) {
-              return (
-                <div
-                  className={styles.viewport}
-                  onPointerDown={() =>
-                    onEditDocumentFocusChange(
-                      hoverScriptInMainViewport
-                        ? 'hoverScript'
-                        : droneIsolationInMainViewport
-                          ? 'isolation'
-                          : 'main',
-                    )
-                  }
-                >
-                  {mainColumnOverride}
-                  {mainEditInsetRing ? (
-                    <div className={styles.editWorkspaceInsetRing} aria-hidden />
-                  ) : null}
-                </div>
-              )
-            }
-            return renderMainViewport(false, mainViewportScriptTab)
-          })()}
-          {assetIsolationColumnAside}
-        </div>
-      ) : (
-        renderMainViewport(false, mainViewportScriptTab)
-      )}
-    </div>
+        ) : (
+          renderMainViewport(false, mainViewportScriptTab)
+        )}
+      </div>
+      {floatingDocumentPortal}
+    </>
   )
 }
 
@@ -3561,7 +3646,12 @@ export default function StudioWindowsOS({
     PROTOTYPE_SETTINGS_DEFAULTS.playModeHasStroke,
   )
   /** Play mode: sim viewport focus ring matches edit Drone Racer / asset isolation white inset (Testing UI). */
-  const [playModeHasFocusStroke, setPlayModeHasFocusStroke] = useState<boolean>(false)
+  const [playModeHasFocusStroke, setPlayModeHasFocusStroke] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.playModeHasFocusStroke,
+  )
+  const [playModeTabStroke, setPlayModeTabStroke] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.playModeTabStroke,
+  )
   /** Explorer header: plain title only — no badges or title suffixes (Interaction settings). */
   const [explorerNoBadge, setExplorerNoBadge] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.explorerNoBadge,
@@ -3668,28 +3758,90 @@ export default function StudioWindowsOS({
     DEFAULT_CLIENT_SCRIPT_DOCUMENT,
   )
 
-  const focusTestMenuView = useCallback(
+  const toggleTestMenuView = useCallback(
     (target: TestAppMenuFocusTarget) => {
       if (!clientSimActive) return
+
+      const isActive =
+        target === 'server'
+          ? simServerTabOpen
+          : target === 'client'
+            ? simClientTabOpen
+            : simClientTabOpen &&
+              simDocumentTabOrder.includes(simClientInstanceId(target.clientIndex))
+
+      if (isActive) {
+        if (target === 'server') {
+          const nextOrder = simDocumentTabOrder.filter((t) => t !== 'server')
+          setSimServerTabOpen(false)
+          setSimDocumentTabOrder(nextOrder)
+          if (simViewportFocus === 'server') {
+            if (simClientTabOpen) {
+              const clientTab: SimDocumentStripTab = simMultiClientMode
+                ? nextOrder.find(isSimClientInstanceId) ?? simClientInstanceId(1)
+                : 'client'
+              setSimViewportFocus('client')
+              setSimFocusedStripTab(clientTab)
+            }
+            setMainDocumentEditorTab('droneRacer')
+            setEditWorkspaceDocumentFocus('main')
+          }
+          return
+        }
+
+        if (target === 'client') {
+          setSimClientTabOpen(false)
+          setSimDocumentTabOrder((order) =>
+            order.filter((t) => t !== 'client' && !isSimClientInstanceId(t)),
+          )
+          if (simViewportFocus === 'client') {
+            if (simServerTabOpen) {
+              setSimViewportFocus('server')
+              setSimFocusedStripTab('server')
+            }
+            setMainDocumentEditorTab('droneRacer')
+            setEditWorkspaceDocumentFocus('main')
+          }
+          return
+        }
+
+        const tab = simClientInstanceId(target.clientIndex)
+        const nextOrder = simDocumentTabOrder.filter((t) => t !== tab)
+        const remainingClients = nextOrder.filter(isSimClientInstanceId)
+        setSimDocumentTabOrder(nextOrder)
+        if (remainingClients.length === 0) {
+          setSimClientTabOpen(false)
+        }
+        if (simViewportFocus === 'client' && simFocusedStripTab === tab) {
+          const fallbackClient = remainingClients[0]
+          if (fallbackClient == null) {
+            if (simServerTabOpen) {
+              setSimViewportFocus('server')
+              setSimFocusedStripTab('server')
+            }
+          } else {
+            setSimFocusedStripTab(fallbackClient)
+          }
+          setMainDocumentEditorTab('droneRacer')
+          setEditWorkspaceDocumentFocus('main')
+        }
+        return
+      }
 
       const anchor = simStripTabAnchor(mainDocumentEditorTab, simViewportFocus)
 
       if (target === 'server') {
-        if (toggleOpensDmIfClosed && !simServerTabOpen) {
-          setSimServerTabOpen(true)
-          setSimDocumentTabOrder((order) =>
-            insertStripTabAfterAnchor(order, 'server', anchor),
-          )
-        }
+        setSimServerTabOpen(true)
+        setSimDocumentTabOrder((order) =>
+          order.includes('server') ? order : insertStripTabAfterAnchor(order, 'server', anchor),
+        )
         setSimViewportFocus('server')
         setSimFocusedStripTab('server')
       } else if (target === 'client') {
-        if (toggleOpensDmIfClosed && !simClientTabOpen) {
-          setSimClientTabOpen(true)
-          setSimDocumentTabOrder((order) =>
-            insertStripTabAfterAnchor(order, 'client', anchor),
-          )
-        }
+        setSimClientTabOpen(true)
+        setSimDocumentTabOrder((order) =>
+          order.includes('client') ? order : insertStripTabAfterAnchor(order, 'client', anchor),
+        )
         setSimViewportFocus('client')
         setSimFocusedStripTab('client')
       } else {
@@ -3711,9 +3863,11 @@ export default function StudioWindowsOS({
       clientSimActive,
       mainDocumentEditorTab,
       simViewportFocus,
-      toggleOpensDmIfClosed,
+      simFocusedStripTab,
       simServerTabOpen,
       simClientTabOpen,
+      simDocumentTabOrder,
+      simMultiClientMode,
       simClientInstanceCount,
     ],
   )
@@ -4035,12 +4189,29 @@ export default function StudioWindowsOS({
   const [panelTitlesLeftAligned, setPanelTitlesLeftAligned] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.panelTitlesLeftAligned,
   )
-  const [floatingPropertiesOpen, setFloatingPropertiesOpen] = useState<boolean>(
-    PROTOTYPE_SETTINGS_DEFAULTS.floatingPropertiesOpen,
+  const buildInitialFloatingWindows = useCallback((): FloatingPanelWindowState[] => {
+    const windows: FloatingPanelWindowState[] = []
+    let slot = 0
+    if (PROTOTYPE_SETTINGS_DEFAULTS.floatingExplorerOpen) {
+      windows.push(createFloatingWindow('explorer', slot++))
+    }
+    if (PROTOTYPE_SETTINGS_DEFAULTS.floatingPropertiesOpen) {
+      windows.push(createFloatingWindow('properties', slot++))
+    }
+    return windows
+  }, [])
+
+  const [floatingWindows, setFloatingWindows] =
+    useState<FloatingPanelWindowState[]>(buildInitialFloatingWindows)
+  const [floatingMergeHoverId, setFloatingMergeHoverId] = useState<string | null>(null)
+
+  const floatingExplorerOpen = floatingWindows.some((w) => w.tabs.includes('explorer'))
+  const floatingPropertiesOpen = floatingWindows.some((w) => w.tabs.includes('properties'))
+  const [documentUndocked, setDocumentUndocked] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.floatingDocumentOpen,
   )
-  const [floatingExplorerOpen, setFloatingExplorerOpen] = useState<boolean>(
-    PROTOTYPE_SETTINGS_DEFAULTS.floatingExplorerOpen,
-  )
+  const [floatingDocumentPosition, setFloatingDocumentPosition] =
+    useState<FloatingDocumentPosition | null>(() => createFloatingDocumentWindow().position)
   const [editExplorerSelectedRowId, setEditExplorerSelectedRowId] = useState<string | null>(
     null,
   )
@@ -4109,17 +4280,101 @@ export default function StudioWindowsOS({
   const [outputPanelOpen, setOutputPanelOpen] = useState(false)
   const [outputLogEntries, setOutputLogEntries] = useState<OutputLogEntry[]>(INITIAL_OUTPUT_LOG)
 
+  const [panelDockLayout, setPanelDockLayout] = useState<PanelDockLayoutState>(() =>
+    createDefaultPanelDockLayout({
+      outputPanelOpen: false,
+      hideExplorer: false,
+      hideProperties: false,
+    }),
+  )
+
   const frameRef = useRef<HTMLDivElement | null>(null)
-  const floatingExplorerDrag = useFloatingPanelDrag(frameRef)
-  const floatingPropertiesDrag = useFloatingPanelDrag(frameRef)
+  const openFloatingExplorer = useCallback(() => {
+    setFloatingWindows((windows) => {
+      const existing = findFloatingWindowWithTab(windows, 'explorer')
+      if (existing != null) {
+        return windows.map((w) =>
+          w.windowId === existing.windowId ? { ...w, activeTab: 'explorer' } : w,
+        )
+      }
+      return [...windows, createFloatingWindow('explorer', windows.length)]
+    })
+  }, [])
+
+  const openFloatingProperties = useCallback(() => {
+    setFloatingWindows((windows) => {
+      const existing = findFloatingWindowWithTab(windows, 'properties')
+      if (existing != null) {
+        return windows.map((w) =>
+          w.windowId === existing.windowId ? { ...w, activeTab: 'properties' } : w,
+        )
+      }
+      return [...windows, createFloatingWindow('properties', windows.length)]
+    })
+  }, [])
+
+  const undockDocument = useCallback(() => {
+    setDocumentUndocked(true)
+    setEditWorkspaceDocumentFocus((focus) =>
+      focus === 'main' ? 'isolation' : focus,
+    )
+  }, [])
+
+  const dockDocument = useCallback(() => {
+    setDocumentUndocked(false)
+  }, [])
+
+  const closeFloatingTab = useCallback((tab: FloatingSidePanelId) => {
+    setFloatingWindows((windows) => {
+      const host = findFloatingWindowWithTab(windows, tab)
+      if (host == null) return windows
+      const nextTabs = removeFloatingSidePanelTab(host.tabs, tab)
+      if (nextTabs.length === 0) {
+        return windows.filter((w) => w.windowId !== host.windowId)
+      }
+      return windows.map((w) =>
+        w.windowId === host.windowId
+          ? {
+              ...w,
+              tabs: nextTabs,
+              activeTab: w.activeTab === tab ? nextTabs[0]! : w.activeTab,
+            }
+          : w,
+      )
+    })
+  }, [])
+
+  const handleFloatingWindowMerge = useCallback(
+    (sourceWindowId: string, targetWindowId: string, mergedActiveTab: FloatingSidePanelId) => {
+      setFloatingWindows((windows) =>
+        mergeFloatingWindows(windows, sourceWindowId, targetWindowId, mergedActiveTab),
+      )
+    },
+    [],
+  )
 
   useEffect(() => {
-    if (!floatingExplorerOpen) floatingExplorerDrag.resetPosition()
-  }, [floatingExplorerOpen, floatingExplorerDrag.resetPosition])
+    setPanelDockLayout((layout) => syncOutputPanelInLayout(layout, outputPanelOpen))
+  }, [outputPanelOpen])
 
-  useEffect(() => {
-    if (!floatingPropertiesOpen) floatingPropertiesDrag.resetPosition()
-  }, [floatingPropertiesOpen, floatingPropertiesDrag.resetPosition])
+  const hiddenDockPanels = useMemo((): DockPanelId[] => {
+    const hidden: DockPanelId[] = []
+    if (floatingExplorerOpen) hidden.push('explorer')
+    if (floatingPropertiesOpen) hidden.push('properties')
+    return hidden
+  }, [floatingExplorerOpen, floatingPropertiesOpen])
+
+  const visibleBottomDockStacks = useMemo(
+    () =>
+      layoutWithoutPanels(
+        { right: [], bottom: panelDockLayout.bottom },
+        hiddenDockPanels,
+      ).bottom,
+    [panelDockLayout.bottom, hiddenDockPanels],
+  )
+
+  const panelDockDrag = usePanelDockDrag(panelDockLayout, setPanelDockLayout, frameRef)
+
   const focusHoleRef = useRef<HTMLDivElement | null>(null)
   /** Edit-mode document tabs when entering Test — restored on exit. */
   const editDocumentBeforePlayRef = useRef<{
@@ -4133,23 +4388,41 @@ export default function StudioWindowsOS({
     splitServerDocumentTab: 'droneRacer',
     editWorkspaceDocumentFocus: 'main',
   })
-  /** Last test-mode document + sim focus — restored on re-enter. */
+  /**
+   * Last test-mode strip + focus — written on Stop (`hasStoredSession: true`), read on next Play.
+   * Not persisted across page refresh; Prototype Reset clears it.
+   */
   const playModeSessionRef = useRef<{
     simViewportFocus: SimViewportFocus
     simFocusedStripTab: SimDocumentStripTab
     simMultiClientMode: boolean
     simClientInstanceCount: number
+    simClientTabOpen: boolean
+    simServerTabOpen: boolean
+    simDocumentTabOrder: SimDocumentStripTab[]
     mainDocumentEditorTab: MainDocumentEditorTab
     splitClientDocumentTab: MainDocumentEditorTab
     splitServerDocumentTab: MainDocumentEditorTab
+    hasStoredSession: boolean
   }>({
     simViewportFocus: 'client',
     simFocusedStripTab: 'client',
     simMultiClientMode: false,
     simClientInstanceCount: 1,
+    simClientTabOpen: true,
+    simServerTabOpen: true,
+    simDocumentTabOrder: buildDefaultSimDocumentTabOrder({
+      client: true,
+      server: true,
+      scriptA: true,
+      scriptB: true,
+      clientScript: false,
+      serverScript: false,
+    }),
     mainDocumentEditorTab: 'droneRacer',
     splitClientDocumentTab: 'droneRacer',
     splitServerDocumentTab: 'droneRacer',
+    hasStoredSession: false,
   })
   const prevClientSimActiveRef = useRef(clientSimActive)
   /** Play button configured test state this tick — skip stale session restore in the sim-toggle effect. */
@@ -4162,6 +4435,7 @@ export default function StudioWindowsOS({
     setSimViewportFocus(d.simViewportFocus)
     setPlayModeHasStroke(d.playModeHasStroke)
     setPlayModeHasFocusStroke(d.playModeHasFocusStroke)
+    setPlayModeTabStroke(d.playModeTabStroke)
     setExplorerNoBadge(d.explorerNoBadge)
     setExplorerFocusBadge(d.explorerFocusBadge)
     setExplorerBadgeShowIndicator(d.explorerBadgeShowIndicator)
@@ -4177,8 +4451,15 @@ export default function StudioWindowsOS({
     setHideAssetTinting(d.hideAssetTinting)
     setEditWorkspaceDocumentFocus(d.editWorkspaceDocumentFocus)
     setPanelTitlesLeftAligned(d.panelTitlesLeftAligned)
-    setFloatingPropertiesOpen(d.floatingPropertiesOpen)
-    setFloatingExplorerOpen(d.floatingExplorerOpen)
+    setFloatingWindows(() => {
+      const windows: FloatingPanelWindowState[] = []
+      let slot = 0
+      if (d.floatingExplorerOpen) windows.push(createFloatingWindow('explorer', slot++))
+      if (d.floatingPropertiesOpen) windows.push(createFloatingWindow('properties', slot++))
+      return windows
+    })
+    setDocumentUndocked(d.floatingDocumentOpen)
+    setFloatingDocumentPosition(null)
     setEditExplorerSelectedRowId(null)
     setMainDocumentEditorTab(d.mainDocumentEditorTab)
     setSplitClientDocumentTab(d.splitClientDocumentTab)
@@ -4203,6 +4484,13 @@ export default function StudioWindowsOS({
     setEditIsolationTabOrder([...EDIT_ISOLATION_TAB_ORDER])
     setCombinedMainZoneKeys(null)
     setCombinedIsoZoneKeys(null)
+    setPanelDockLayout(
+      createDefaultPanelDockLayout({
+        outputPanelOpen: false,
+        hideExplorer: d.floatingExplorerOpen,
+        hideProperties: d.floatingPropertiesOpen,
+      }),
+    )
     setToggleOpensDmIfClosed(d.toggleOpensDmIfClosed)
     setIsolationTabOpen(d.isolationTabOpen)
     setHoverScriptTabOpen(d.hoverScriptTabOpen)
@@ -4227,9 +4515,20 @@ export default function StudioWindowsOS({
       simFocusedStripTab: 'client',
       simMultiClientMode: false,
       simClientInstanceCount: 1,
+      simClientTabOpen: d.simClientTabOpen,
+      simServerTabOpen: d.simServerTabOpen,
+      simDocumentTabOrder: buildDefaultSimDocumentTabOrder({
+        client: d.simClientTabOpen,
+        server: d.simServerTabOpen,
+        scriptA: d.scriptATabOpen,
+        scriptB: d.scriptBTabOpen,
+        clientScript: d.clientScriptTabOpen,
+        serverScript: d.serverScriptTabOpen,
+      }),
       mainDocumentEditorTab: d.mainDocumentEditorTab,
       splitClientDocumentTab: d.splitClientDocumentTab,
       splitServerDocumentTab: d.splitServerDocumentTab,
+      hasStoredSession: false,
     }
   }, [])
 
@@ -4322,23 +4621,234 @@ export default function StudioWindowsOS({
 
   const panelChromeTitleAlign = panelTitlesLeftAligned ? ('left' as const) : ('center' as const)
 
-  const centerBottomDock = !bunnyAssetWindow ? (
-    <>
-      <div className={styles.centerDockGutter} aria-hidden />
-      <div className={styles.centerDock}>
-        {outputPanelOpen ? (
-          <>
+  const bottomDockSinglePanel =
+    visibleBottomDockStacks.length === 1 &&
+    visibleBottomDockStacks[0]?.tabs.length === 1
+
+  const renderDockedPanel = useCallback(
+    (panelId: DockPanelId, ctx: { tabbed: boolean }) => {
+      const onPanelDockDrag =
+        panelId === 'output' || panelId === 'assetManager'
+          ? panelDockDrag.onPanelDragHandlePointerDown(panelId)
+          : undefined
+
+      switch (panelId) {
+        case 'explorer':
+          return (
+            <>
+              <PanelChrome
+                title={explorerPanelTitleDocked}
+                assetVariant="explorer"
+                titleAlign={panelChromeTitleAlign}
+                explorerFocusBadgeTarget={
+                  explorerNoBadge
+                    ? null
+                    : explorerFocusBadge && explorerShowsClientServerFocusBadge
+                      ? explorerHeaderSimFocus
+                      : null
+                }
+                explorerDocumentBadgeLabel={
+                  explorerNoBadge
+                    ? null
+                    : (explorerFocusBadge || explorerOriginalDmBadge) &&
+                        showAssetInIsolation &&
+                        editWorkspaceDocumentFocus !== 'main'
+                      ? DRONE_WORKSPACE_TAB_LABEL
+                      : null
+                }
+                explorerOriginalDmBadgeLabel={
+                  explorerNoBadge ? null : explorerOriginalDmBadgeLabel
+                }
+                explorerOriginalDmBadgeShowDot={explorerBadgeShowIndicator}
+                explorerBadgeShowDot={
+                  !explorerFocusBadge || explorerBadgeShowIndicator
+                }
+              />
+              <div className={styles.panelBody} data-node-id="3841:115193">
+                <ExplorerTree
+                  clientSim={clientSimActive}
+                  bunnyFlatExplorer={bunnyAssetWindow}
+                  explorerWhileScriptFocus={explorerWhileScriptFocus}
+                  droneDocumentFocused={explorerShowsDroneIsolationTree}
+                  selectionTintActive={playModeSelectionTint}
+                  simViewportFocus={explorerHeaderSimFocus}
+                  simMultiClientMode={simMultiClientMode}
+                  simActiveClientInstanceIndex={simActiveClientInstanceIndex ?? undefined}
+                  simSelectedRowId={simExplorerSelectedRowId}
+                  onSimExplorerSelectRow={onSimExplorerSelectRow}
+                  editSelectedRowId={editExplorerSelectedRowId}
+                  onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
+                />
+              </div>
+            </>
+          )
+        case 'properties':
+          return (
+            <>
+              <PanelChrome
+                title={propertiesPanelTitleDocked}
+                assetVariant="properties"
+                titleAlign={panelChromeTitleAlign}
+              />
+              <div className={styles.panelBody} data-node-id="3841:115198">
+                <PropertiesPanel
+                  empty={propertiesPanelEmpty}
+                  objectLabel={propertiesObjectLabel ?? undefined}
+                  selectionTintActive={playModeSelectionTint}
+                  datamodelTintFocus={propertiesDatamodelTintFocus}
+                />
+              </div>
+            </>
+          )
+        case 'prototypeSettings':
+          return (
+            <>
+              <PanelChrome
+                title="Prototype settings"
+                assetVariant="properties"
+                titleAlign={panelChromeTitleAlign}
+              />
+              <div className={styles.panelBodyInteraction}>
+              <InteractionSettingsPanel
+                hasStroke={playModeHasStroke}
+                onHasStrokeChange={setPlayModeHasStroke}
+                hasFocusStroke={playModeHasFocusStroke}
+                onHasFocusStrokeChange={setPlayModeHasFocusStroke}
+                tabStroke={playModeTabStroke}
+                onTabStrokeChange={setPlayModeTabStroke}
+                explorerNoBadge={explorerNoBadge}
+                onExplorerNoBadgeChange={setExplorerNoBadge}
+                explorerFocusBadge={explorerFocusBadge}
+                onExplorerFocusBadgeChange={setExplorerFocusBadge}
+                explorerBadgeShowIndicator={explorerBadgeShowIndicator}
+                onExplorerBadgeShowIndicatorChange={setExplorerBadgeShowIndicator}
+                explorerOriginalDmBadge={explorerOriginalDmBadge}
+                onExplorerOriginalDmBadgeChange={setExplorerOriginalDmBadge}
+                explorerShowBreadcrumb={explorerShowBreadcrumb}
+                onExplorerShowBreadcrumbChange={setExplorerShowBreadcrumb}
+                showFullBreadcrumbWhenDetached={showFullBreadcrumbWhenDetached}
+                onShowFullBreadcrumbWhenDetachedChange={setShowFullBreadcrumbWhenDetached}
+                fullTint={playModeFullTint}
+                onFullTintChange={setPlayModeFullTint}
+                selectionTint={playModeSelectionTint}
+                onSelectionTintChange={setPlayModeSelectionTint}
+                footerTint={playModeFooterTint}
+                onFooterTintChange={setPlayModeFooterTint}
+                splitView={playModeSplitView}
+                onSplitViewChange={setPlayModeSplitView}
+                toggleOpensDmIfClosed={toggleOpensDmIfClosed}
+                onToggleOpensDmIfClosedChange={setToggleOpensDmIfClosed}
+                showAssetInIsolation={showAssetInIsolation}
+                onShowAssetInIsolationChange={setShowAssetInIsolation}
+                editDatamodelShowStroke={editDatamodelShowStroke}
+                onEditDatamodelShowStrokeChange={setEditDatamodelShowStroke}
+                hideAssetTinting={hideAssetTinting}
+                onHideAssetTintingChange={setHideAssetTinting}
+                panelTitlesLeftAligned={panelTitlesLeftAligned}
+                onPanelTitlesLeftAlignedChange={setPanelTitlesLeftAligned}
+                bunnyAssetWindow={bunnyAssetWindow}
+                onOpenAssetWindow={bunnyAssetWindow ? undefined : onOpenAssetWindow}
+                onOpenFloatingProperties={
+                  bunnyAssetWindow ? undefined : openFloatingProperties
+                }
+                onOpenFloatingExplorer={bunnyAssetWindow ? undefined : openFloatingExplorer}
+                onUndockDocument={
+                  bunnyAssetWindow || !showAssetInIsolation ? undefined : undockDocument
+                }
+                onOpenClientScript={bunnyAssetWindow ? undefined : openClientScriptTab}
+                onOpenServerScript={bunnyAssetWindow ? undefined : openServerScriptTab}
+                onThrowError={bunnyAssetWindow ? undefined : handleThrowError}
+                testingMode={clientSimActive}
+                onReset={bunnyAssetWindow ? undefined : handlePrototypeReset}
+              />
+              </div>
+            </>
+          )
+        case 'output':
+          return (
             <OutputPanel
               entries={outputLogEntries}
               onClose={() => setOutputPanelOpen(false)}
               titleAlign={panelChromeTitleAlign}
               onErrorRowClick={() => openCameraZoomScript()}
+              hideHeader={ctx.tabbed}
+              onHeaderPointerDown={ctx.tabbed ? undefined : onPanelDockDrag}
             />
-            <div className={styles.centerDockPanelGutter} aria-hidden />
-          </>
-        ) : null}
-        <AssetManagerPanel fillDock={!outputPanelOpen} titleAlign={panelChromeTitleAlign} />
-      </div>
+          )
+        case 'assetManager':
+          return (
+            <AssetManagerPanel
+              fillDock={!ctx.tabbed && bottomDockSinglePanel}
+              titleAlign={panelChromeTitleAlign}
+              hideHeader={ctx.tabbed}
+              onHeaderPointerDown={ctx.tabbed ? undefined : onPanelDockDrag}
+            />
+          )
+        default:
+          return null
+      }
+    },
+    [
+      panelDockDrag,
+      explorerPanelTitleDocked,
+      panelChromeTitleAlign,
+      explorerNoBadge,
+      explorerFocusBadge,
+      explorerShowsClientServerFocusBadge,
+      explorerHeaderSimFocus,
+      explorerOriginalDmBadge,
+      showAssetInIsolation,
+      editWorkspaceDocumentFocus,
+      explorerOriginalDmBadgeLabel,
+      explorerBadgeShowIndicator,
+      clientSimActive,
+      bunnyAssetWindow,
+      explorerWhileScriptFocus,
+      explorerShowsDroneIsolationTree,
+      playModeSelectionTint,
+      simMultiClientMode,
+      simActiveClientInstanceIndex,
+      simExplorerSelectedRowId,
+      onSimExplorerSelectRow,
+      editExplorerSelectedRowId,
+      propertiesPanelTitleDocked,
+      propertiesPanelEmpty,
+      propertiesObjectLabel,
+      propertiesDatamodelTintFocus,
+      playModeHasStroke,
+      playModeHasFocusStroke,
+      explorerShowBreadcrumb,
+      showFullBreadcrumbWhenDetached,
+      playModeFullTint,
+      playModeFooterTint,
+      playModeSplitView,
+      toggleOpensDmIfClosed,
+      editDatamodelShowStroke,
+      hideAssetTinting,
+      panelTitlesLeftAligned,
+      onOpenAssetWindow,
+      openClientScriptTab,
+      openServerScriptTab,
+      handleThrowError,
+      handlePrototypeReset,
+      outputLogEntries,
+      openCameraZoomScript,
+      bottomDockSinglePanel,
+    ],
+  )
+
+  const centerBottomDock = !bunnyAssetWindow ? (
+    <>
+      <div className={styles.centerDockGutter} aria-hidden />
+      <PanelDockZone
+        zone="bottom"
+        stacks={visibleBottomDockStacks}
+        onStacksChange={(bottom) => setPanelDockLayout((layout) => ({ ...layout, bottom }))}
+        isDropTarget={panelDockDrag.isDropTarget}
+        isMergeDropTarget={panelDockDrag.isMergeDropTarget}
+        renderPanel={renderDockedPanel}
+        className={styles.centerDock}
+      />
     </>
   ) : null
 
@@ -4393,6 +4903,9 @@ export default function StudioWindowsOS({
         setSimFocusedStripTab(session.simFocusedStripTab)
         setSimMultiClientMode(session.simMultiClientMode)
         setSimClientInstanceCount(session.simClientInstanceCount)
+        setSimClientTabOpen(session.simClientTabOpen)
+        setSimServerTabOpen(session.simServerTabOpen)
+        setSimDocumentTabOrder([...session.simDocumentTabOrder])
         setMainDocumentEditorTab(session.mainDocumentEditorTab)
         setSplitClientDocumentTab(session.splitClientDocumentTab)
         setSplitServerDocumentTab(session.splitServerDocumentTab)
@@ -4407,9 +4920,13 @@ export default function StudioWindowsOS({
         simFocusedStripTab,
         simMultiClientMode,
         simClientInstanceCount,
+        simClientTabOpen,
+        simServerTabOpen,
+        simDocumentTabOrder: [...simDocumentTabOrder],
         mainDocumentEditorTab,
         splitClientDocumentTab,
         splitServerDocumentTab,
+        hasStoredSession: true,
       }
       const edit = editDocumentBeforePlayRef.current
       const testScriptTab: MainDocumentEditorTab | null =
@@ -4463,6 +4980,10 @@ export default function StudioWindowsOS({
   ])
 
   useEffect(() => {
+    if (!showAssetInIsolation) setDocumentUndocked(false)
+  }, [showAssetInIsolation])
+
+  useEffect(() => {
     if (!showAssetInIsolation) setEditWorkspaceDocumentFocus('main')
   }, [showAssetInIsolation])
 
@@ -4472,8 +4993,7 @@ export default function StudioWindowsOS({
       className={styles.frame}
       data-node-id="3841:114990"
       data-name="Studio - Windows OS"
-      {...(floatingExplorerOpen ? { 'data-floating-explorer': '' as const } : {})}
-      {...(floatingPropertiesOpen ? { 'data-floating-properties': '' as const } : {})}
+      {...(floatingWindows.length > 0 ? { 'data-floating-panels': '' as const } : {})}
     >
       <header className={styles.appBar} data-node-id="3842:134467">
         <div className={styles.appBarLeft}>
@@ -4485,13 +5005,15 @@ export default function StudioWindowsOS({
               label === 'Test' ? (
                 <TestAppMenu
                   key={label}
+                  triggerClassName={styles.menuItem}
                   disabled={bunnyAssetWindow}
                   simulating={clientSimActive}
                   simMultiClientMode={simMultiClientMode}
                   simClientInstanceCount={simClientInstanceCount}
-                  simViewportFocus={simViewportFocus}
-                  simFocusedStripTab={simFocusedStripTab}
-                  onFocusView={focusTestMenuView}
+                  simClientTabOpen={simClientTabOpen}
+                  simServerTabOpen={simServerTabOpen}
+                  simDocumentTabOrder={simDocumentTabOrder}
+                  onToggleView={toggleTestMenuView}
                 />
               ) : (
                 <span key={label} className={styles.menuItem}>
@@ -4562,10 +5084,20 @@ export default function StudioWindowsOS({
         testPlaybackDisabled={bunnyAssetWindow}
         onPlay={({ testRunMode, clientSpawnCount }) => {
           playConfiguredRef.current = true
+          const session = playModeSessionRef.current
+          const restore = session.hasStoredSession
+          const isFirstServerAndClientsPlay =
+            testRunMode === 'serverAndClients' && (!restore || !session.simMultiClientMode)
+          const clientOpen = isFirstServerAndClientsPlay
+            ? true
+            : restore
+              ? session.simClientTabOpen
+              : true
+          const serverOpen = restore ? session.simServerTabOpen : true
+
           setClientSimActive(true)
-          setSimClientTabOpen(true)
-          setSimServerTabOpen(true)
-          setSimViewportFocus('client')
+          setSimClientTabOpen(clientOpen)
+          setSimServerTabOpen(serverOpen)
           setMainDocumentEditorTab('droneRacer')
           setEditWorkspaceDocumentFocus('main')
 
@@ -4581,14 +5113,44 @@ export default function StudioWindowsOS({
           if (testRunMode === 'serverAndClients') {
             setSimMultiClientMode(true)
             setSimClientInstanceCount(clientSpawnCount)
-            setSimFocusedStripTab(simClientInstanceId(1))
+            const clientIndices = isFirstServerAndClientsPlay
+              ? Array.from({ length: clientSpawnCount }, (_, i) => i + 1)
+              : openClientIndicesFromSessionOrder(
+                  restore,
+                  session.simDocumentTabOrder,
+                  session.simClientInstanceCount,
+                  clientSpawnCount,
+                  clientOpen,
+                )
+            const desiredOrder = buildMultiClientSimDocumentTabOrder(
+              clientSpawnCount,
+              {
+                server: serverOpen,
+                clientsOpen: clientOpen,
+                clientIndices,
+                ...scriptOpen,
+              },
+              scriptTabOrder,
+            )
+            const multiClientSimOrder = restore && !isFirstServerAndClientsPlay
+              ? mergeOpenTabOrder(session.simDocumentTabOrder, desiredOrder)
+              : desiredOrder
+            const defaultClientStripTab = simClientInstanceId(1)
+            const { focus, stripTab } = resolvePlaySessionFocus(
+              multiClientSimOrder,
+              isFirstServerAndClientsPlay ? 'client' : session.simViewportFocus,
+              isFirstServerAndClientsPlay
+                ? defaultClientStripTab
+                : session.simFocusedStripTab,
+            )
+            setSimViewportFocus(focus)
+            setSimFocusedStripTab(stripTab)
             const byClient = buildInitialExplorerSelectionByClient(clientSpawnCount)
             setSimExplorerSelectionByClient(byClient)
-            setSimExplorerSelectedRowClient(byClient[1] ?? null)
-            const multiClientSimOrder = buildMultiClientSimDocumentTabOrder(
-              clientSpawnCount,
-              { server: true, ...scriptOpen },
-              scriptTabOrder,
+            setSimExplorerSelectedRowClient(
+              byClient[parseSimClientInstanceIndex(
+                isSimClientInstanceId(stripTab) ? stripTab : simClientInstanceId(1),
+              )] ?? byClient[1] ?? null,
             )
             setSimDocumentTabOrder(multiClientSimOrder)
             if (showAssetInIsolation && !playModeSplitView) {
@@ -4603,13 +5165,22 @@ export default function StudioWindowsOS({
           } else {
             setSimMultiClientMode(false)
             setSimClientInstanceCount(1)
-            setSimFocusedStripTab('client')
             setSimExplorerSelectionByClient({})
-            const singleTestSimOrder = buildDefaultSimDocumentTabOrder({
-              client: true,
-              server: true,
+            const desiredOrder = buildDefaultSimDocumentTabOrder({
+              client: clientOpen,
+              server: serverOpen,
               ...scriptOpen,
             })
+            const singleTestSimOrder = restore
+              ? mergeOpenTabOrder(session.simDocumentTabOrder, desiredOrder)
+              : desiredOrder
+            const { focus, stripTab } = resolvePlaySessionFocus(
+              singleTestSimOrder,
+              restore ? session.simViewportFocus : 'client',
+              restore ? session.simFocusedStripTab : 'client',
+            )
+            setSimViewportFocus(focus)
+            setSimFocusedStripTab(stripTab)
             setSimDocumentTabOrder(singleTestSimOrder)
             if (showAssetInIsolation && !playModeSplitView) {
               setCombinedMainZoneKeys(
@@ -4647,6 +5218,7 @@ export default function StudioWindowsOS({
                   onMainDocumentEditorTabChange={setMainDocumentEditorTab}
                   playModeHasStroke={playModeHasStroke}
                   playModeHasFocusStroke={playModeHasFocusStroke}
+                  playModeTabStroke={playModeTabStroke}
                   tintActive={tintActive}
                   focusHoleRef={focusHoleRef}
                   playModeSplitView={playModeSplitView}
@@ -4698,12 +5270,19 @@ export default function StudioWindowsOS({
                   onHoverScriptTabOpenChange={setHoverScriptTabOpen}
                   playModeHasStroke={playModeHasStroke}
                   playModeHasFocusStroke={playModeHasFocusStroke}
+                  playModeTabStroke={playModeTabStroke}
                   tintActive={tintActive}
                   focusHoleRef={focusHoleRef}
                   playModeSplitView={playModeSplitView}
                   editDatamodelShowStroke={editDatamodelShowStroke}
                   editDocumentFocus={editWorkspaceDocumentFocus}
                   onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
+                  documentUndocked={documentUndocked}
+                  floatingDocumentPosition={floatingDocumentPosition}
+                  onFloatingDocumentPositionChange={setFloatingDocumentPosition}
+                  onDockDocument={dockDocument}
+                  frameRef={frameRef}
+                  panelChromeTitleAlign={panelChromeTitleAlign}
                   clientScriptDocument={clientScriptDocument}
                 />
               )}
@@ -4715,6 +5294,9 @@ export default function StudioWindowsOS({
             <div className={styles.centerWorkspace}>
               {bunnyAssetWindow ? (
                 <BunnyWorkspace
+                  playModeHasStroke={playModeHasStroke}
+                  playModeHasFocusStroke={playModeHasFocusStroke}
+                  playModeTabStroke={playModeTabStroke}
                   editDatamodelShowStroke={editDatamodelShowStroke}
                   editDocumentFocus={editWorkspaceDocumentFocus}
                   onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
@@ -4729,6 +5311,9 @@ export default function StudioWindowsOS({
                   onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
                   mainDocumentEditorTab={mainDocumentEditorTab}
                   onMainDocumentEditorTabChange={setMainDocumentEditorTab}
+                  playModeHasStroke={playModeHasStroke}
+                  playModeHasFocusStroke={playModeHasFocusStroke}
+                  playModeTabStroke={playModeTabStroke}
                   scriptATabOpen={scriptATabOpen}
                   scriptBTabOpen={scriptBTabOpen}
                   clientScriptTabOpen={clientScriptTabOpen}
@@ -4749,6 +5334,12 @@ export default function StudioWindowsOS({
                   onServerScriptTabOpenChange={setServerScriptTabOpen}
                   onIsolationTabOpenChange={setIsolationTabOpen}
                   onHoverScriptTabOpenChange={setHoverScriptTabOpen}
+                  documentUndocked={documentUndocked}
+                  floatingDocumentPosition={floatingDocumentPosition}
+                  onFloatingDocumentPositionChange={setFloatingDocumentPosition}
+                  onDockDocument={dockDocument}
+                  frameRef={frameRef}
+                  panelChromeTitleAlign={panelChromeTitleAlign}
                   clientScriptDocument={clientScriptDocument}
                 />
               )}
@@ -4759,36 +5350,82 @@ export default function StudioWindowsOS({
 
         <aside className={styles.right} data-node-id="3841:115190">
           {!floatingExplorerOpen ? (
-            <div className={styles.panel} data-node-id="3841:115191">
-              <PanelChrome
-                title={explorerPanelTitleDocked}
-                assetVariant="explorer"
-                titleAlign={panelChromeTitleAlign}
-                explorerFocusBadgeTarget={
-                  explorerNoBadge
-                    ? null
-                    : explorerFocusBadge && explorerShowsClientServerFocusBadge
-                      ? explorerHeaderSimFocus
-                      : null
-                }
-                explorerDocumentBadgeLabel={
-                  explorerNoBadge
-                    ? null
-                    : (explorerFocusBadge || explorerOriginalDmBadge) &&
-                        showAssetInIsolation &&
-                        editWorkspaceDocumentFocus !== 'main'
-                      ? DRONE_WORKSPACE_TAB_LABEL
-                      : null
-                }
-                explorerOriginalDmBadgeLabel={
-                  explorerNoBadge ? null : explorerOriginalDmBadgeLabel
-                }
-                explorerOriginalDmBadgeShowDot={explorerBadgeShowIndicator}
-                explorerBadgeShowDot={
-                  !explorerFocusBadge || explorerBadgeShowIndicator
-                }
-              />
-              <div className={styles.panelBody} data-node-id="3841:115193">
+            <div className={styles.rightDockedPanelWrap} data-node-id="3841:115191">
+              {renderDockedPanel('explorer', { tabbed: false })}
+            </div>
+          ) : null}
+          {!floatingPropertiesOpen ? (
+            <div className={styles.rightDockedPanelWrap} data-node-id="3841:115196">
+              {renderDockedPanel('properties', { tabbed: false })}
+            </div>
+          ) : null}
+          <div className={`${styles.panel} ${styles.panelInteraction}`}>
+            {renderDockedPanel('prototypeSettings', { tabbed: false })}
+          </div>
+        </aside>
+      </div>
+
+      <div className={styles.workspaceGutter} aria-hidden />
+
+      <StudioFooter
+        questions={FOOTER_QUESTIONS}
+        datamodelTintFocus={footerDatamodelTintFocus}
+      />
+
+      {floatingWindows.map((win) => (
+        <FloatingPanelWindow
+          key={win.windowId}
+          frameRef={frameRef}
+          window={win}
+          mergeDropActive={floatingMergeHoverId === win.windowId}
+          onWindowChange={(next) =>
+            setFloatingWindows((windows) =>
+              windows.map((w) => (w.windowId === next.windowId ? next : w)),
+            )
+          }
+          onMerge={handleFloatingWindowMerge}
+          onMergeHoverChange={setFloatingMergeHoverId}
+          renderHeader={(activeTab) => (
+            <PanelChrome
+              title={
+                activeTab === 'explorer'
+                  ? explorerPanelTitleFloating
+                  : propertiesPanelTitleFloating
+              }
+              assetVariant={activeTab === 'explorer' ? 'explorer' : 'properties'}
+              titleAlign={panelChromeTitleAlign}
+              onClose={() => closeFloatingTab(activeTab)}
+              explorerFocusBadgeTarget={
+                activeTab === 'explorer' && !explorerNoBadge
+                  ? explorerFocusBadge && explorerShowsClientServerFocusBadge
+                    ? explorerHeaderSimFocus
+                    : null
+                  : null
+              }
+              explorerDocumentBadgeLabel={
+                activeTab === 'explorer' && !explorerNoBadge
+                  ? (explorerFocusBadge || explorerOriginalDmBadge) &&
+                      showAssetInIsolation &&
+                      editWorkspaceDocumentFocus !== 'main'
+                    ? DRONE_WORKSPACE_TAB_LABEL
+                    : null
+                  : null
+              }
+              explorerOriginalDmBadgeLabel={
+                activeTab === 'explorer' && !explorerNoBadge
+                  ? explorerOriginalDmBadgeLabel
+                  : null
+              }
+              explorerOriginalDmBadgeShowDot={explorerBadgeShowIndicator}
+              explorerBadgeShowDot={
+                activeTab === 'explorer' &&
+                (!explorerFocusBadge || explorerBadgeShowIndicator)
+              }
+            />
+          )}
+          renderBody={(activeTab) =>
+            activeTab === 'explorer' ? (
+              <div className={styles.panelBody}>
                 <ExplorerTree
                   clientSim={clientSimActive}
                   bunnyFlatExplorer={bunnyAssetWindow}
@@ -4804,16 +5441,8 @@ export default function StudioWindowsOS({
                   onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
                 />
               </div>
-            </div>
-          ) : null}
-          {!floatingPropertiesOpen ? (
-            <div className={styles.panel} data-node-id="3841:115196">
-              <PanelChrome
-                title={propertiesPanelTitleDocked}
-                assetVariant="properties"
-                titleAlign={panelChromeTitleAlign}
-              />
-              <div className={styles.panelBody} data-node-id="3841:115198">
+            ) : (
+              <div className={styles.panelBody}>
                 <PropertiesPanel
                   empty={propertiesPanelEmpty}
                   objectLabel={propertiesObjectLabel ?? undefined}
@@ -4821,162 +5450,10 @@ export default function StudioWindowsOS({
                   datamodelTintFocus={propertiesDatamodelTintFocus}
                 />
               </div>
-            </div>
-          ) : null}
-          <div className={`${styles.panel} ${styles.panelInteraction}`}>
-            <PanelChrome
-              title="Prototype settings"
-              assetVariant="properties"
-              titleAlign={panelChromeTitleAlign}
-            />
-            <div className={styles.panelBodyInteraction}>
-              <InteractionSettingsPanel
-                hasStroke={playModeHasStroke}
-                onHasStrokeChange={setPlayModeHasStroke}
-                hasFocusStroke={playModeHasFocusStroke}
-                onHasFocusStrokeChange={setPlayModeHasFocusStroke}
-                explorerNoBadge={explorerNoBadge}
-                onExplorerNoBadgeChange={setExplorerNoBadge}
-                explorerFocusBadge={explorerFocusBadge}
-                onExplorerFocusBadgeChange={setExplorerFocusBadge}
-                explorerBadgeShowIndicator={explorerBadgeShowIndicator}
-                onExplorerBadgeShowIndicatorChange={setExplorerBadgeShowIndicator}
-                explorerOriginalDmBadge={explorerOriginalDmBadge}
-                onExplorerOriginalDmBadgeChange={setExplorerOriginalDmBadge}
-                explorerShowBreadcrumb={explorerShowBreadcrumb}
-                onExplorerShowBreadcrumbChange={setExplorerShowBreadcrumb}
-                showFullBreadcrumbWhenDetached={showFullBreadcrumbWhenDetached}
-                onShowFullBreadcrumbWhenDetachedChange={setShowFullBreadcrumbWhenDetached}
-                fullTint={playModeFullTint}
-                onFullTintChange={setPlayModeFullTint}
-                selectionTint={playModeSelectionTint}
-                onSelectionTintChange={setPlayModeSelectionTint}
-                footerTint={playModeFooterTint}
-                onFooterTintChange={setPlayModeFooterTint}
-                splitView={playModeSplitView}
-                onSplitViewChange={setPlayModeSplitView}
-                toggleOpensDmIfClosed={toggleOpensDmIfClosed}
-                onToggleOpensDmIfClosedChange={setToggleOpensDmIfClosed}
-                showAssetInIsolation={showAssetInIsolation}
-                onShowAssetInIsolationChange={setShowAssetInIsolation}
-                editDatamodelShowStroke={editDatamodelShowStroke}
-                onEditDatamodelShowStrokeChange={setEditDatamodelShowStroke}
-                hideAssetTinting={hideAssetTinting}
-                onHideAssetTintingChange={setHideAssetTinting}
-                panelTitlesLeftAligned={panelTitlesLeftAligned}
-                onPanelTitlesLeftAlignedChange={setPanelTitlesLeftAligned}
-                bunnyAssetWindow={bunnyAssetWindow}
-                onOpenAssetWindow={bunnyAssetWindow ? undefined : onOpenAssetWindow}
-                onOpenFloatingProperties={
-                  bunnyAssetWindow ? undefined : () => setFloatingPropertiesOpen(true)
-                }
-                onOpenFloatingExplorer={
-                  bunnyAssetWindow ? undefined : () => setFloatingExplorerOpen(true)
-                }
-                onOpenClientScript={bunnyAssetWindow ? undefined : openClientScriptTab}
-                onOpenServerScript={bunnyAssetWindow ? undefined : openServerScriptTab}
-                onThrowError={bunnyAssetWindow ? undefined : handleThrowError}
-                testingMode={clientSimActive}
-                onReset={bunnyAssetWindow ? undefined : handlePrototypeReset}
-              />
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      <div className={styles.workspaceGutter} aria-hidden />
-
-      <StudioFooter
-        questions={FOOTER_QUESTIONS}
-        datamodelTintFocus={footerDatamodelTintFocus}
-      />
-
-      {floatingExplorerOpen ? (
-        <div
-          className={styles.floatingExplorer}
-          data-floating-panel
-          data-name="Floating Explorer"
-          style={floatingExplorerDrag.style}
-        >
-          <div className={styles.panel}>
-            <PanelChrome
-              title={explorerPanelTitleFloating}
-              assetVariant="explorer"
-              titleAlign={panelChromeTitleAlign}
-              draggable
-              onDragHandlePointerDown={floatingExplorerDrag.onDragHandlePointerDown}
-              onClose={() => setFloatingExplorerOpen(false)}
-              explorerFocusBadgeTarget={
-                explorerNoBadge
-                  ? null
-                  : explorerFocusBadge && explorerShowsClientServerFocusBadge
-                    ? explorerHeaderSimFocus
-                    : null
-              }
-              explorerDocumentBadgeLabel={
-                explorerNoBadge
-                  ? null
-                  : (explorerFocusBadge || explorerOriginalDmBadge) &&
-                      showAssetInIsolation &&
-                      editWorkspaceDocumentFocus !== 'main'
-                    ? DRONE_WORKSPACE_TAB_LABEL
-                    : null
-              }
-              explorerOriginalDmBadgeLabel={
-                explorerNoBadge ? null : explorerOriginalDmBadgeLabel
-              }
-              explorerOriginalDmBadgeShowDot={explorerBadgeShowIndicator}
-              explorerBadgeShowDot={
-                !explorerFocusBadge || explorerBadgeShowIndicator
-              }
-            />
-            <div className={styles.panelBody}>
-              <ExplorerTree
-                clientSim={clientSimActive}
-                bunnyFlatExplorer={bunnyAssetWindow}
-                explorerWhileScriptFocus={explorerWhileScriptFocus}
-                droneDocumentFocused={explorerShowsDroneIsolationTree}
-                selectionTintActive={playModeSelectionTint}
-                simViewportFocus={explorerHeaderSimFocus}
-                simMultiClientMode={simMultiClientMode}
-                simActiveClientInstanceIndex={simActiveClientInstanceIndex ?? undefined}
-                simSelectedRowId={simExplorerSelectedRowId}
-                onSimExplorerSelectRow={onSimExplorerSelectRow}
-                editSelectedRowId={editExplorerSelectedRowId}
-                onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {floatingPropertiesOpen ? (
-        <div
-          className={styles.floatingProperties}
-          data-floating-panel
-          data-name="Floating Properties"
-          style={floatingPropertiesDrag.style}
-        >
-          <div className={styles.panel}>
-            <PanelChrome
-              title={propertiesPanelTitleFloating}
-              assetVariant="properties"
-              titleAlign={panelChromeTitleAlign}
-              draggable
-              onDragHandlePointerDown={floatingPropertiesDrag.onDragHandlePointerDown}
-              onClose={() => setFloatingPropertiesOpen(false)}
-            />
-            <div className={styles.panelBody}>
-              <PropertiesPanel
-                empty={propertiesPanelEmpty}
-                objectLabel={propertiesObjectLabel ?? undefined}
-                selectionTintActive={playModeSelectionTint}
-                datamodelTintFocus={propertiesDatamodelTintFocus}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+            )
+          }
+        />
+      ))}
 
       {tintActive ? (
         <div

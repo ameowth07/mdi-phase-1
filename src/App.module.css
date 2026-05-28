@@ -1,11 +1,16 @@
-.root {
+.appShell {
+  width: 100%;
+}
+
+.windowLayer {
   position: relative;
   width: 100%;
-  min-height: calc(100vh - 24px);
+  height: 100%;
 }
 
 .slot {
   position: absolute;
   left: 50%;
-  top: 0;
+  top: 28px;
+  pointer-events: auto;
 }

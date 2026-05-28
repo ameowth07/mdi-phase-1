@@ -10,11 +10,11 @@
 
 /* Testing UI → Footer tint: same hues as Explorer selected row */
 .footer[data-footer-tint='client'] {
-  background: #032e49;
+  background: #043b5d;
 }
 
 .footer[data-footer-tint='server'] {
-  background: #04340b;
+  background: #074010;
 }
 
 .footer[data-footer-tint='drone'] {

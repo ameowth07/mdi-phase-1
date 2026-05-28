@@ -16,6 +16,9 @@ export type OutputPanelProps = {
   onClose?: () => void
   titleAlign?: 'left' | 'center'
   onErrorRowClick?: (entry: OutputLogEntry) => void
+  /** Tabbed dock stack — header hidden; tabs live in the panel gutter. */
+  hideHeader?: boolean
+  onHeaderPointerDown?: (e: React.PointerEvent<HTMLElement>) => void
 }
 
 export default function OutputPanel({
@@ -23,15 +26,22 @@ export default function OutputPanel({
   onClose,
   titleAlign = 'left',
   onErrorRowClick,
+  hideHeader = false,
+  onHeaderPointerDown,
 }: OutputPanelProps) {
   return (
     <section
-      className={css.root}
+      className={`${css.root} ${hideHeader ? css.rootEmbedded : ''}`}
       data-name="Output Panel"
       data-node-id="4032:63343"
       aria-label="Output"
     >
-      <header className={css.header} data-node-id="4032:63344">
+      {hideHeader ? null : (
+      <header
+        className={`${css.header} ${onHeaderPointerDown ? css.headerDraggable : ''}`}
+        data-node-id="4032:63344"
+        onPointerDown={onHeaderPointerDown}
+      >
         <p
           className={`${css.title} ${
             titleAlign === 'left' ? css.titleAlignLeft : css.titleAlignCenter
@@ -58,6 +68,7 @@ export default function OutputPanel({
           </button>
         </div>
       </header>
+      )}
 
       <div className={css.body} data-node-id="4032:63352">
         <div className={css.toolbar} data-node-id="4032:64171">

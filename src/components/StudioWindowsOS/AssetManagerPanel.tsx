@@ -168,11 +168,15 @@ export type AssetManagerPanelProps = {
   /** When true, panel grows to fill the bottom dock row (no Output beside it). */
   fillDock?: boolean
   titleAlign?: 'left' | 'center'
+  hideHeader?: boolean
+  onHeaderPointerDown?: (e: React.PointerEvent<HTMLElement>) => void
 }
 
 export default function AssetManagerPanel({
   fillDock = false,
   titleAlign = 'center',
+  hideHeader = false,
+  onHeaderPointerDown,
 }: AssetManagerPanelProps) {
   const [selectedSidebarId, setSelectedSidebarId] = useState('folder-selected')
   const [hoveredSidebarId, setHoveredSidebarId] = useState<string | null>(null)
@@ -183,12 +187,17 @@ export default function AssetManagerPanel({
 
   return (
     <section
-      className={`${css.root} ${fillDock ? css.rootFillDock : ''}`}
+      className={`${css.root} ${fillDock ? css.rootFillDock : ''} ${hideHeader ? css.rootEmbedded : ''}`}
       data-name="[Legacy] Panel"
       data-node-id="3994:57525"
       aria-label="Asset Manager"
     >
-      <header className={css.header} data-node-id="I3994:57525;3:141494">
+      {hideHeader ? null : (
+      <header
+        className={`${css.header} ${onHeaderPointerDown ? css.headerDraggable : ''}`}
+        data-node-id="I3994:57525;3:141494"
+        onPointerDown={onHeaderPointerDown}
+      >
         <p
           className={`${css.title} ${
             titleAlign === 'left' ? css.titleAlignLeft : css.titleAlignCenter
@@ -210,6 +219,7 @@ export default function AssetManagerPanel({
           </button>
         </div>
       </header>
+      )}
 
       <div className={css.body} data-node-id="I3994:57525;3:141495">
         <aside className={css.sidebar} aria-label="Asset folders">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DesktopEnvironment from './components/DesktopEnvironment/DesktopEnvironment'
 import StudioWindowsOS from './components/StudioWindowsOS/StudioWindowsOS'
 import styles from './App.module.css'
 
@@ -27,33 +28,37 @@ export default function App() {
   }
 
   return (
-    <div className={styles.root}>
-      <div
-        className={styles.slot}
-        style={{ zIndex: zIndexForSlot(MAIN_SLOT), transform: 'translate(-50%, 0)' }}
-        onPointerDownCapture={() => setForegroundKey(MAIN_SLOT)}
-      >
-        <StudioWindowsOS onOpenAssetWindow={openAssetWindow} />
-      </div>
-      {assetWindowIds.map((id, i) => {
-        const layer = i + 1
-        return (
+    <DesktopEnvironment studioTaskbarActive={foregroundKey === MAIN_SLOT}>
+      <div className={styles.appShell}>
+        <div className={styles.windowLayer}>
           <div
-            key={id}
             className={styles.slot}
-            style={{
-              zIndex: zIndexForSlot(id),
-              transform: `translate(calc(-50% + ${layer * 24}px), ${layer * -20}px)`,
-            }}
-            onPointerDownCapture={() => setForegroundKey(id)}
+            style={{ zIndex: zIndexForSlot(MAIN_SLOT), transform: 'translate(-50%, 0)' }}
+            onPointerDownCapture={() => setForegroundKey(MAIN_SLOT)}
           >
-            <StudioWindowsOS
-              frameVariant="bunny"
-              onCloseFrame={() => closeAssetWindow(id)}
-            />
+            <StudioWindowsOS onOpenAssetWindow={openAssetWindow} />
           </div>
-        )
-      })}
-    </div>
+          {assetWindowIds.map((id, i) => {
+            const layer = i + 1
+            return (
+              <div
+                key={id}
+                className={styles.slot}
+                style={{
+                  zIndex: zIndexForSlot(id),
+                  transform: `translate(calc(-50% + ${layer * 24}px), ${layer * -20}px)`,
+                }}
+                onPointerDownCapture={() => setForegroundKey(id)}
+              >
+                <StudioWindowsOS
+                  frameVariant="bunny"
+                  onCloseFrame={() => closeAssetWindow(id)}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </DesktopEnvironment>
   )
 }

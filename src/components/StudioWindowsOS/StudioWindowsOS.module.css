@@ -97,7 +97,7 @@
     0.4
   );
   /** Drone Racer + asset isolation — white inset focus ring (Has focus stroke). */
-  --edit-workspace-focus-ring-width: 2px;
+  --edit-workspace-focus-ring-width: 1px;
   /** Client/Server viewport panel — semantic focus stroke (Has stroke). */
   --panel-focus-stroke-width: 1px;
   --edit-workspace-focus-ring: hsla(
@@ -110,7 +110,7 @@
   width: 100%;
   max-width: 1472px;
   height: 904px;
-  max-height: calc(100vh - 24px);
+  max-height: var(--studio-frame-max-height, calc(100vh - 24px));
   position: relative;
   /* Match docked Explorer / Properties height in the right rail (split above prototype settings). */
   --frame-appbar-height: 32px;
@@ -357,6 +357,24 @@
   color: var(--content-default);
 }
 
+/** Testing UI: Tab stroke — 1px line on the top edge of the active tab. */
+.tabActiveTopStroke {
+  --tab-top-stroke-color: rgba(255, 255, 255, 0.5);
+  border-top-color: var(--tab-top-stroke-color);
+}
+
+.tabActiveTopStrokeClient {
+  --tab-top-stroke-color: #4ec8e9;
+}
+
+.tabActiveTopStrokeServer {
+  --tab-top-stroke-color: #47b84f;
+}
+
+.tabActiveTopStrokeDrone {
+  --tab-top-stroke-color: rgba(255, 255, 255, 0.5);
+}
+
 .tabInactive {
   background: var(--surface-0);
   color: var(--content-muted);
@@ -510,7 +528,7 @@
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  box-shadow: inset 0 0 0 var(--edit-workspace-focus-ring-width, 2px)
+  box-shadow: inset 0 0 0 var(--edit-workspace-focus-ring-width, 1px)
     var(--edit-workspace-focus-ring, rgba(255, 255, 255, 0.5));
 }
 
@@ -820,11 +838,26 @@
   flex-direction: column;
   gap: var(--workspace-gutter);
   background: var(--surface-0);
+  overflow: hidden;
 }
 
-/** In-frame floating panels — same size/vertical slot as docked right-rail panels. */
-.floatingExplorer,
-.floatingProperties {
+/** Explorer / Properties — fixed slots in the right rail (not dock-draggable). */
+.rightDockedPanelWrap {
+  flex: 1 1 0;
+  min-height: var(--studio-right-docked-panel-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-100);
+}
+
+.rightDockedPanelWrap .panelBody {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/** In-frame floating Explorer / Properties — tabbed stack, draggable as one window. */
+.floatingPanelHost {
   position: absolute;
   top: var(--studio-right-panel-top);
   right: calc(291px + var(--workspace-gutter) * 2);
@@ -839,28 +872,125 @@
   box-shadow:
     0 0 0 1px var(--stroke-default),
     0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 95;
 }
 
-.floatingExplorer {
-  z-index: 89;
-}
-
-.floatingProperties {
+/** Second floating window default slot (e.g. Properties while Explorer is separate). */
+.floatingPanelHostOffset {
   top: calc(
-    var(--studio-right-panel-top) + var(--studio-right-docked-panel-height) + var(--workspace-gutter)
+    var(--studio-right-panel-top) + var(--studio-right-docked-panel-height) +
+      var(--workspace-gutter)
   );
-  z-index: 90;
 }
 
-.frame[data-floating-explorer][data-floating-properties] .floatingExplorer {
-  right: calc(582px + var(--workspace-gutter) * 3);
+.frame[data-floating-window-dragging] {
+  cursor: grabbing;
 }
 
-.floatingExplorer .panel,
-.floatingProperties .panel {
+.frame[data-floating-window-dragging] * {
+  user-select: none;
+}
+
+.floatingPanelHost .panel {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/** Same 24px chrome band as docked panels — wrapper is the flex row (header titles are absolute). */
+.floatingPanelChromeDrag {
+  flex: 0 0 24px;
+  min-height: 24px;
+  height: 24px;
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overflow: visible;
+  background: rgba(208, 217, 251, 0.04);
+}
+
+.floatingPanelChromeDrag:active {
+  cursor: grabbing;
+}
+
+.floatingPanelChromeDrag .panelHeader {
+  height: 24px;
+  flex: none;
+  cursor: inherit;
+  background: transparent;
+}
+
+.floatingPanelChromeDrag .panelActions button {
+  cursor: pointer;
+}
+
+.floatingPanelBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.floatingPanelBody .panelBody,
+.floatingPanelBody .panelBodyInteraction {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/** Drone / HoverScript document column — undocked from center workspace. */
+.floatingDocumentHost {
+  position: absolute;
+  left: calc(var(--workspace-gutter) * 2 + 48px);
+  top: calc(var(--studio-right-panel-top) + 48px);
+  width: min(420px, 38%);
+  height: min(520px, calc(var(--studio-panels-region-height) * 0.72));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  pointer-events: auto;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 1px var(--stroke-default),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 94;
+}
+
+.floatingDocumentHost .panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.floatingDocumentBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-100, #191a1f);
+}
+
+.floatingDocumentTabStrip {
+  flex: 0 0 24px;
+  min-height: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.floatingDocumentTabStrip > .tabRow {
+  width: 100%;
+}
+
+.floatingDocumentBody > .assetIsolationPanel {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .panel {

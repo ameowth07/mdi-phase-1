@@ -102,24 +102,85 @@ export function insertClientInstanceTabInOrder(
   return [...clientTabs, ...tail]
 }
 
+export type MultiClientSimTabOpen = {
+  server: boolean
+  scriptA: boolean
+  scriptB: boolean
+  clientScript: boolean
+  serverScript: boolean
+  /** When false, no Client N tabs (user closed the client strip). */
+  clientsOpen?: boolean
+  /** Open client instance indices; default all 1…clientCount when clientsOpen. */
+  clientIndices?: readonly number[]
+}
+
+export function openClientIndicesFromSessionOrder(
+  restore: boolean,
+  sessionOrder: readonly SimDocumentStripTab[],
+  sessionClientCount: number,
+  clientCount: number,
+  clientsEnabled: boolean,
+): number[] {
+  if (!clientsEnabled) return []
+  if (!restore) {
+    return Array.from({ length: clientCount }, (_, i) => i + 1)
+  }
+  const indices = new Set<number>()
+  for (const tab of sessionOrder) {
+    if (tab === 'client') {
+      if (clientCount >= 1) indices.add(1)
+      continue
+    }
+    if (!isSimClientInstanceId(tab)) continue
+    const index = parseSimClientInstanceIndex(tab)
+    if (index >= 1 && index <= clientCount) indices.add(index)
+  }
+  for (let i = sessionClientCount + 1; i <= clientCount; i++) {
+    indices.add(i)
+  }
+  return [...indices].sort((a, b) => a - b)
+}
+
 export function buildMultiClientSimDocumentTabOrder(
   clientCount: number,
-  open: {
-    server: boolean
-    scriptA: boolean
-    scriptB: boolean
-    clientScript: boolean
-    serverScript: boolean
-  },
+  open: MultiClientSimTabOpen,
   scriptOrder: readonly MainScriptTabId[],
 ): SimDocumentStripTab[] {
   const tabs: SimDocumentStripTab[] = []
-  for (let i = 1; i <= clientCount; i++) {
-    tabs.push(simClientInstanceId(i))
+  const clientsOpen = open.clientsOpen !== false
+  if (clientsOpen) {
+    const indices =
+      open.clientIndices ??
+      Array.from({ length: clientCount }, (_, i) => i + 1)
+    for (const index of indices) {
+      if (index >= 1 && index <= clientCount) {
+        tabs.push(simClientInstanceId(index))
+      }
+    }
   }
   if (open.server) tabs.push('server')
   for (const id of scriptOrder) {
     if (open[id]) tabs.push(id)
   }
   return tabs
+}
+
+export function resolvePlaySessionFocus(
+  order: readonly SimDocumentStripTab[],
+  sessionFocus: 'client' | 'server',
+  sessionStripTab: SimDocumentStripTab,
+): { focus: 'client' | 'server'; stripTab: SimDocumentStripTab } {
+  if (order.includes(sessionStripTab)) {
+    return { focus: sessionFocus, stripTab: sessionStripTab }
+  }
+  if (order.includes('server')) {
+    return { focus: 'server', stripTab: 'server' }
+  }
+  const firstClient = order.find(
+    (t): t is SimDocumentStripTab => t === 'client' || isSimClientInstanceId(t),
+  )
+  if (firstClient) {
+    return { focus: 'client', stripTab: firstClient }
+  }
+  return { focus: 'server', stripTab: 'server' }
 }

@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import type { SimDocumentStripTab } from './documentTabClose'
-import { isSimClientInstanceId, parseSimClientInstanceIndex, simClientInstanceLabel } from './simMultiClient'
-import type { SimViewportFocus } from './prototypeDefaults'
+import { simClientInstanceId, simClientInstanceLabel } from './simMultiClient'
 import css from './TestAppMenu.module.css'
 
 type TestMenuEntry =
@@ -37,48 +36,51 @@ const TEST_MENU_ENTRIES: TestMenuEntry[] = [
 export type TestAppMenuFocusTarget = 'server' | 'client' | { clientIndex: number }
 
 export type TestAppMenuProps = {
+  /** Match app bar menu labels (e.g. StudioWindowsOS `menuItem`). */
+  triggerClassName?: string
   disabled?: boolean
   /** Active play session — focus targets appear at the end of the menu. */
   simulating?: boolean
   simMultiClientMode?: boolean
   simClientInstanceCount?: number
-  simViewportFocus?: SimViewportFocus
-  simFocusedStripTab?: SimDocumentStripTab
-  onFocusView?: (target: TestAppMenuFocusTarget) => void
+  /** Whether Client / Server datamodel tabs are open in the document strip. */
+  simClientTabOpen?: boolean
+  simServerTabOpen?: boolean
+  simDocumentTabOrder?: readonly SimDocumentStripTab[]
+  onToggleView?: (target: TestAppMenuFocusTarget) => void
 }
 
-function isFocusTargetChecked(
+function isViewActiveInWindow(
   target: TestAppMenuFocusTarget,
-  simViewportFocus: SimViewportFocus,
-  simFocusedStripTab: SimDocumentStripTab,
+  simClientTabOpen: boolean,
+  simServerTabOpen: boolean,
+  simDocumentTabOrder: readonly SimDocumentStripTab[],
 ): boolean {
   if (target === 'server') {
-    return simViewportFocus === 'server'
+    return simServerTabOpen
   }
   if (target === 'client') {
-    return simViewportFocus === 'client'
+    return simClientTabOpen
   }
-  return (
-    simViewportFocus === 'client' &&
-    isSimClientInstanceId(simFocusedStripTab) &&
-    parseSimClientInstanceIndex(simFocusedStripTab) === target.clientIndex
-  )
+  return simClientTabOpen && simDocumentTabOrder.includes(simClientInstanceId(target.clientIndex))
 }
 
 export default function TestAppMenu({
+  triggerClassName,
   disabled = false,
   simulating = false,
   simMultiClientMode = false,
   simClientInstanceCount = 1,
-  simViewportFocus = 'client',
-  simFocusedStripTab = 'client',
-  onFocusView,
+  simClientTabOpen = true,
+  simServerTabOpen = true,
+  simDocumentTabOrder = [],
+  onToggleView,
 }: TestAppMenuProps) {
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
 
-  const showFocusTargets = simulating && !disabled && onFocusView != null
+  const showFocusTargets = simulating && !disabled && onToggleView != null
 
   const focusTargets: TestMenuMenuFocusRow[] = showFocusTargets
     ? simMultiClientMode
@@ -115,7 +117,7 @@ export default function TestAppMenu({
     <div className={css.root} ref={rootRef}>
       <button
         type="button"
-        className={`${css.trigger} ${open ? css.triggerOpen : ''}`}
+        className={`${triggerClassName ?? ''} ${css.trigger} ${open ? css.triggerOpen : ''}`.trim()}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -171,7 +173,12 @@ export default function TestAppMenu({
             <>
               <div className={css.separator} role="separator" />
               {focusTargets.map(({ target, label }) => {
-                const checked = isFocusTargetChecked(target, simViewportFocus, simFocusedStripTab)
+                const checked = isViewActiveInWindow(
+                  target,
+                  simClientTabOpen,
+                  simServerTabOpen,
+                  simDocumentTabOrder,
+                )
                 return (
                   <button
                     key={typeof target === 'string' ? target : `client-${target.clientIndex}`}
@@ -181,8 +188,7 @@ export default function TestAppMenu({
                     aria-checked={checked}
                     onClick={(e) => {
                       e.stopPropagation()
-                      onFocusView?.(target)
-                      setOpen(false)
+                      onToggleView?.(target)
                     }}
                   >
                     <span className={css.itemCheckGutter} aria-hidden>
