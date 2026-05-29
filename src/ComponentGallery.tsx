@@ -46,6 +46,8 @@ function GalleryInteractionSettings() {
   const [hasStroke, setHasStroke] = useState<boolean>(d.playModeHasStroke)
   const [hasFocusStroke, setHasFocusStroke] = useState<boolean>(d.playModeHasFocusStroke)
   const [tabStroke, setTabStroke] = useState<boolean>(d.playModeTabStroke)
+  const [tabStrokeAllEdges, setTabStrokeAllEdges] = useState<boolean>(d.playModeTabStrokeAllEdges)
+  const [tabStrokeConnected, setTabStrokeConnected] = useState<boolean>(d.playModeTabStrokeConnected)
   const [explorerNoBadge, setExplorerNoBadge] = useState<boolean>(d.explorerNoBadge)
   const [explorerFocusBadge, setExplorerFocusBadge] = useState<boolean>(d.explorerFocusBadge)
   const [explorerBadgeShowIndicator, setExplorerBadgeShowIndicator] = useState<boolean>(
@@ -60,6 +62,7 @@ function GalleryInteractionSettings() {
   const [fullTint, setFullTint] = useState<boolean>(d.playModeFullTint)
   const [selectionTint, setSelectionTint] = useState<boolean>(d.playModeSelectionTint)
   const [footerTint, setFooterTint] = useState<boolean>(d.playModeFooterTint)
+  const [tabTint, setTabTint] = useState<boolean>(d.playModeTabTint)
   const [splitView, setSplitView] = useState<boolean>(d.playModeSplitView)
   const [toggleOpensDmIfClosed, setToggleOpensDmIfClosed] = useState<boolean>(
     d.toggleOpensDmIfClosed,
@@ -84,6 +87,10 @@ function GalleryInteractionSettings() {
       onHasFocusStrokeChange={setHasFocusStroke}
       tabStroke={tabStroke}
       onTabStrokeChange={setTabStroke}
+      tabStrokeAllEdges={tabStrokeAllEdges}
+      onTabStrokeAllEdgesChange={setTabStrokeAllEdges}
+      tabStrokeConnected={tabStrokeConnected}
+      onTabStrokeConnectedChange={setTabStrokeConnected}
       explorerNoBadge={explorerNoBadge}
       onExplorerNoBadgeChange={setExplorerNoBadge}
       explorerFocusBadge={explorerFocusBadge}
@@ -102,6 +109,8 @@ function GalleryInteractionSettings() {
       onSelectionTintChange={setSelectionTint}
       footerTint={footerTint}
       onFooterTintChange={setFooterTint}
+      tabTint={tabTint}
+      onTabTintChange={setTabTint}
       splitView={splitView}
       onSplitViewChange={setSplitView}
       toggleOpensDmIfClosed={toggleOpensDmIfClosed}

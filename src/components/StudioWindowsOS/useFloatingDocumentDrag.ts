@@ -51,11 +51,9 @@ export function useFloatingDocumentDrag(options: {
         ev.preventDefault()
         const nextLeft = startLeft + (ev.clientX - startPointerX)
         const nextTop = startTop + (ev.clientY - startPointerY)
-        const maxLeft = Math.max(0, frameRect.width - panelRect.width)
-        const maxTop = Math.max(0, frameRect.height - panelRect.height)
         onPositionChangeRef.current({
-          left: Math.min(Math.max(0, nextLeft), maxLeft),
-          top: Math.min(Math.max(0, nextTop), maxTop),
+          left: nextLeft,
+          top: nextTop,
         })
       }
 

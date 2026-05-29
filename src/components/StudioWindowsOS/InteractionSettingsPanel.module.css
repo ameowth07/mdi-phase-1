@@ -14,6 +14,14 @@
   flex-direction: column;
 }
 
+.focusSettingsSection {
+  order: -1;
+}
+
+.colorOperatorsSection {
+  order: 1;
+}
+
 .collapsibleHeader {
   display: flex;
   align-items: center;

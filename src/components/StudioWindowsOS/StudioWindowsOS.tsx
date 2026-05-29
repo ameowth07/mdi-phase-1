@@ -110,6 +110,7 @@ import {
   type PanelDockLayoutState,
 } from './panelDock'
 import { usePanelDockDrag } from './usePanelDockDrag'
+import { useConnectedTabGutterMetrics } from './useConnectedTabGutterMetrics'
 import {
   PROTOTYPE_SETTINGS_DEFAULTS,
   type EditDocumentFocus,
@@ -164,6 +165,31 @@ const DRONE_ISOLATION_EXPLORER_ROWS = [
 ] as const
 
 type ExplorerTreeKind = 'bunny' | 'droneIsolation' | 'flatSim' | 'droneRacerHierarchy'
+
+/** Per Explorer context — restored when returning from Test or another tree. */
+type PersistedExplorerSelection = {
+  droneRacerEdit: string | null
+  droneIsolation: string | null
+  bunny: string | null
+  flatSimClient: string | null
+  flatSimServer: string | null
+  flatSimByClient: Record<number, string | null>
+  simHierarchyClient: string | null
+  simHierarchyServer: string | null
+}
+
+function createEmptyPersistedExplorerSelection(): PersistedExplorerSelection {
+  return {
+    droneRacerEdit: null,
+    droneIsolation: null,
+    bunny: null,
+    flatSimClient: null,
+    flatSimServer: null,
+    flatSimByClient: {},
+    simHierarchyClient: null,
+    simHierarchyServer: null,
+  }
+}
 
 function pickRandomExplorerRow<T extends string>(pool: readonly T[]): T {
   return pool[Math.floor(Math.random() * pool.length)]!
@@ -650,10 +676,11 @@ function tabDragClasses(drag: TabRowDragBindings, index: number): string {
 }
 
 function tabActivateHandlers(drag: TabRowDragBindings, activate: () => void) {
+  void drag
   return {
-    onClick: (e: MouseEvent<HTMLElement>) => {
+    onPointerDown: (e: PointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return
       e.stopPropagation()
-      if (drag.consumeClickAfterDrag()) return
       activate()
     },
   }
@@ -695,10 +722,11 @@ function tabActivateHandlersAny(
   drag: TabRowDragBindings | DualZoneTabDragBindings,
   activate: () => void,
 ) {
+  void drag
   return {
-    onClick: (e: MouseEvent<HTMLElement>) => {
+    onPointerDown: (e: PointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return
       e.stopPropagation()
-      if (drag.consumeClickAfterDrag()) return
       activate()
     },
   }
@@ -726,6 +754,10 @@ type PanelChromeProps = {
   explorerOriginalDmBadgeLabel?: string | null
   /** Original DM badge dot — follows “Show indicator in badge”. */
   explorerOriginalDmBadgeShowDot?: boolean
+  /** Show the popout action button in panel chrome. */
+  showPopoutAction?: boolean
+  /** Show the close action button in panel chrome. */
+  showCloseAction?: boolean
 }
 
 function ExplorerDocumentBadge({
@@ -937,6 +969,8 @@ function PanelChrome({
   explorerBadgeShowDot = true,
   explorerOriginalDmBadgeLabel = null,
   explorerOriginalDmBadgeShowDot = true,
+  showPopoutAction = true,
+  showCloseAction = true,
 }: PanelChromeProps) {
   const close =
     assetVariant === 'explorer'
@@ -1014,24 +1048,30 @@ function PanelChrome({
       ) : (
         <PanelChromeTitle title={title} className={`${styles.panelTitle} ${titleAlignClass}`} />
       )}
-      <div className={styles.panelActions}>
-        <button type="button" className={styles.panelAction} aria-label="Pop out panel">
-          <SquareArrowOutUpRight
-            size={12}
-            strokeWidth={1.35}
-            className={styles.panelPopoutIcon}
-            aria-hidden
-          />
-        </button>
-        <button
-          type="button"
-          className={styles.panelAction}
-          aria-label="Close panel"
-          onClick={onClose}
-        >
-          <img src={close} alt="" />
-        </button>
-      </div>
+      {showPopoutAction || showCloseAction ? (
+        <div className={styles.panelActions}>
+          {showPopoutAction ? (
+            <button type="button" className={styles.panelAction} aria-label="Pop out panel">
+              <SquareArrowOutUpRight
+                size={12}
+                strokeWidth={1.35}
+                className={styles.panelPopoutIcon}
+                aria-hidden
+              />
+            </button>
+          ) : null}
+          {showCloseAction ? (
+            <button
+              type="button"
+              className={styles.panelAction}
+              aria-label="Close panel"
+              onClick={onClose}
+            >
+              <img src={close} alt="" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </header>
   )
 }
@@ -1415,6 +1455,12 @@ export type DroneRacerWorkspaceProps = {
   playModeHasFocusStroke?: boolean
   /** Test mode: 1px top stroke on the active document tab (Testing UI: Tab stroke). */
   playModeTabStroke?: boolean
+  /** Test mode: active tab stroke on top, left, and right (Testing UI: Tab stroke all edges). */
+  playModeTabStrokeAllEdges?: boolean
+  /** Test mode: Chrome-style tab — stroke on top/left/right; content connects below (Tab stroke connected). */
+  playModeTabStrokeConnected?: boolean
+  /** Test mode: filled background on focused Client / Server tabs (Testing UI: Tab tint). */
+  playModeTabTint?: boolean
   /** Asset isolation column undocked as a floating document window. */
   documentUndocked?: boolean
   floatingDocumentPosition?: FloatingDocumentPosition | null
@@ -1479,6 +1525,9 @@ function DroneRacerWorkspace({
   playModeHasStroke,
   playModeHasFocusStroke,
   playModeTabStroke,
+  playModeTabStrokeAllEdges,
+  playModeTabStrokeConnected,
+  playModeTabTint,
   documentUndocked = false,
   floatingDocumentPosition = null,
   onFloatingDocumentPositionChange,
@@ -1492,6 +1541,8 @@ function DroneRacerWorkspace({
 }: DroneRacerWorkspaceProps) {
   const [bunnyEditViewportFocused, setBunnyEditViewportFocused] = useState(false)
   const [framePortalTarget, setFramePortalTarget] = useState<HTMLElement | null>(null)
+  const documentPanelRef = useRef<HTMLDivElement | null>(null)
+  const floatingDocumentStackRef = useRef<HTMLDivElement | null>(null)
 
   const showIsolationDocked = !!showAssetInIsolation && !documentUndocked
 
@@ -2076,8 +2127,53 @@ function DroneRacerWorkspace({
   const strokeOn = !!playModeHasStroke
   const focusStrokeOn = !!playModeHasFocusStroke
   const tabStrokeOn = !!playModeTabStroke
-  /** Main document strip: top stroke only while the main column has focus. */
+  const tabStrokeAllEdgesOn = !!playModeTabStrokeAllEdges
+  const tabStrokeConnectedOn = !!playModeTabStrokeConnected && tabStrokeOn
+  const tabStrokeConnectedAttrs = tabStrokeConnectedOn
+    ? ({ 'data-tab-stroke-connected': '' as const })
+    : {}
+
+  const connectedTabMaskDeps = [
+    mainDocumentEditorTab,
+    editDocumentFocus,
+    clientSim,
+    playModeSplitView,
+    simFocusedStripTab,
+    simDocumentTabOrder,
+    combinedMainZoneKeys,
+    combinedIsoZoneKeys,
+    scriptTabOrder,
+    showIsolationDocked,
+  ]
+
+  const connectedTabGutterClassNames = {
+    tabRow: styles.tabRow,
+    tabActiveTopStrokeClient: styles.tabActiveTopStrokeClient,
+    tabActiveTopStrokeServer: styles.tabActiveTopStrokeServer,
+    assetIsolationTabRow: styles.assetIsolationTabRow,
+    assetIsolationPanel: styles.assetIsolationPanel,
+  }
+
+  useConnectedTabGutterMetrics(
+    tabStrokeConnectedOn,
+    documentPanelRef,
+    connectedTabGutterClassNames,
+    connectedTabMaskDeps,
+  )
+
+  useConnectedTabGutterMetrics(
+    tabStrokeConnectedOn && documentUndocked,
+    floatingDocumentStackRef,
+    connectedTabGutterClassNames,
+    [editDocumentFocus, ...connectedTabMaskDeps],
+  )
+
+  const tabTintOn = !!playModeTabTint
+  /** Main document strip: tab stroke only while the main column has focus. */
   const mainStripTabStrokeActive = editDocumentFocus === 'main'
+  /** Asset isolation strip: tab stroke only while the isolation column has focus. */
+  const isoStripTabStrokeActive =
+    editDocumentFocus === 'isolation' || editDocumentFocus === 'hoverScript'
 
   /** Active = this tab is the visible document (only one active tab per strip). */
   const buildTabClass = (
@@ -2090,6 +2186,12 @@ function DroneRacerWorkspace({
     const showTabStroke = tabStrokeActive ?? active
     if (showTabStroke && tabStrokeOn) {
       parts.push(styles.tabActiveTopStroke)
+      if (tabStrokeConnectedOn) {
+        parts.push(styles.tabActiveStrokeConnected)
+        if (active) parts.push(styles.tabActiveTabConnected)
+      } else if (tabStrokeAllEdgesOn) {
+        parts.push(styles.tabActiveAllEdgesStroke)
+      }
       if (strokeOn && datamodel != null) {
         parts.push(
           datamodel === 'client'
@@ -2099,6 +2201,11 @@ function DroneRacerWorkspace({
               : styles.tabActiveTopStrokeDrone,
         )
       }
+    }
+    if (showTabStroke && tabTintOn && datamodel === 'client') {
+      parts.push(styles.tabActiveTintClient)
+    } else if (showTabStroke && tabTintOn && datamodel === 'server') {
+      parts.push(styles.tabActiveTintServer)
     }
     if (dragClass) parts.push(dragClass)
     return parts.join(' ')
@@ -2830,7 +2937,12 @@ function DroneRacerWorkspace({
     zone: CombinedTabStripZone,
   ) => {
     const tabClass = (selected: boolean) =>
-      buildTabClass(selected, selected ? 'drone' : null, tabDragClassesAny(combinedTabDrag, tabIndex, zone))
+      buildTabClass(
+        selected,
+        selected ? 'drone' : null,
+        tabDragClassesAny(combinedTabDrag, tabIndex, zone),
+        zone === 'iso' ? selected && isoStripTabStrokeActive : undefined,
+      )
 
     if (tabId === 'isolation') {
       return (
@@ -2871,7 +2983,7 @@ function DroneRacerWorkspace({
           onEditDocumentFocusChange('hoverScript'),
         )}
       >
-        <TabDiamond />
+        <TabScriptEditIcon />
         <span>{HOVER_SCRIPT_TAB_LABEL}</span>
         <TabCloseButton onClose={() => closeEditIsolationTab('hoverScript')} />
       </TabWithPathTooltip>
@@ -3090,7 +3202,12 @@ function DroneRacerWorkspace({
     >
         {openEditIsolationTabs.map((tabId, tabIndex) => {
         const tabClass = (selected: boolean) =>
-          buildTabClass(selected, selected ? 'drone' : null, tabDragClasses(editIsolationTabDrag, tabIndex))
+          buildTabClass(
+            selected,
+            selected ? 'drone' : null,
+            tabDragClasses(editIsolationTabDrag, tabIndex),
+            selected && isoStripTabStrokeActive,
+          )
 
         if (tabId === 'isolation') {
           return (
@@ -3131,7 +3248,7 @@ function DroneRacerWorkspace({
               onEditDocumentFocusChange('hoverScript'),
             )}
           >
-            <TabDiamond />
+            <TabScriptEditIcon />
             <span>{HOVER_SCRIPT_TAB_LABEL}</span>
             <TabCloseButton onClose={() => closeEditIsolationTab('hoverScript')} />
           </TabWithPathTooltip>
@@ -3209,20 +3326,26 @@ function DroneRacerWorkspace({
             title="Drone Racer"
             position={floatingDocumentPosition}
             onPositionChange={onFloatingDocumentPositionChange}
-            onDock={onDockDocument}
+            onClose={onDockDocument}
             titleAlign={panelChromeTitleAlign}
           >
             <div
-              className={styles.floatingDocumentTabStrip}
-              onPointerDown={() =>
-                onEditDocumentFocusChange(
-                  editDocumentFocus === 'hoverScript' ? 'hoverScript' : 'isolation',
-                )
-              }
+              ref={floatingDocumentStackRef}
+              {...tabStrokeConnectedAttrs}
+              className={styles.floatingDocumentStack}
             >
-              {assetIsolationTabRow}
+              <div
+                className={styles.floatingDocumentTabStrip}
+                onPointerDown={() =>
+                  onEditDocumentFocusChange(
+                    editDocumentFocus === 'hoverScript' ? 'hoverScript' : 'isolation',
+                  )
+                }
+              >
+                {assetIsolationTabRow}
+              </div>
+              {assetIsolationColumnAside}
             </div>
-            {assetIsolationColumnAside}
           </FloatingDocumentWindow>,
           framePortalTarget,
         )
@@ -3327,7 +3450,12 @@ function DroneRacerWorkspace({
       if (playModeSplitView) {
         return (
           <>
-            <div className={styles.documentPanel} data-node-id="3841:115139">
+            <div
+              ref={documentPanelRef}
+              className={styles.documentPanel}
+              data-node-id="3841:115139"
+              {...tabStrokeConnectedAttrs}
+            >
             <div className={styles.testTriptychTabStrip}>
               {simClientTabOpen ? (
                 <div
@@ -3404,7 +3532,12 @@ function DroneRacerWorkspace({
       }
       return (
         <>
-          <div className={styles.documentPanel} data-node-id="3841:115139">
+          <div
+            ref={documentPanelRef}
+            className={styles.documentPanel}
+            data-node-id="3841:115139"
+            {...tabStrokeConnectedAttrs}
+          >
           <div className={styles.editCombinedTabStrip}>
             <div
               className={styles.editTabStripMain}
@@ -3430,7 +3563,13 @@ function DroneRacerWorkspace({
 
     if (playModeSplitView) {
       return (
-        <div className={styles.documentPanel} data-node-id="3841:115139">
+        <>
+          <div
+            ref={documentPanelRef}
+            className={styles.documentPanel}
+            data-node-id="3841:115139"
+            {...tabStrokeConnectedAttrs}
+          >
           <div className={styles.simSplitViewportRow}>
             {simClientTabOpen ? (
               <div
@@ -3475,12 +3614,20 @@ function DroneRacerWorkspace({
             ) : null}
           </div>
         </div>
+        </>
       )
     }
     return (
-      <div className={styles.documentPanel} data-node-id="3841:115139">
-        {simTabbedClientServerStack}
-      </div>
+      <>
+        <div
+          ref={documentPanelRef}
+          className={styles.documentPanel}
+          data-node-id="3841:115139"
+          {...tabStrokeConnectedAttrs}
+        >
+          {simTabbedClientServerStack}
+        </div>
+      </>
     )
   }
 
@@ -3543,9 +3690,11 @@ function DroneRacerWorkspace({
   return (
     <>
       <div
+        ref={documentPanelRef}
         className={styles.documentPanel}
         data-node-id="3841:115139"
         {...documentPanelBunnyFocusProps}
+        {...tabStrokeConnectedAttrs}
       >
         {showIsolationDocked && !clientSim ? (
           <div className={styles.editCombinedTabStrip}>
@@ -3620,12 +3769,18 @@ export type StudioWindowsOSProps = {
   frameVariant?: StudioFrameVariant
   /** Bunny stacked frame: title-bar close removes this window (main studio omits this). */
   onCloseFrame?: () => void
+  /** Drag handler for moving the outer Desktop window by title bar chrome. */
+  onWindowChromePointerDown?: (e: PointerEvent<HTMLElement>) => void
+  /** Outer desktop window offset from center anchor (used to keep floating windows screen-anchored). */
+  windowDragOffset?: { x: number; y: number }
 }
 
 export default function StudioWindowsOS({
   onOpenAssetWindow,
   frameVariant = 'studio',
   onCloseFrame,
+  onWindowChromePointerDown,
+  windowDragOffset = { x: 0, y: 0 },
 }: StudioWindowsOSProps) {
   const bunnyAssetWindow = frameVariant === 'bunny'
   const [clientSimActive, setClientSimActive] = useState(false)
@@ -3651,6 +3806,15 @@ export default function StudioWindowsOS({
   )
   const [playModeTabStroke, setPlayModeTabStroke] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.playModeTabStroke,
+  )
+  const [playModeTabStrokeAllEdges, setPlayModeTabStrokeAllEdges] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.playModeTabStrokeAllEdges,
+  )
+  const [playModeTabStrokeConnected, setPlayModeTabStrokeConnected] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.playModeTabStrokeConnected,
+  )
+  const [playModeTabTint, setPlayModeTabTint] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.playModeTabTint,
   )
   /** Explorer header: plain title only — no badges or title suffixes (Interaction settings). */
   const [explorerNoBadge, setExplorerNoBadge] = useState<boolean>(
@@ -4215,6 +4379,9 @@ export default function StudioWindowsOS({
   const [editExplorerSelectedRowId, setEditExplorerSelectedRowId] = useState<string | null>(
     null,
   )
+  const persistedExplorerSelectionRef = useRef<PersistedExplorerSelection>(
+    createEmptyPersistedExplorerSelection(),
+  )
   const [explorerSelectionSeedEpoch, setExplorerSelectionSeedEpoch] = useState(0)
 
   const explorerTreeKind = useMemo((): ExplorerTreeKind => {
@@ -4229,52 +4396,81 @@ export default function StudioWindowsOS({
     return 'droneRacerHierarchy'
   }, [bunnyAssetWindow, explorerShowsDroneIsolationTree, clientSimActive, explorerWhileScriptFocus])
 
-  const seedExplorerSelectionForTreeKind = useCallback((kind: ExplorerTreeKind) => {
-    switch (kind) {
-      case 'bunny':
-        setEditExplorerSelectedRowId('bunnyExplorerRow')
-        return
-      case 'droneIsolation':
-        setEditExplorerSelectedRowId(pickRandomExplorerRow(DRONE_ISOLATION_EXPLORER_ROWS))
-        return
-      case 'flatSim': {
-        const [clientRow, serverRow] = pickDistinctRandomExplorerRows(FLAT_SIM_EXPLORER_ROWS)
-        setSimExplorerSelectedRowServer(serverRow)
-        if (simMultiClientMode) {
-          const byClient: Record<number, string | null> = {}
-          for (let i = 1; i <= simClientInstanceCount; i++) {
-            const rows = explorerTreeForClientInstance(i).map((r) => r.id)
-            byClient[i] = pickRandomExplorerRow(rows)
+  const applyExplorerSelectionForTreeKind = useCallback(
+    (kind: ExplorerTreeKind) => {
+      const p = persistedExplorerSelectionRef.current
+
+      switch (kind) {
+        case 'bunny': {
+          if (p.bunny == null) p.bunny = 'bunnyExplorerRow'
+          setEditExplorerSelectedRowId(p.bunny)
+          return
+        }
+        case 'droneIsolation': {
+          if (p.droneIsolation == null) {
+            p.droneIsolation = pickRandomExplorerRow(DRONE_ISOLATION_EXPLORER_ROWS)
           }
-          setSimExplorerSelectionByClient(byClient)
-          const activeIndex = clientInstanceIndexFromStripTab(simFocusedStripTab) ?? 1
-          setSimExplorerSelectedRowClient(byClient[activeIndex] ?? clientRow)
-        } else {
-          setSimExplorerSelectedRowClient(clientRow)
-          setSimExplorerSelectionByClient({})
+          setEditExplorerSelectedRowId(p.droneIsolation)
+          return
         }
-        return
-      }
-      case 'droneRacerHierarchy': {
-        setEditExplorerSelectedRowId(pickRandomExplorerRow(DRONE_RACER_EXPLORER_ROWS))
-        if (clientSimActive) {
-          const [clientRow, serverRow] = pickDistinctRandomExplorerRows(DRONE_RACER_EXPLORER_ROWS)
-          setSimExplorerSelectedRowClient(clientRow)
-          setSimExplorerSelectedRowServer(serverRow)
+        case 'flatSim': {
+          if (p.flatSimServer == null || p.flatSimClient == null) {
+            const [clientRow, serverRow] = pickDistinctRandomExplorerRows(FLAT_SIM_EXPLORER_ROWS)
+            if (p.flatSimClient == null) p.flatSimClient = clientRow
+            if (p.flatSimServer == null) p.flatSimServer = serverRow
+          }
+          setSimExplorerSelectedRowServer(p.flatSimServer)
+
+          if (simMultiClientMode) {
+            for (let i = 1; i <= simClientInstanceCount; i++) {
+              if (p.flatSimByClient[i] == null) {
+                const rows = explorerTreeForClientInstance(i).map((r) => r.id)
+                p.flatSimByClient[i] = pickRandomExplorerRow(rows)
+              }
+            }
+            setSimExplorerSelectionByClient({ ...p.flatSimByClient })
+            const activeIndex = clientInstanceIndexFromStripTab(simFocusedStripTab) ?? 1
+            setSimExplorerSelectedRowClient(
+              p.flatSimByClient[activeIndex] ?? p.flatSimClient,
+            )
+          } else {
+            setSimExplorerSelectedRowClient(p.flatSimClient)
+            setSimExplorerSelectionByClient({})
+          }
+          return
+        }
+        case 'droneRacerHierarchy': {
+          if (p.droneRacerEdit == null) {
+            p.droneRacerEdit = pickRandomExplorerRow(DRONE_RACER_EXPLORER_ROWS)
+          }
+          setEditExplorerSelectedRowId(p.droneRacerEdit)
+
+          if (clientSimActive) {
+            if (p.simHierarchyClient == null) {
+              p.simHierarchyClient = p.droneRacerEdit
+            }
+            if (p.simHierarchyServer == null) {
+              const [, serverRow] = pickDistinctRandomExplorerRows(DRONE_RACER_EXPLORER_ROWS)
+              p.simHierarchyServer = serverRow
+            }
+            setSimExplorerSelectedRowClient(p.simHierarchyClient)
+            setSimExplorerSelectedRowServer(p.simHierarchyServer)
+          }
         }
       }
-    }
-  }, [clientSimActive, simMultiClientMode, simClientInstanceCount, simFocusedStripTab])
+    },
+    [clientSimActive, simMultiClientMode, simClientInstanceCount, simFocusedStripTab],
+  )
 
   useEffect(() => {
-    seedExplorerSelectionForTreeKind(explorerTreeKind)
+    applyExplorerSelectionForTreeKind(explorerTreeKind)
   }, [
     explorerTreeKind,
     explorerSelectionSeedEpoch,
     clientSimActive,
     simMultiClientMode,
     simClientInstanceCount,
-    seedExplorerSelectionForTreeKind,
+    applyExplorerSelectionForTreeKind,
   ])
 
   const [outputPanelOpen, setOutputPanelOpen] = useState(false)
@@ -4289,6 +4485,55 @@ export default function StudioWindowsOS({
   )
 
   const frameRef = useRef<HTMLDivElement | null>(null)
+  const prevWindowDragOffsetRef = useRef(windowDragOffset)
+
+  useLayoutEffect(() => {
+    const prev = prevWindowDragOffsetRef.current
+    const dx = windowDragOffset.x - prev.x
+    const dy = windowDragOffset.y - prev.y
+    prevWindowDragOffsetRef.current = windowDragOffset
+    if (dx === 0 && dy === 0) return
+
+    const frameEl = frameRef.current
+    const frameRect = frameEl?.getBoundingClientRect() ?? null
+
+    setFloatingWindows((windows) =>
+      windows.map((w) => {
+        if (w.position != null) {
+          return {
+            ...w,
+            position: { left: w.position.left - dx, top: w.position.top - dy },
+          }
+        }
+        if (frameEl == null || frameRect == null) return w
+        const host = frameEl.querySelector(
+          `[data-floating-window-id="${w.windowId}"]`,
+        ) as HTMLElement | null
+        if (host == null) return w
+        const hostRect = host.getBoundingClientRect()
+        return {
+          ...w,
+          position: {
+            left: hostRect.left - frameRect.left - dx,
+            top: hostRect.top - frameRect.top - dy,
+          },
+        }
+      }),
+    )
+
+    setFloatingDocumentPosition((pos) => {
+      if (pos != null) return { left: pos.left - dx, top: pos.top - dy }
+      if (!documentUndocked || frameEl == null || frameRect == null) return pos
+      const host = frameEl.querySelector('[data-floating-document]') as HTMLElement | null
+      if (host == null) return pos
+      const hostRect = host.getBoundingClientRect()
+      return {
+        left: hostRect.left - frameRect.left - dx,
+        top: hostRect.top - frameRect.top - dy,
+      }
+    })
+  }, [windowDragOffset, documentUndocked])
+
   const openFloatingExplorer = useCallback(() => {
     setFloatingWindows((windows) => {
       const existing = findFloatingWindowWithTab(windows, 'explorer')
@@ -4436,6 +4681,9 @@ export default function StudioWindowsOS({
     setPlayModeHasStroke(d.playModeHasStroke)
     setPlayModeHasFocusStroke(d.playModeHasFocusStroke)
     setPlayModeTabStroke(d.playModeTabStroke)
+    setPlayModeTabStrokeAllEdges(d.playModeTabStrokeAllEdges)
+    setPlayModeTabStrokeConnected(d.playModeTabStrokeConnected)
+    setPlayModeTabTint(d.playModeTabTint)
     setExplorerNoBadge(d.explorerNoBadge)
     setExplorerFocusBadge(d.explorerFocusBadge)
     setExplorerBadgeShowIndicator(d.explorerBadgeShowIndicator)
@@ -4460,6 +4708,7 @@ export default function StudioWindowsOS({
     })
     setDocumentUndocked(d.floatingDocumentOpen)
     setFloatingDocumentPosition(null)
+    persistedExplorerSelectionRef.current = createEmptyPersistedExplorerSelection()
     setEditExplorerSelectedRowId(null)
     setMainDocumentEditorTab(d.mainDocumentEditorTab)
     setSplitClientDocumentTab(d.splitClientDocumentTab)
@@ -4554,9 +4803,51 @@ export default function StudioWindowsOS({
     simExplorerSelectedRowServer,
   ])
 
+  const onEditExplorerSelectRow = useCallback(
+    (rowId: string) => {
+      const p = persistedExplorerSelectionRef.current
+      switch (explorerTreeKind) {
+        case 'bunny':
+          p.bunny = rowId
+          break
+        case 'droneIsolation':
+          p.droneIsolation = rowId
+          break
+        case 'droneRacerHierarchy':
+          p.droneRacerEdit = rowId
+          break
+        default:
+          break
+      }
+      setEditExplorerSelectedRowId(rowId)
+    },
+    [explorerTreeKind],
+  )
+
   const onSimExplorerSelectRow = useCallback(
     (rowId: string) => {
+      const p = persistedExplorerSelectionRef.current
+      if (explorerTreeKind === 'flatSim') {
+        if (explorerSimFocusForTree === 'server') {
+          p.flatSimServer = rowId
+          setSimExplorerSelectedRowServer(rowId)
+          return
+        }
+        if (simMultiClientMode && simActiveClientInstanceIndex != null) {
+          p.flatSimByClient[simActiveClientInstanceIndex] = rowId
+          setSimExplorerSelectionByClient((prev) => ({
+            ...prev,
+            [simActiveClientInstanceIndex]: rowId,
+          }))
+          return
+        }
+        p.flatSimClient = rowId
+        setSimExplorerSelectedRowClient(rowId)
+        return
+      }
+
       if (explorerSimFocusForTree === 'server') {
+        p.simHierarchyServer = rowId
         setSimExplorerSelectedRowServer(rowId)
         return
       }
@@ -4567,9 +4858,15 @@ export default function StudioWindowsOS({
         }))
         return
       }
+      p.simHierarchyClient = rowId
       setSimExplorerSelectedRowClient(rowId)
     },
-    [explorerSimFocusForTree, simMultiClientMode, simActiveClientInstanceIndex],
+    [
+      explorerTreeKind,
+      explorerSimFocusForTree,
+      simMultiClientMode,
+      simActiveClientInstanceIndex,
+    ],
   )
 
   const activeExplorerRowForProperties = useMemo(() => {
@@ -4677,7 +4974,7 @@ export default function StudioWindowsOS({
                   simSelectedRowId={simExplorerSelectedRowId}
                   onSimExplorerSelectRow={onSimExplorerSelectRow}
                   editSelectedRowId={editExplorerSelectedRowId}
-                  onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
+                  onEditSelectedRowIdChange={onEditExplorerSelectRow}
                 />
               </div>
             </>
@@ -4716,6 +5013,10 @@ export default function StudioWindowsOS({
                 onHasFocusStrokeChange={setPlayModeHasFocusStroke}
                 tabStroke={playModeTabStroke}
                 onTabStrokeChange={setPlayModeTabStroke}
+                tabStrokeAllEdges={playModeTabStrokeAllEdges}
+                onTabStrokeAllEdgesChange={setPlayModeTabStrokeAllEdges}
+                tabStrokeConnected={playModeTabStrokeConnected}
+                onTabStrokeConnectedChange={setPlayModeTabStrokeConnected}
                 explorerNoBadge={explorerNoBadge}
                 onExplorerNoBadgeChange={setExplorerNoBadge}
                 explorerFocusBadge={explorerFocusBadge}
@@ -4734,6 +5035,8 @@ export default function StudioWindowsOS({
                 onSelectionTintChange={setPlayModeSelectionTint}
                 footerTint={playModeFooterTint}
                 onFooterTintChange={setPlayModeFooterTint}
+                tabTint={playModeTabTint}
+                onTabTintChange={setPlayModeTabTint}
                 splitView={playModeSplitView}
                 onSplitViewChange={setPlayModeSplitView}
                 toggleOpensDmIfClosed={toggleOpensDmIfClosed}
@@ -4993,9 +5296,16 @@ export default function StudioWindowsOS({
       className={styles.frame}
       data-node-id="3841:114990"
       data-name="Studio - Windows OS"
-      {...(floatingWindows.length > 0 ? { 'data-floating-panels': '' as const } : {})}
+      {...(floatingWindows.length > 0 || documentUndocked
+        ? { 'data-floating-panels': '' as const }
+        : {})}
     >
-      <header className={styles.appBar} data-node-id="3842:134467">
+      <div className={styles.frameShell}>
+      <header
+        className={styles.appBar}
+        data-node-id="3842:134467"
+        onPointerDown={onWindowChromePointerDown}
+      >
         <div className={styles.appBarLeft}>
           <button type="button" className={styles.logoBtn} aria-label="App menu">
             <img src={publicAssetUrl('assets/appbar-logo.svg')} alt="" />
@@ -5219,6 +5529,9 @@ export default function StudioWindowsOS({
                   playModeHasStroke={playModeHasStroke}
                   playModeHasFocusStroke={playModeHasFocusStroke}
                   playModeTabStroke={playModeTabStroke}
+                  playModeTabStrokeAllEdges={playModeTabStrokeAllEdges}
+                  playModeTabStrokeConnected={playModeTabStrokeConnected}
+                  playModeTabTint={playModeTabTint}
                   tintActive={tintActive}
                   focusHoleRef={focusHoleRef}
                   playModeSplitView={playModeSplitView}
@@ -5271,6 +5584,9 @@ export default function StudioWindowsOS({
                   playModeHasStroke={playModeHasStroke}
                   playModeHasFocusStroke={playModeHasFocusStroke}
                   playModeTabStroke={playModeTabStroke}
+                  playModeTabStrokeAllEdges={playModeTabStrokeAllEdges}
+                  playModeTabStrokeConnected={playModeTabStrokeConnected}
+                  playModeTabTint={playModeTabTint}
                   tintActive={tintActive}
                   focusHoleRef={focusHoleRef}
                   playModeSplitView={playModeSplitView}
@@ -5297,6 +5613,9 @@ export default function StudioWindowsOS({
                   playModeHasStroke={playModeHasStroke}
                   playModeHasFocusStroke={playModeHasFocusStroke}
                   playModeTabStroke={playModeTabStroke}
+                  playModeTabStrokeAllEdges={playModeTabStrokeAllEdges}
+                  playModeTabStrokeConnected={playModeTabStrokeConnected}
+                  playModeTabTint={playModeTabTint}
                   editDatamodelShowStroke={editDatamodelShowStroke}
                   editDocumentFocus={editWorkspaceDocumentFocus}
                   onEditDocumentFocusChange={setEditWorkspaceDocumentFocus}
@@ -5314,6 +5633,9 @@ export default function StudioWindowsOS({
                   playModeHasStroke={playModeHasStroke}
                   playModeHasFocusStroke={playModeHasFocusStroke}
                   playModeTabStroke={playModeTabStroke}
+                  playModeTabStrokeAllEdges={playModeTabStrokeAllEdges}
+                  playModeTabStrokeConnected={playModeTabStrokeConnected}
+                  playModeTabTint={playModeTabTint}
                   scriptATabOpen={scriptATabOpen}
                   scriptBTabOpen={scriptBTabOpen}
                   clientScriptTabOpen={clientScriptTabOpen}
@@ -5371,6 +5693,7 @@ export default function StudioWindowsOS({
         questions={FOOTER_QUESTIONS}
         datamodelTintFocus={footerDatamodelTintFocus}
       />
+      </div>
 
       {floatingWindows.map((win) => (
         <FloatingPanelWindow
@@ -5395,6 +5718,8 @@ export default function StudioWindowsOS({
               assetVariant={activeTab === 'explorer' ? 'explorer' : 'properties'}
               titleAlign={panelChromeTitleAlign}
               onClose={() => closeFloatingTab(activeTab)}
+              showPopoutAction={false}
+              showCloseAction
               explorerFocusBadgeTarget={
                 activeTab === 'explorer' && !explorerNoBadge
                   ? explorerFocusBadge && explorerShowsClientServerFocusBadge
@@ -5438,7 +5763,7 @@ export default function StudioWindowsOS({
                   simSelectedRowId={simExplorerSelectedRowId}
                   onSimExplorerSelectRow={onSimExplorerSelectRow}
                   editSelectedRowId={editExplorerSelectedRowId}
-                  onEditSelectedRowIdChange={setEditExplorerSelectedRowId}
+                  onEditSelectedRowIdChange={onEditExplorerSelectRow}
                 />
               </div>
             ) : (

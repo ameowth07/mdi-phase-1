@@ -49,10 +49,10 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 75% 55% at 72% 18%, rgba(96, 165, 250, 0.55), transparent 52%),
-    radial-gradient(ellipse 55% 45% at 18% 72%, rgba(167, 139, 250, 0.4), transparent 48%),
-    radial-gradient(ellipse 40% 35% at 88% 78%, rgba(56, 189, 248, 0.28), transparent 45%),
-    linear-gradient(155deg, #0f2744 0%, #1e4d7a 32%, #2d6ba8 58%, #163352 100%);
+    radial-gradient(ellipse 88% 62% at 78% 14%, rgba(120, 149, 185, 0.2), transparent 58%),
+    radial-gradient(ellipse 64% 50% at 14% 84%, rgba(90, 118, 150, 0.14), transparent 56%),
+    radial-gradient(ellipse 36% 28% at 64% 64%, rgba(166, 185, 206, 0.08), transparent 52%),
+    linear-gradient(160deg, #141c27 0%, #1a2431 38%, #1d2a39 62%, #131b25 100%);
 }
 
 .iconColumn {

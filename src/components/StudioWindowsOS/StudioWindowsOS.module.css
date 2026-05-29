@@ -143,11 +143,20 @@
     sans-serif;
   font-size: 12px;
   line-height: 1.4;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   box-shadow:
     0 0 0 1px var(--stroke-default),
     0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.frameShell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-radius: inherit;
+  overflow: hidden;
 }
 
 /** Play mode — 5% overlay tint (matches client / server focus ring hues). */
@@ -309,6 +318,7 @@
 }
 
 .documentPanel {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -357,28 +367,174 @@
   color: var(--content-default);
 }
 
-/** Testing UI: Tab stroke — 1px line on the top edge of the active tab. */
+/**
+ * Testing UI: Tab stroke — top on the border edge; bottom outside on the active tab.
+ */
 .tabActiveTopStroke {
-  --tab-top-stroke-color: rgba(255, 255, 255, 0.5);
-  border-top-color: var(--tab-top-stroke-color);
+  --tab-stroke-color: #a3a6b0;
+  border-top-color: var(--tab-stroke-color);
+  border-bottom-color: transparent;
+  box-shadow: 0 1px 0 0 var(--tab-stroke-color);
 }
 
 .tabActiveTopStrokeClient {
-  --tab-top-stroke-color: #4ec8e9;
+  --tab-stroke-color: #4ec8e9;
 }
 
 .tabActiveTopStrokeServer {
-  --tab-top-stroke-color: #47b84f;
+  --tab-stroke-color: #47b84f;
 }
 
 .tabActiveTopStrokeDrone {
-  --tab-top-stroke-color: rgba(255, 255, 255, 0.5);
+  --tab-stroke-color: #a3a6b0;
+}
+
+/** Testing UI: Tab stroke all edges — top/left/right on border; bottom outside. */
+.tabActiveTopStroke.tabActiveAllEdgesStroke {
+  border-top-color: var(--tab-stroke-color);
+  border-left-color: var(--tab-stroke-color);
+  border-right-color: var(--tab-stroke-color);
+  border-bottom-color: transparent;
+  box-shadow: 0 1px 0 0 var(--tab-stroke-color);
+}
+
+/**
+ * Testing UI: Tab stroke connected — top/left/right on the border edge (no bottom).
+ */
+.tabActiveTopStroke.tabActiveStrokeConnected {
+  border-top-color: var(--tab-stroke-color);
+  border-left-color: var(--tab-stroke-color);
+  border-right-color: var(--tab-stroke-color);
+  box-shadow: none;
+}
+
+/**
+ * Connected tabs: open bottom meets the panel; extend fill over the viewport top
+ * stroke segment under this tab width (mask gap set in useConnectedTabTopMask).
+ */
+[data-tab-stroke-connected] .tabRow {
+  padding-bottom: 0;
+}
+
+/** Separator line is replaced by gutter strokes + connected tab join. */
+[data-tab-stroke-connected] .tabRowUnderline {
+  display: none;
+}
+
+[data-tab-stroke-connected] .tabActive.tabActiveTabConnected {
+  background: var(--surface-100);
+  border-bottom: none;
+  position: relative;
+  z-index: 3;
+}
+
+[data-tab-stroke-connected] .editWorkspaceSplit,
+[data-tab-stroke-connected] .simTabbedBody,
+[data-tab-stroke-connected] .simSplitViewportRow,
+[data-tab-stroke-connected] .testTriptychBodyRow,
+[data-tab-stroke-connected] .documentPanel > .tabRow ~ .viewport,
+[data-tab-stroke-connected] .assetIsolationPanel > .assetIsolationWorkspace,
+[data-tab-stroke-connected] .floatingDocumentStack > .assetIsolationPanel > .assetIsolationWorkspace {
+  margin-top: -1px;
+}
+
+/** Keep tab strip (and gutter stroke) above the viewport overlap. */
+[data-tab-stroke-connected] .editCombinedTabStrip,
+[data-tab-stroke-connected] .testTriptychTabStrip,
+[data-tab-stroke-connected] .floatingDocumentTabStrip,
+[data-tab-stroke-connected] .documentPanel > .tabRow,
+[data-tab-stroke-connected] .editTabStripMain > .tabRow,
+[data-tab-stroke-connected] .editTabStripIso > .tabRow,
+[data-tab-stroke-connected] .testTriptychTabCol > .tabRow {
+  position: relative;
+  z-index: 1;
+}
+
+[data-tab-stroke-connected] .editWorkspaceSplit,
+[data-tab-stroke-connected] .simTabbedBody,
+[data-tab-stroke-connected] .simSplitViewportRow,
+[data-tab-stroke-connected] .testTriptychBodyRow,
+[data-tab-stroke-connected] .assetIsolationPanel {
+  position: relative;
+  z-index: 0;
+}
+
+/**
+ * Gutter focus stroke left/right of the active tab (Tab stroke connected).
+ * Widths/color from useConnectedTabGutterMetrics on the tab row.
+ */
+[data-tab-stroke-connected] .tabRow:has([aria-selected='true'])::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  z-index: 2;
+  pointer-events: none;
+  background-image: linear-gradient(
+      var(--tab-connected-stroke-color, #4ec8e9),
+      var(--tab-connected-stroke-color, #4ec8e9)
+    ),
+    linear-gradient(
+      var(--tab-connected-stroke-color, #4ec8e9),
+      var(--tab-connected-stroke-color, #4ec8e9)
+    );
+  background-repeat: no-repeat;
+  background-size:
+    var(--tab-connected-gutter-left-width, 0px) 1px,
+    var(--tab-connected-gutter-right-width, 0px) 1px;
+  background-position: left bottom, right bottom;
+}
+
+/** Panel focus ring: left / right / bottom only; top gutter from tab row ::after. */
+[data-tab-stroke-connected] .editWorkspaceInsetRing {
+  box-shadow:
+    inset 1px 0 0 0 var(--tab-connected-stroke-color, var(--edit-workspace-focus-ring, rgba(255, 255, 255, 0.5))),
+    inset -1px 0 0 0 var(--tab-connected-stroke-color, var(--edit-workspace-focus-ring, rgba(255, 255, 255, 0.5))),
+    inset 0 -1px 0 0 var(--tab-connected-stroke-color, var(--edit-workspace-focus-ring, rgba(255, 255, 255, 0.5)));
+}
+
+[data-tab-stroke-connected] .simDatamodelStrokeOverlay,
+[data-tab-stroke-connected] .serverSimDatamodelStrokeOverlay {
+  box-shadow:
+    inset 1px 0 0 0 var(--tab-connected-stroke-color, #38bdf8),
+    inset -1px 0 0 0 var(--tab-connected-stroke-color, #38bdf8),
+    inset 0 -1px 0 0 var(--tab-connected-stroke-color, #38bdf8);
+}
+
+[data-tab-stroke-connected] .viewportClientFocused::after {
+  box-shadow:
+    inset 1px 0 0 0 #4ec8e9,
+    inset -1px 0 0 0 #4ec8e9,
+    inset 0 -1px 0 0 #4ec8e9;
+}
+
+[data-tab-stroke-connected] .serverViewportFocused::after {
+  box-shadow:
+    inset 1px 0 0 0 #47b84f,
+    inset -1px 0 0 0 #47b84f,
+    inset 0 -1px 0 0 #47b84f;
+}
+
+/** Testing UI: Tab tint — filled background on focused Client / Server tabs. */
+.tabActiveTintClient {
+  background: #02223b;
+}
+
+.tabActiveTintServer {
+  background: #032609;
 }
 
 .tabInactive {
   background: var(--surface-0);
   color: var(--content-muted);
   border-bottom: none;
+}
+
+.documentPanel .tab:hover,
+.floatingDocumentTabStrip .tab:hover {
+  background: var(--shift-200);
 }
 
 .tabDraggable {
@@ -508,6 +664,10 @@
   height: 100%;
   object-fit: cover;
   object-position: center 45%;
+}
+
+.viewport:has(> img[data-name='ClientSim']) {
+  background: #000;
 }
 
 .viewport img[data-name='ClientSim'] {
@@ -868,7 +1028,8 @@
   min-height: 0;
   max-height: var(--studio-right-docked-panel-height);
   pointer-events: auto;
-  border-radius: 4px;
+  border-radius: 12px;
+  overflow: hidden;
   box-shadow:
     0 0 0 1px var(--stroke-default),
     0 8px 24px rgba(0, 0, 0, 0.35);
@@ -885,6 +1046,10 @@
 
 .frame[data-floating-window-dragging] {
   cursor: grabbing;
+}
+
+.frame[data-floating-panels] {
+  overflow: visible;
 }
 
 .frame[data-floating-window-dragging] * {
@@ -952,7 +1117,8 @@
   flex-direction: column;
   min-height: 0;
   pointer-events: auto;
-  border-radius: 4px;
+  border-radius: 12px;
+  overflow: hidden;
   box-shadow:
     0 0 0 1px var(--stroke-default),
     0 8px 24px rgba(0, 0, 0, 0.35);
@@ -973,6 +1139,14 @@
   display: flex;
   flex-direction: column;
   background: var(--surface-100, #191a1f);
+}
+
+.floatingDocumentStack {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .floatingDocumentTabStrip {

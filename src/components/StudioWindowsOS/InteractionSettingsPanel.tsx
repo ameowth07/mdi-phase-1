@@ -27,6 +27,12 @@ export type InteractionSettingsPanelProps = {
   /** Active document tab — 1px top edge stroke (semantic hue when Has semantic stroke is on). */
   tabStroke: boolean
   onTabStrokeChange: (value: boolean) => void
+  /** Active document tab — extend focus stroke to left and right (requires Tab stroke top edge). */
+  tabStrokeAllEdges: boolean
+  onTabStrokeAllEdgesChange: (value: boolean) => void
+  /** Active tab — top/left/right stroke only; panel content connects below (requires Tab stroke top edge). */
+  tabStrokeConnected: boolean
+  onTabStrokeConnectedChange: (value: boolean) => void
   /** Explorer header: plain “Explorer” only — no pills, dots, or title suffixes. */
   explorerNoBadge: boolean
   onExplorerNoBadgeChange: (value: boolean) => void
@@ -54,6 +60,9 @@ export type InteractionSettingsPanelProps = {
   /** Footer background uses focused datamodel hue (Explorer selection tint colors). */
   footerTint: boolean
   onFooterTintChange: (value: boolean) => void
+  /** Active Client / Server document tab — filled background (#02223B / #032609). */
+  tabTint: boolean
+  onTabTintChange: (value: boolean) => void
   /** Test mode: Client and Server as two columns instead of one tabbed document. */
   splitView: boolean
   onSplitViewChange: (value: boolean) => void
@@ -142,6 +151,10 @@ export default function InteractionSettingsPanel({
   onHasFocusStrokeChange,
   tabStroke,
   onTabStrokeChange,
+  tabStrokeAllEdges,
+  onTabStrokeAllEdgesChange,
+  tabStrokeConnected,
+  onTabStrokeConnectedChange,
   explorerNoBadge,
   onExplorerNoBadgeChange,
   explorerFocusBadge,
@@ -160,6 +173,8 @@ export default function InteractionSettingsPanel({
   onSelectionTintChange,
   footerTint,
   onFooterTintChange,
+  tabTint,
+  onTabTintChange,
   splitView,
   onSplitViewChange,
   toggleOpensDmIfClosed,
@@ -184,7 +199,7 @@ export default function InteractionSettingsPanel({
   onReset,
 }: InteractionSettingsPanelProps) {
   const [colorOperatorsOpen, setColorOperatorsOpen] = useState(false)
-  const [miscOpen, setMiscOpen] = useState(false)
+  const [miscOpen, setMiscOpen] = useState(true)
   const badgeOptionsDisabled = explorerNoBadge
 
   const hueSliderRef = useRef<HTMLInputElement>(null)
@@ -242,7 +257,7 @@ export default function InteractionSettingsPanel({
 
   return (
     <div className={css.root} data-name="ThemeSettings">
-      <section className={css.collapsible}>
+      <section className={`${css.collapsible} ${css.colorOperatorsSection}`}>
         <button
           type="button"
           className={css.collapsibleHeader}
@@ -399,7 +414,7 @@ export default function InteractionSettingsPanel({
         ) : null}
       </section>
 
-      <section className={css.collapsible}>
+      <section className={`${css.collapsible} ${css.focusSettingsSection}`}>
         <button
           type="button"
           className={css.collapsibleHeader}
@@ -589,7 +604,7 @@ export default function InteractionSettingsPanel({
                     type="button"
                     role="checkbox"
                     aria-checked={tabStroke}
-                    aria-label="Tab stroke"
+                    aria-label="Tab stroke top edge"
                     className={`${css.checkboxBtn} ${tabStroke ? css.checkboxBtnChecked : ''}`}
                     onClick={() => onTabStrokeChange(!tabStroke)}
                   >
@@ -597,7 +612,45 @@ export default function InteractionSettingsPanel({
                       <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
                     ) : null}
                   </button>
-                  <span className={css.label}>Tab stroke</span>
+                  <span className={css.label}>Tab stroke top edge</span>
+                </div>
+                <div className={css.row}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={tabStrokeAllEdges}
+                    aria-label="Tab stroke all edges"
+                    aria-disabled={!tabStroke}
+                    disabled={!tabStroke}
+                    className={`${css.checkboxBtn} ${
+                      tabStrokeAllEdges ? css.checkboxBtnChecked : ''
+                    }`}
+                    onClick={() => onTabStrokeAllEdgesChange(!tabStrokeAllEdges)}
+                  >
+                    {tabStrokeAllEdges ? (
+                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                    ) : null}
+                  </button>
+                  <span className={css.label}>Tab stroke all edges</span>
+                </div>
+                <div className={css.row}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={tabStrokeConnected}
+                    aria-label="Tab stroke connected"
+                    aria-disabled={!tabStroke}
+                    disabled={!tabStroke}
+                    className={`${css.checkboxBtn} ${
+                      tabStrokeConnected ? css.checkboxBtnChecked : ''
+                    }`}
+                    onClick={() => onTabStrokeConnectedChange(!tabStrokeConnected)}
+                  >
+                    {tabStrokeConnected ? (
+                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                    ) : null}
+                  </button>
+                  <span className={css.label}>Tab stroke connected</span>
                 </div>
               </div>
               <section className={css.subgroup} aria-labelledby="interaction-tints-heading">
@@ -664,6 +717,26 @@ export default function InteractionSettingsPanel({
                       ) : null}
                     </button>
                     <span className={css.label}>Footer tint</span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={tabTint}
+                      aria-label="Tab tint"
+                      className={`${css.checkboxBtn} ${tabTint ? css.checkboxBtnChecked : ''}`}
+                      onClick={() => onTabTintChange(!tabTint)}
+                    >
+                      {tabTint ? (
+                        <Check
+                          size={10}
+                          strokeWidth={2.75}
+                          className={css.checkboxMark}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Tab tint</span>
                   </div>
                 </div>
               </section>

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode, RefObject } from 'react'
-import { SquareArrowOutUpRight } from 'lucide-react'
+import { publicAssetUrl } from '../../publicAssetUrl'
 import type { FloatingDocumentPosition } from './floatingDocument'
 import { useFloatingDocumentDrag } from './useFloatingDocumentDrag'
 import styles from './StudioWindowsOS.module.css'
@@ -9,7 +9,7 @@ export type FloatingDocumentWindowProps = {
   title: string
   position: FloatingDocumentPosition | null
   onPositionChange: (position: FloatingDocumentPosition) => void
-  onDock: () => void
+  onClose?: () => void
   titleAlign?: 'center' | 'left'
   children: ReactNode
 }
@@ -19,7 +19,7 @@ export default function FloatingDocumentWindow({
   title,
   position,
   onPositionChange,
-  onDock,
+  onClose,
   titleAlign = 'center',
   children,
 }: FloatingDocumentWindowProps) {
@@ -51,22 +51,18 @@ export default function FloatingDocumentWindow({
         >
           <header className={styles.panelHeader}>
             <span className={`${styles.panelTitle} ${titleAlignClass}`}>{title}</span>
-            <div className={styles.panelActions}>
-              <button
-                type="button"
-                className={styles.panelAction}
-                aria-label="Dock document"
-                onClick={onDock}
-              >
-                <SquareArrowOutUpRight
-                  size={12}
-                  strokeWidth={1.35}
-                  className={styles.panelPopoutIcon}
-                  style={{ transform: 'scale(-1, -1)' }}
-                  aria-hidden
-                />
-              </button>
-            </div>
+            {onClose ? (
+              <div className={styles.panelActions}>
+                <button
+                  type="button"
+                  className={styles.panelAction}
+                  aria-label="Close panel"
+                  onClick={onClose}
+                >
+                  <img src={publicAssetUrl('assets/panel-close-x-2.svg')} alt="" />
+                </button>
+              </div>
+            ) : null}
           </header>
         </div>
         <div className={styles.floatingDocumentBody}>{children}</div>
