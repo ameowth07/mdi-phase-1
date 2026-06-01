@@ -7,6 +7,7 @@ import {
   Folder,
   Globe,
   LayoutGrid,
+  Music,
   RefreshCw,
   RotateCcw,
   Search,
@@ -59,8 +60,7 @@ const ASSET_ROWS: AssetRow[] = [
     type: 'Model',
     dateModified: '12 June 2024',
     thumb: 'model',
-    thumbUrl:
-      'https://www.figma.com/api/mcp/asset/856d2cda-f9b9-43ba-a73e-12e7a3ace597',
+    thumbUrl: publicAssetUrl('assets/asset-isolation.jpg'),
   },
   {
     id: 'building',
@@ -69,8 +69,7 @@ const ASSET_ROWS: AssetRow[] = [
     type: 'Model',
     dateModified: '12 June 2024',
     thumb: 'model',
-    thumbUrl:
-      'https://www.figma.com/api/mcp/asset/1d422731-a162-42a3-8085-029753bf7166',
+    thumbUrl: publicAssetUrl('assets/asset-isolation-selected.jpg'),
   },
   {
     id: 'bird',
@@ -87,8 +86,7 @@ const ASSET_ROWS: AssetRow[] = [
     type: 'Model',
     dateModified: '12 June 2024',
     thumb: 'model',
-    thumbUrl:
-      'https://www.figma.com/api/mcp/asset/4f59a2fd-e4c2-42e8-ba80-935bfec74813',
+    thumbUrl: publicAssetUrl('assets/Model.png'),
   },
   {
     id: 'city',
@@ -150,10 +148,17 @@ function assetRowClass(rowId: string, hoveredId: string | null, selectedId: stri
 }
 
 function AssetThumb({ row }: { row: AssetRow }) {
-  if (row.thumbUrl) {
+  if (row.thumb === 'model' && row.thumbUrl) {
     return (
       <span className={css.thumb}>
         <img src={row.thumbUrl} alt="" />
+      </span>
+    )
+  }
+  if (row.thumb === 'audio') {
+    return (
+      <span className={css.thumb}>
+        <Music size={14} strokeWidth={1.5} aria-hidden />
       </span>
     )
   }
