@@ -73,12 +73,31 @@
   align-items: center;
   gap: 6px;
   width: 72px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: #fff;
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 11px;
   line-height: 1.25;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  cursor: default;
+}
+
+button.desktopIcon {
+  pointer-events: auto;
+}
+
+button.desktopIcon:hover .iconGlyph {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+button.desktopIcon:focus-visible {
+  outline: 2px solid #60cdff;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .iconGlyph {

@@ -1,7 +1,9 @@
 import { useCallback, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import DesktopEnvironment from './components/DesktopEnvironment/DesktopEnvironment'
+import PhaseEntryScreen from './components/PhaseEntryScreen/PhaseEntryScreen'
 import StudioWindowsOS from './components/StudioWindowsOS/StudioWindowsOS'
+import type { StudioPhase } from './studioPhase'
 import styles from './App.module.css'
 
 const MAIN_SLOT = 'main' as const
@@ -13,6 +15,7 @@ type WindowOffset = {
 }
 
 export default function App() {
+  const [studioLaunch, setStudioLaunch] = useState<StudioPhase | null>(null)
   const [assetWindowIds, setAssetWindowIds] = useState<string[]>([])
   const [foregroundKey, setForegroundKey] = useState<typeof MAIN_SLOT | string>(MAIN_SLOT)
   const [windowOffsets, setWindowOffsets] = useState<Record<string, WindowOffset>>({
@@ -93,11 +96,23 @@ export default function App() {
     [],
   )
   const mainOffset = windowOffsets[MAIN_SLOT] ?? { x: 0, y: 0 }
+  const showPhaseEntry = studioLaunch === null
+
+  const openDocumentsLauncher = useCallback(() => {
+    setStudioLaunch(null)
+    setForegroundKey(MAIN_SLOT)
+  }, [])
 
   return (
-    <DesktopEnvironment studioTaskbarActive={foregroundKey === MAIN_SLOT}>
+    <DesktopEnvironment
+      studioTaskbarActive={!showPhaseEntry && foregroundKey === MAIN_SLOT}
+      onDocumentsOpen={openDocumentsLauncher}
+    >
       <div className={styles.appShell}>
-        <div className={styles.windowLayer}>
+        {showPhaseEntry ? (
+          <PhaseEntryScreen onSelect={setStudioLaunch} />
+        ) : (
+          <div className={styles.windowLayer}>
           <div
             className={styles.slot}
             style={{
@@ -107,6 +122,8 @@ export default function App() {
             onPointerDownCapture={() => setForegroundKey(MAIN_SLOT)}
           >
             <StudioWindowsOS
+              key={studioLaunch}
+              studioPhase={studioLaunch}
               onOpenAssetWindow={openAssetWindow}
               onWindowChromePointerDown={startWindowDrag(MAIN_SLOT)}
               windowDragOffset={mainOffset}
@@ -125,6 +142,8 @@ export default function App() {
                 onPointerDownCapture={() => setForegroundKey(id)}
               >
                 <StudioWindowsOS
+                  key={`${id}-${studioLaunch}`}
+                  studioPhase={studioLaunch}
                   frameVariant="bunny"
                   onCloseFrame={() => closeAssetWindow(id)}
                   onWindowChromePointerDown={startWindowDrag(id)}
@@ -133,7 +152,8 @@ export default function App() {
               </div>
             )
           })}
-        </div>
+          </div>
+        )}
       </div>
     </DesktopEnvironment>
   )

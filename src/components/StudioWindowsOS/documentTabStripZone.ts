@@ -1,4 +1,9 @@
 import type { EditIsolationTabId, MainScriptTabId, SimDocumentStripTab } from './documentTabClose'
+import {
+  isSimPlaceServerTab,
+  placeIdFromPlaceServerTab,
+  simPlaceServerTabId,
+} from './placeServerTabs'
 import { isSimClientInstanceId } from './simMultiClient'
 import { reorderVisibleTabs } from './documentTabReorder'
 
@@ -16,6 +21,7 @@ export type CombinedTabKey =
 export type PersistentTabKey =
   | `dm:${SimViewportFocus}`
   | `dm:client-${number}`
+  | `dm:place-server:${string}`
   | `script:${MainScriptTabId}`
   | `iso:${EditIsolationTabId}`
 
@@ -48,7 +54,36 @@ export function isoPersistentKey(id: EditIsolationTabId): PersistentTabKey {
 export function simStripTabToPersistent(tab: SimDocumentStripTab): PersistentTabKey {
   if (tab === 'client' || tab === 'server') return dmPersistentKey(tab)
   if (isSimClientInstanceId(tab)) return `dm:${tab}`
+  if (isSimPlaceServerTab(tab)) {
+    return `dm:place-server:${placeIdFromPlaceServerTab(tab)}`
+  }
   return scriptPersistentKey(tab)
+}
+
+/** Insert joined-place Server tab key immediately after Client in combined-zone order. */
+export function insertPlaceServerPersistentKeyAfterClient(
+  keys: readonly PersistentTabKey[],
+  placeId: string,
+): PersistentTabKey[] {
+  const key = `dm:place-server:${placeId}` as PersistentTabKey
+  const next = keys.filter((k) => k !== key)
+  const clientIdx = next.indexOf('dm:client')
+  const anchorIdx =
+    clientIdx >= 0
+      ? clientIdx
+      : (() => {
+          let last = -1
+          for (let i = 0; i < next.length; i++) {
+            if (/^dm:client-\d+$/.test(next[i]!)) last = i
+          }
+          return last
+        })()
+  if (anchorIdx < 0) return [...next, key]
+  let insertAt = anchorIdx + 1
+  while (insertAt < next.length && next[insertAt]!.startsWith('dm:place-server:')) {
+    insertAt += 1
+  }
+  return [...next.slice(0, insertAt), key, ...next.slice(insertAt)]
 }
 
 export function isPersistentTabKey(value: string): value is PersistentTabKey {
@@ -79,6 +114,9 @@ export function persistentToCombined(
     const dmId = key.slice(3)
     if (dmId === 'client' || dmId === 'server') return simTabKey(dmId)
     if (isSimClientInstanceId(dmId)) return simTabKey(dmId)
+    if (dmId.startsWith('place-server:')) {
+      return simTabKey(simPlaceServerTabId(dmId.slice('place-server:'.length)))
+    }
     return null
   }
   if (key.startsWith('script:')) {
@@ -243,6 +281,9 @@ function simTabsFromPersistentKeys(keys: readonly PersistentTabKey[]): SimDocume
         const dmId = k.slice(3)
         if (dmId === 'client' || dmId === 'server') return dmId
         if (isSimClientInstanceId(dmId)) return dmId
+        if (dmId.startsWith('place-server:')) {
+          return simPlaceServerTabId(dmId.slice('place-server:'.length))
+        }
         return null
       }
       if (k.startsWith('script:')) return k.slice(7) as MainScriptTabId
@@ -278,7 +319,10 @@ export function syncScriptOrderFromSimOrder(
 ): MainScriptTabId[] {
   const openScripts = simOrder.filter(
     (t): t is MainScriptTabId =>
-      t !== 'client' && t !== 'server' && !isSimClientInstanceId(t),
+      t !== 'client' &&
+      t !== 'server' &&
+      !isSimClientInstanceId(t) &&
+      !isSimPlaceServerTab(t),
   )
   return mergeOpenTabOrder(scriptOrder, openScripts)
 }
@@ -289,7 +333,11 @@ export function syncSimOrderFromScriptOrder(
   scriptOrder: readonly MainScriptTabId[],
 ): SimDocumentStripTab[] {
   const dmTabs = simOrder.filter(
-    (t) => t === 'client' || t === 'server' || isSimClientInstanceId(t),
+    (t) =>
+      t === 'client' ||
+      t === 'server' ||
+      isSimClientInstanceId(t) ||
+      isSimPlaceServerTab(t),
   )
   return mergeOpenTabOrder(simOrder, [...dmTabs, ...scriptOrder])
 }
@@ -445,7 +493,10 @@ export function reconcileCombinedZoneKeys(
 
   const openKeys = new Set([...defaultMain, ...defaultIso])
   const main = (mainNorm ?? []).filter(
-    (k) => openKeys.has(k) || isSessionClientInstancePersistentKey(k),
+    (k) =>
+      openKeys.has(k) ||
+      isSessionClientInstancePersistentKey(k) ||
+      k.startsWith('dm:place-server:'),
   )
   const iso = (isoNorm ?? []).filter((k) => openKeys.has(k))
   const assigned = new Set<PersistentTabKey>([...main, ...iso])

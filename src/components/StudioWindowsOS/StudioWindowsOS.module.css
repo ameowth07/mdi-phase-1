@@ -666,12 +666,24 @@
   object-position: center 45%;
 }
 
-.viewport:has(> img[data-name='ClientSim']) {
+.viewport:has([data-name='ClientSim']),
+.viewport:has([data-name='Level1ClientSim']),
+.viewport:has([data-client-device-frame]) {
   background: #000;
 }
 
-.viewport img[data-name='ClientSim'] {
+.viewport [data-name='ClientSim'] {
   object-fit: contain;
+  object-position: center center;
+}
+
+.viewport [data-client-device-frame] {
+  width: 100%;
+  height: 100%;
+}
+
+.viewport [data-name='Level1ClientSim'] {
+  object-fit: cover;
   object-position: center center;
 }
 

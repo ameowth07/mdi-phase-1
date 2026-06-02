@@ -1,3 +1,4 @@
+import type { SimPlaceServerTabId } from './placeServerTabs'
 import type { MainDocumentEditorTab, SimViewportFocus } from './prototypeDefaults'
 
 /** Ordered closable tabs after the primary document tab in a strip. */
@@ -14,7 +15,11 @@ export type MainScriptTabId = (typeof MAIN_SCRIPT_TAB_ORDER)[number]
 export type SimClientInstanceId = `client-${number}`
 
 /** Test-mode document strip: Client / Server datamodel tabs and script tabs. */
-export type SimDocumentStripTab = SimViewportFocus | MainScriptTabId | SimClientInstanceId
+export type SimDocumentStripTab =
+  | SimViewportFocus
+  | MainScriptTabId
+  | SimClientInstanceId
+  | SimPlaceServerTabId
 
 export function insertStripTabAfterAnchor(
   order: SimDocumentStripTab[],

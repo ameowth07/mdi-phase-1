@@ -3,6 +3,7 @@ import type {
   SimClientInstanceId,
   SimDocumentStripTab,
 } from './documentTabClose'
+import { isSimPlaceServerTab } from './placeServerTabs'
 
 export type { SimClientInstanceId } from './documentTabClose'
 
@@ -171,7 +172,13 @@ export function resolvePlaySessionFocus(
   sessionStripTab: SimDocumentStripTab,
 ): { focus: 'client' | 'server'; stripTab: SimDocumentStripTab } {
   if (order.includes(sessionStripTab)) {
-    return { focus: sessionFocus, stripTab: sessionStripTab }
+    const focus =
+      sessionStripTab === 'server' ||
+      isSimPlaceServerTab(sessionStripTab) ||
+      sessionFocus === 'server'
+        ? 'server'
+        : 'client'
+    return { focus, stripTab: sessionStripTab }
   }
   if (order.includes('server')) {
     return { focus: 'server', stripTab: 'server' }

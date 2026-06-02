@@ -8,6 +8,8 @@ import {
   type SurfacePresetId,
   type ThemeSliderElements,
 } from './themeColorOperators'
+import type { StudioPhase } from '../../studioPhase'
+import { isPhase2 } from '../../studioPhase'
 
 const SURFACE_PRESET_BUTTONS: { id: SurfacePresetId; label: string }[] = [
   { id: 150, label: 'Surface_150' },
@@ -101,6 +103,17 @@ export type InteractionSettingsPanelProps = {
   bunnyAssetWindow?: boolean
   /** Restore prototype settings and color operators to current defaults. */
   onReset?: () => void
+  /** When on, place servers joined in test stay open as edit place documents after stop. */
+  serversPersistIntoEdit?: boolean
+  onServersPersistIntoEditChange?: (value: boolean) => void
+  /** Test Server tab label uses place display name instead of `Server`. */
+  serverTabUsesPlaceName?: boolean
+  onServerTabUsesPlaceNameChange?: (value: boolean) => void
+  /** Test Client tab label uses `Client / {place}` instead of `Client`. */
+  clientTabUsesPlaceName?: boolean
+  onClientTabUsesPlaceNameChange?: (value: boolean) => void
+  /** Phase 2 workspace experiments (hidden in Phase 1 baseline). */
+  studioPhase?: StudioPhase
 }
 
 const SLIDER_TICK_VALUES = {
@@ -197,7 +210,16 @@ export default function InteractionSettingsPanel({
   testingMode = false,
   bunnyAssetWindow,
   onReset,
+  serversPersistIntoEdit = true,
+  onServersPersistIntoEditChange,
+  serverTabUsesPlaceName = true,
+  onServerTabUsesPlaceNameChange,
+  clientTabUsesPlaceName = false,
+  onClientTabUsesPlaceNameChange,
+  studioPhase = 2,
 }: InteractionSettingsPanelProps) {
+  const phase2 = isPhase2(studioPhase)
+  const [gameEditorExperimentsOpen, setGameEditorExperimentsOpen] = useState(true)
   const [colorOperatorsOpen, setColorOperatorsOpen] = useState(false)
   const [miscOpen, setMiscOpen] = useState(true)
   const badgeOptionsDisabled = explorerNoBadge
@@ -257,6 +279,94 @@ export default function InteractionSettingsPanel({
 
   return (
     <div className={css.root} data-name="ThemeSettings">
+      {phase2 ? (
+        <section className={`${css.collapsible} ${css.gameEditorExperimentsSection}`}>
+          <button
+            type="button"
+            className={css.collapsibleHeader}
+            aria-expanded={gameEditorExperimentsOpen}
+            aria-controls="prototype-settings-game-editor-experiments"
+            id="prototype-game-editor-experiments-heading"
+            onClick={() => setGameEditorExperimentsOpen((open) => !open)}
+          >
+            <ChevronRight
+              size={12}
+              strokeWidth={2}
+              className={`${css.collapsibleChevron} ${gameEditorExperimentsOpen ? css.collapsibleChevronOpen : ''}`}
+              aria-hidden
+            />
+            <span className={css.collapsibleTitle}>Game editor experiments</span>
+          </button>
+          {gameEditorExperimentsOpen ? (
+            <div
+              id="prototype-settings-game-editor-experiments"
+              className={css.collapsibleBody}
+              role="region"
+              aria-labelledby="prototype-game-editor-experiments-heading"
+            >
+              <section className={css.group} aria-labelledby="game-editor-experiments-heading">
+                <h2 id="game-editor-experiments-heading" className={css.groupLabel}>
+                  Test → edit
+                </h2>
+                <div className={css.options}>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={serversPersistIntoEdit}
+                      aria-label="Servers persist into edit"
+                      className={`${css.checkboxBtn} ${serversPersistIntoEdit ? css.checkboxBtnChecked : ''}`}
+                      onClick={() =>
+                        onServersPersistIntoEditChange?.(!serversPersistIntoEdit)
+                      }
+                    >
+                      {serversPersistIntoEdit ? (
+                        <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Servers persist into edit</span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={serverTabUsesPlaceName}
+                      aria-label="Server tab = place name"
+                      className={`${css.checkboxBtn} ${serverTabUsesPlaceName ? css.checkboxBtnChecked : ''}`}
+                      onClick={() =>
+                        onServerTabUsesPlaceNameChange?.(!serverTabUsesPlaceName)
+                      }
+                    >
+                      {serverTabUsesPlaceName ? (
+                        <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Server tab = place name</span>
+                  </div>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={clientTabUsesPlaceName}
+                      aria-label="Client tab = Client / place name"
+                      className={`${css.checkboxBtn} ${clientTabUsesPlaceName ? css.checkboxBtnChecked : ''}`}
+                      onClick={() =>
+                        onClientTabUsesPlaceNameChange?.(!clientTabUsesPlaceName)
+                      }
+                    >
+                      {clientTabUsesPlaceName ? (
+                        <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Client tab = Client / {'{place name}'}</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className={`${css.collapsible} ${css.colorOperatorsSection}`}>
         <button
           type="button"

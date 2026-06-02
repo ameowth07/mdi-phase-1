@@ -5,9 +5,9 @@ import css from './DesktopEnvironment.module.css'
 const STUDIO_TASKBAR_ICON = publicAssetUrl('assets/roblox-studio-taskbar-icon.png')
 
 const DESKTOP_ICONS = [
-  { glyph: '🗑️', label: 'Recycle Bin' },
-  { glyph: '💻', label: 'This PC' },
-  { glyph: '📁', label: 'Documents' },
+  { glyph: '🗑️', label: 'Recycle Bin', opensLauncher: false },
+  { glyph: '💻', label: 'This PC', opensLauncher: false },
+  { glyph: '📁', label: 'Documents', opensLauncher: true },
 ] as const
 
 function formatTaskbarClock(date: Date): string {
@@ -27,11 +27,14 @@ export type DesktopEnvironmentProps = {
   children: ReactNode
   /** Highlight the Studio taskbar pill (main prototype window focused). */
   studioTaskbarActive?: boolean
+  /** Desktop Documents folder — reopen the phase picker. */
+  onDocumentsOpen?: () => void
 }
 
 export default function DesktopEnvironment({
   children,
   studioTaskbarActive = true,
+  onDocumentsOpen,
 }: DesktopEnvironmentProps) {
   const [clock, setClock] = useState(() => formatTaskbarClock(new Date()))
 
@@ -47,13 +50,26 @@ export default function DesktopEnvironment({
       <div className={css.monitor} role="presentation">
         <div className={css.screen}>
           <div className={css.wallpaper} aria-hidden />
-          <div className={css.iconColumn} aria-hidden>
-            {DESKTOP_ICONS.map(({ glyph, label }) => (
-              <div key={label} className={css.desktopIcon}>
-                <span className={css.iconGlyph}>{glyph}</span>
-                <span>{label}</span>
-              </div>
-            ))}
+          <div className={css.iconColumn}>
+            {DESKTOP_ICONS.map(({ glyph, label, opensLauncher }) =>
+              opensLauncher && onDocumentsOpen ? (
+                <button
+                  key={label}
+                  type="button"
+                  className={css.desktopIcon}
+                  onClick={onDocumentsOpen}
+                  aria-label={`${label} — choose Studio prototype phase`}
+                >
+                  <span className={css.iconGlyph}>{glyph}</span>
+                  <span>{label}</span>
+                </button>
+              ) : (
+                <div key={label} className={css.desktopIcon} aria-hidden>
+                  <span className={css.iconGlyph}>{glyph}</span>
+                  <span>{label}</span>
+                </div>
+              ),
+            )}
           </div>
           <div className={css.windowLayer}>{children}</div>
           <footer className={css.taskbar} aria-label="Windows taskbar">

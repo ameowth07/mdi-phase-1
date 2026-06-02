@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import type { PointerEvent, ReactNode } from 'react'
 import type { DockPanelId, DockZoneId, PanelStackState } from './panelDock'
-import PanelDockStack from './PanelDockStack'
+import PanelDockStack, { type PanelDockStackProps } from './PanelDockStack'
 import dockStyles from './PanelDock.module.css'
 import styles from './StudioWindowsOS.module.css'
 
@@ -10,7 +10,13 @@ export type PanelDockZoneProps = {
   onStacksChange: (stacks: PanelStackState[]) => void
   isDropTarget: (target: { kind: 'new-stack'; zone: DockZoneId; stackIndex: number }) => boolean
   isMergeDropTarget: (zone: DockZoneId, stackIndex: number) => boolean
-  renderPanel: (panelId: DockPanelId, ctx: { tabbed: boolean }) => ReactNode
+  renderPanel: (
+    panelId: DockPanelId,
+    ctx: { tabbed: boolean; placeDocumentTabStripInDock: boolean },
+  ) => ReactNode
+  resolvePlaceDisplayName?: (placeId: string) => string | undefined
+  renderPlaceDocumentTab?: PanelDockStackProps['renderPlaceDocumentTab']
+  onPlaceTabStripPointerDown?: (e: PointerEvent<HTMLElement>) => void
   className?: string
 }
 
@@ -21,6 +27,9 @@ export default function PanelDockZone({
   isDropTarget,
   isMergeDropTarget,
   renderPanel,
+  resolvePlaceDisplayName,
+  renderPlaceDocumentTab,
+  onPlaceTabStripPointerDown,
   className,
 }: PanelDockZoneProps) {
   const zoneClass =
@@ -58,6 +67,9 @@ export default function PanelDockZone({
             onStackChange={(s) => updateStack(stackIndex, s)}
             mergeDropActive={isMergeDropTarget(zone, stackIndex)}
             renderPanel={renderPanel}
+            resolvePlaceDisplayName={resolvePlaceDisplayName}
+            renderPlaceDocumentTab={renderPlaceDocumentTab}
+            onPlaceTabStripPointerDown={onPlaceTabStripPointerDown}
             fixedHeight={
               stack.tabs.length === 1 && stack.tabs[0] === 'prototypeSettings'
             }

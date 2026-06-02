@@ -174,6 +174,7 @@ export type AssetManagerPanelProps = {
   fillDock?: boolean
   titleAlign?: 'left' | 'center'
   hideHeader?: boolean
+  onClose?: () => void
   onHeaderPointerDown?: (e: React.PointerEvent<HTMLElement>) => void
 }
 
@@ -181,6 +182,7 @@ export default function AssetManagerPanel({
   fillDock = false,
   titleAlign = 'center',
   hideHeader = false,
+  onClose,
   onHeaderPointerDown,
 }: AssetManagerPanelProps) {
   const [selectedSidebarId, setSelectedSidebarId] = useState('folder-selected')
@@ -219,7 +221,12 @@ export default function AssetManagerPanel({
               aria-hidden
             />
           </button>
-          <button type="button" className={css.headerBtn} aria-label="Close panel">
+          <button
+            type="button"
+            className={css.headerBtn}
+            aria-label="Close panel"
+            onClick={onClose}
+          >
             <img src={publicAssetUrl('assets/panel-close.svg')} alt="" />
           </button>
         </div>

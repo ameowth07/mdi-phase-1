@@ -1,18 +1,46 @@
+import {
+  DEFAULT_OPEN_PLACE_DOCK_PLACE_IDS,
+  isPlaceDockPanelId,
+  placeDockPanelId,
+  placeIdFromDockPanel,
+  type PlaceDockPanelId,
+} from './placeDockPanels'
+
+export type { PlaceDockPanelId } from './placeDockPanels'
+
 export type DockPanelId =
   | 'explorer'
   | 'properties'
   | 'prototypeSettings'
   | 'output'
   | 'assetManager'
+  | PlaceDockPanelId
 
 export type DockZoneId = 'right' | 'bottom'
 
-export const PANEL_DOCK_LABELS: Record<DockPanelId, string> = {
+const STATIC_PANEL_DOCK_LABELS = {
   explorer: 'Explorer',
   properties: 'Properties',
   prototypeSettings: 'Prototype settings',
   output: 'Output',
   assetManager: 'Asset Manager',
+} as const satisfies Record<Exclude<DockPanelId, PlaceDockPanelId>, string>
+
+/** @deprecated Use `panelDockLabel` for place dock tabs. */
+export const PANEL_DOCK_LABELS: Record<string, string> = {
+  ...STATIC_PANEL_DOCK_LABELS,
+  'place:level-1': 'Level 1',
+}
+
+export function panelDockLabel(
+  panelId: DockPanelId,
+  resolvePlaceDisplayName?: (placeId: string) => string | undefined,
+): string {
+  if (isPlaceDockPanelId(panelId)) {
+    const name = resolvePlaceDisplayName?.(placeIdFromDockPanel(panelId))
+    return name ?? placeIdFromDockPanel(panelId)
+  }
+  return STATIC_PANEL_DOCK_LABELS[panelId]
 }
 
 export type PanelStackState = {
@@ -41,6 +69,11 @@ export function createPanelStack(
 
 export type PanelDockLayoutOptions = {
   outputPanelOpen: boolean
+  assetManagerPanelOpen?: boolean
+  /** Place ids with a bottom-dock document (default Level 1). */
+  openPlaceDockPlaceIds?: readonly string[]
+  /** Order for `openPlaceDockPlaceIds` when building default layout tabs. */
+  serverPlaceOrder?: readonly string[]
   hideExplorer: boolean
   hideProperties: boolean
 }
@@ -57,13 +90,21 @@ export function createDefaultPanelDockLayout(
   }
   right.push(createPanelStack(['prototypeSettings']))
 
-  const bottomTabs: DockPanelId[] = options.outputPanelOpen
-    ? ['output', 'assetManager']
-    : ['assetManager']
+  const openPlaceIds =
+    options.openPlaceDockPlaceIds ?? [...DEFAULT_OPEN_PLACE_DOCK_PLACE_IDS]
+  const placeOrder = options.serverPlaceOrder ?? [...openPlaceIds]
+  const bottomTabs: DockPanelId[] = []
+  if (options.outputPanelOpen) bottomTabs.push('output')
+  for (const placeId of placeOrder) {
+    if (openPlaceIds.includes(placeId)) bottomTabs.push(placeDockPanelId(placeId))
+  }
 
   return {
     right,
-    bottom: [createPanelStack(bottomTabs, bottomTabs[0]!)],
+    bottom:
+      bottomTabs.length > 0
+        ? [createPanelStack(bottomTabs, bottomTabs[0]!)]
+        : [],
   }
 }
 
@@ -279,11 +320,13 @@ export function syncOutputPanelInLayout(
     return next
   }
 
-  const bottomLoc = findPanelLocation(layout, 'assetManager')
+  const bottomLoc =
+    findFirstBottomPanelLocation(layout, ['output']) ??
+    findFirstPlaceDockLocation(layout)
   if (bottomLoc == null) {
     return {
       ...layout,
-      bottom: [...layout.bottom, createPanelStack(['output', 'assetManager'], 'output')],
+      bottom: [...layout.bottom, createPanelStack(['output'], 'output')],
     }
   }
 
@@ -293,12 +336,172 @@ export function syncOutputPanelInLayout(
   }
   const stack = next.bottom[bottomLoc.stackIndex]!
   if (!stack.tabs.includes('output')) {
-    const assetIdx = stack.tabs.indexOf('assetManager')
-    const insertAt = assetIdx >= 0 ? assetIdx : stack.tabs.length
+    const firstPlaceIdx = stack.tabs.findIndex((t) => isPlaceDockPanelId(t))
+    const insertAt = firstPlaceIdx >= 0 ? firstPlaceIdx : stack.tabs.length
     stack.tabs.splice(insertAt, 0, 'output')
   }
   stack.activeTab = 'output'
   return next
+}
+
+function removePanelFromLayout(
+  layout: PanelDockLayoutState,
+  panelId: DockPanelId,
+): PanelDockLayoutState {
+  const next: PanelDockLayoutState = {
+    right: layout.right.map((s) => ({ ...s, tabs: [...s.tabs] })),
+    bottom: layout.bottom.map((s) => ({ ...s, tabs: [...s.tabs] })),
+  }
+  for (const zone of ['right', 'bottom'] as const) {
+    for (const stack of next[zone]) {
+      const idx = stack.tabs.indexOf(panelId)
+      if (idx >= 0) stack.tabs.splice(idx, 1)
+      if (stack.tabs.length > 0 && !stack.tabs.includes(stack.activeTab)) {
+        stack.activeTab = stack.tabs[0]!
+      }
+    }
+    next[zone] = normalizeZone(next[zone])
+  }
+  return next
+}
+
+/**
+ * Asset Manager docks in the right rail (Prototype settings slot), not the bottom dock.
+ * Layout state only strips stale bottom-dock entries; visibility is driven by
+ * `assetManagerPanelOpen` in StudioWindowsOS.
+ */
+export function syncAssetManagerPanelInLayout(
+  layout: PanelDockLayoutState,
+  assetManagerPanelOpen: boolean,
+): PanelDockLayoutState {
+  const loc = findPanelLocation(layout, 'assetManager')
+  if (!assetManagerPanelOpen && loc == null) return layout
+  if (loc?.zone === 'bottom') {
+    return removePanelFromLayout(layout, 'assetManager')
+  }
+  return layout
+}
+
+function findFirstPlaceDockLocation(
+  layout: PanelDockLayoutState,
+): { zone: DockZoneId; stackIndex: number; tabIndex: number } | null {
+  for (const zone of ['bottom', 'right'] as const) {
+    const stacks = layout[zone]
+    for (let stackIndex = 0; stackIndex < stacks.length; stackIndex++) {
+      const tabIndex = stacks[stackIndex]!.tabs.findIndex((t) => isPlaceDockPanelId(t))
+      if (tabIndex >= 0) return { zone, stackIndex, tabIndex }
+    }
+  }
+  return null
+}
+
+function findFirstBottomPanelLocation(
+  layout: PanelDockLayoutState,
+  panelIds: readonly DockPanelId[],
+): { zone: DockZoneId; stackIndex: number; tabIndex: number } | null {
+  for (const panelId of panelIds) {
+    const loc = findPanelLocation(layout, panelId)
+    if (loc?.zone === 'bottom') return loc
+  }
+  return null
+}
+
+function cloneLayout(layout: PanelDockLayoutState): PanelDockLayoutState {
+  return {
+    right: layout.right.map((s) => ({ ...s, tabs: [...s.tabs] })),
+    bottom: layout.bottom.map((s) => ({ ...s, tabs: [...s.tabs] })),
+  }
+}
+
+export function syncPlaceDockPanelsInLayout(
+  layout: PanelDockLayoutState,
+  openPlaceIds: readonly string[],
+  serverPlaceOrder: readonly string[],
+): PanelDockLayoutState {
+  const desiredPanelIds: PlaceDockPanelId[] = []
+  for (const placeId of serverPlaceOrder) {
+    if (openPlaceIds.includes(placeId)) desiredPanelIds.push(placeDockPanelId(placeId))
+  }
+  const desiredPanels = new Set(desiredPanelIds)
+
+  let next = cloneLayout(layout)
+
+  for (const zone of ['right', 'bottom'] as const) {
+    for (const stack of next[zone]) {
+      stack.tabs = stack.tabs.filter(
+        (t) => !isPlaceDockPanelId(t) || desiredPanels.has(t),
+      )
+      if (stack.tabs.length > 0 && !stack.tabs.includes(stack.activeTab)) {
+        stack.activeTab = stack.tabs[0]!
+      }
+    }
+    next[zone] = normalizeZone(next[zone])
+  }
+
+  const missing = [...desiredPanels].filter(
+    (panelId) => findPanelLocation(next, panelId) == null,
+  )
+  if (missing.length === 0) return next
+
+  const outputLoc = findPanelLocation(next, 'output')
+  const insertPanels = (stack: PanelStackState) => {
+    for (const panelId of missing) {
+      if (!stack.tabs.includes(panelId)) {
+        const outputIdx = stack.tabs.indexOf('output')
+        const insertAt = outputIdx >= 0 ? outputIdx + 1 : stack.tabs.length
+        stack.tabs.splice(insertAt, 0, panelId)
+      }
+    }
+    if (missing[0] != null) stack.activeTab = missing[missing.length - 1]!
+  }
+
+  if (outputLoc?.zone === 'bottom') {
+    insertPanels(next.bottom[outputLoc.stackIndex]!)
+    return next
+  }
+
+  if (next.bottom.length > 0) {
+    insertPanels(next.bottom[0]!)
+    return next
+  }
+
+  return {
+    ...next,
+    bottom: [createPanelStack(missing, missing[missing.length - 1]!)],
+  }
+}
+
+/** Select a place document in the bottom dock (e.g. Lobby server / Level 1 on Play). */
+export function focusBottomDockPlaceTab(
+  layout: PanelDockLayoutState,
+  placeId: string,
+): PanelDockLayoutState {
+  const tab = placeDockPanelId(placeId)
+  return {
+    ...layout,
+    bottom: layout.bottom.map((stack) =>
+      stack.tabs.includes(tab) ? { ...stack, activeTab: tab } : stack,
+    ),
+  }
+}
+
+export function syncBottomPanelsInLayout(
+  layout: PanelDockLayoutState,
+  options: {
+    outputPanelOpen: boolean
+    assetManagerPanelOpen: boolean
+    openPlaceDockPlaceIds: readonly string[]
+    serverPlaceOrder: readonly string[]
+  },
+): PanelDockLayoutState {
+  return syncPlaceDockPanelsInLayout(
+    syncAssetManagerPanelInLayout(
+      syncOutputPanelInLayout(layout, options.outputPanelOpen),
+      options.assetManagerPanelOpen,
+    ),
+    options.openPlaceDockPlaceIds,
+    options.serverPlaceOrder,
+  )
 }
 
 export function layoutWithoutPanels(

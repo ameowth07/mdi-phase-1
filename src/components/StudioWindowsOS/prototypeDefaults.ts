@@ -46,9 +46,16 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   clientScriptTabOpen: false,
   serverScriptTabOpen: false,
   simClientTabOpen: true,
+  /** Lobby Server tab in the main test document strip (next to Client). */
   simServerTabOpen: true,
   /** Ribbon Client/Server toggle reopens closed datamodel tabs when switching focus. */
   toggleOpensDmIfClosed: true,
+  /** After test, joined place server views open as bottom-dock place documents in edit. */
+  serversPersistIntoEdit: true,
+  /** Test Server tab label is the place name (`Lobby`) instead of `Server`. */
+  serverTabUsesPlaceName: true,
+  /** Test Client tab label is `Client / {place}` instead of `Client`. */
+  clientTabUsesPlaceName: false,
   isolationTabOpen: true,
   hoverScriptTabOpen: true,
 } as const
