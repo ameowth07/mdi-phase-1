@@ -1,0 +1,36 @@
+.scriptEditor {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 12px 14px 12px 0;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e4e6ed;
+  background: #0d0e12;
+  tab-size: 2;
+}
+
+.scriptLine {
+  display: flex;
+  align-items: flex-start;
+  min-height: calc(13px * 1.45);
+}
+
+.lineNumber {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-width: 3.25em;
+  padding: 0 12px 0 14px;
+  color: #5c6370;
+  text-align: right;
+  user-select: none;
+}
+
+.lineContent {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

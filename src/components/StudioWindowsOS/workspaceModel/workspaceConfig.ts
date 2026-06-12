@@ -37,6 +37,12 @@ export const droneRacerGame: Game = {
       rootTabId: 'droneRacer',
       dockOnly: true,
     },
+    {
+      id: 'final-challenge',
+      displayName: 'Final Challenge',
+      rootTabId: 'droneRacer',
+      dockOnly: true,
+    },
   ],
 }
 

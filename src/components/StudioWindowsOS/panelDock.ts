@@ -5,8 +5,16 @@ import {
   placeIdFromDockPanel,
   type PlaceDockPanelId,
 } from './placeDockPanels'
+import {
+  assetDockPanelId,
+  assetIdFromDockPanel,
+  isAssetDockPanelId,
+  type AssetDockPanelId,
+} from './assetDockPanels'
+import { isDocumentDockPanelId } from './documentDockPanels'
 
 export type { PlaceDockPanelId } from './placeDockPanels'
+export type { AssetDockPanelId } from './assetDockPanels'
 
 export type DockPanelId =
   | 'explorer'
@@ -15,6 +23,7 @@ export type DockPanelId =
   | 'output'
   | 'assetManager'
   | PlaceDockPanelId
+  | AssetDockPanelId
 
 export type DockZoneId = 'right' | 'bottom'
 
@@ -24,7 +33,10 @@ const STATIC_PANEL_DOCK_LABELS = {
   prototypeSettings: 'Prototype settings',
   output: 'Output',
   assetManager: 'Asset Manager',
-} as const satisfies Record<Exclude<DockPanelId, PlaceDockPanelId>, string>
+} as const satisfies Record<
+  Exclude<DockPanelId, PlaceDockPanelId | AssetDockPanelId>,
+  string
+>
 
 /** @deprecated Use `panelDockLabel` for place dock tabs. */
 export const PANEL_DOCK_LABELS: Record<string, string> = {
@@ -35,10 +47,15 @@ export const PANEL_DOCK_LABELS: Record<string, string> = {
 export function panelDockLabel(
   panelId: DockPanelId,
   resolvePlaceDisplayName?: (placeId: string) => string | undefined,
+  resolveAssetDisplayName?: (assetId: string) => string | undefined,
 ): string {
   if (isPlaceDockPanelId(panelId)) {
     const name = resolvePlaceDisplayName?.(placeIdFromDockPanel(panelId))
     return name ?? placeIdFromDockPanel(panelId)
+  }
+  if (isAssetDockPanelId(panelId)) {
+    const name = resolveAssetDisplayName?.(assetIdFromDockPanel(panelId))
+    return name ?? assetIdFromDockPanel(panelId)
   }
   return STATIC_PANEL_DOCK_LABELS[panelId]
 }
@@ -366,7 +383,7 @@ function removePanelFromLayout(
 }
 
 /**
- * Asset Manager docks in the right rail (Prototype settings slot), not the bottom dock.
+ * Asset Manager docks in the left rail when open, not the bottom dock.
  * Layout state only strips stale bottom-dock entries; visibility is driven by
  * `assetManagerPanelOpen` in StudioWindowsOS.
  */
@@ -388,7 +405,7 @@ function findFirstPlaceDockLocation(
   for (const zone of ['bottom', 'right'] as const) {
     const stacks = layout[zone]
     for (let stackIndex = 0; stackIndex < stacks.length; stackIndex++) {
-      const tabIndex = stacks[stackIndex]!.tabs.findIndex((t) => isPlaceDockPanelId(t))
+      const tabIndex = stacks[stackIndex]!.tabs.findIndex((t) => isDocumentDockPanelId(t))
       if (tabIndex >= 0) return { zone, stackIndex, tabIndex }
     }
   }
@@ -485,22 +502,117 @@ export function focusBottomDockPlaceTab(
   }
 }
 
+/** Select an asset document in the bottom dock. */
+export function focusBottomDockAssetTab(
+  layout: PanelDockLayoutState,
+  assetId: string,
+): PanelDockLayoutState {
+  const tab = assetDockPanelId(assetId)
+  return {
+    ...layout,
+    bottom: layout.bottom.map((stack) =>
+      stack.tabs.includes(tab) ? { ...stack, activeTab: tab } : stack,
+    ),
+  }
+}
+
+function findTargetBottomStackForNewDocument(
+  stacks: readonly PanelStackState[],
+): number {
+  for (let i = 0; i < stacks.length; i++) {
+    if (isDocumentDockPanelId(stacks[i]!.activeTab)) return i
+  }
+  for (let i = 0; i < stacks.length; i++) {
+    if (stacks[i]!.tabs.some(isDocumentDockPanelId)) return i
+  }
+  return 0
+}
+
+/** Add an asset tab to the focused bottom document stack and select it. */
+export function openAssetInFocusedBottomStack(
+  layout: PanelDockLayoutState,
+  assetId: string,
+): PanelDockLayoutState {
+  const tab = assetDockPanelId(assetId)
+  let next = cloneLayout(layout)
+
+  if (next.bottom.length === 0) {
+    return { ...next, bottom: [createPanelStack([tab], tab)] }
+  }
+
+  const stackIndex = findTargetBottomStackForNewDocument(next.bottom)
+  const stack = next.bottom[stackIndex]!
+  if (!stack.tabs.includes(tab)) {
+    const lastDocIdx = stack.tabs.reduce(
+      (max, t, i) => (isDocumentDockPanelId(t) ? i : max),
+      -1,
+    )
+    const insertAt = lastDocIdx >= 0 ? lastDocIdx + 1 : stack.tabs.length
+    stack.tabs.splice(insertAt, 0, tab)
+  }
+  stack.activeTab = tab
+  next.bottom[stackIndex] = stack
+  return next
+}
+
+export function syncAssetDockPanelsInLayout(
+  layout: PanelDockLayoutState,
+  openAssetIds: readonly string[],
+): PanelDockLayoutState {
+  const desiredPanelIds = openAssetIds.map(assetDockPanelId)
+  const desiredPanels = new Set(desiredPanelIds)
+
+  let next = cloneLayout(layout)
+
+  for (const zone of ['right', 'bottom'] as const) {
+    for (const stack of next[zone]) {
+      stack.tabs = stack.tabs.filter(
+        (t) => !isAssetDockPanelId(t) || desiredPanels.has(t),
+      )
+      if (stack.tabs.length > 0 && !stack.tabs.includes(stack.activeTab)) {
+        stack.activeTab = stack.tabs[0]!
+      }
+    }
+    next[zone] = normalizeZone(next[zone])
+  }
+
+  const missing = desiredPanelIds.filter(
+    (panelId) => findPanelLocation(next, panelId) == null,
+  )
+  if (missing.length === 0) return next
+
+  return openAssetInFocusedBottomStack(
+    {
+      ...next,
+      bottom: next.bottom.map((stack) => ({
+        ...stack,
+        tabs: [...stack.tabs],
+      })),
+    },
+    assetIdFromDockPanel(missing[missing.length - 1]!),
+  )
+}
+
 export function syncBottomPanelsInLayout(
   layout: PanelDockLayoutState,
   options: {
     outputPanelOpen: boolean
     assetManagerPanelOpen: boolean
     openPlaceDockPlaceIds: readonly string[]
+    openAssetDockAssetIds: readonly string[]
     serverPlaceOrder: readonly string[]
   },
 ): PanelDockLayoutState {
-  return syncPlaceDockPanelsInLayout(
-    syncAssetManagerPanelInLayout(
-      syncOutputPanelInLayout(layout, options.outputPanelOpen),
-      options.assetManagerPanelOpen,
+  return syncAssetDockPanelsInLayout(
+    syncPlaceDockPanelsInLayout(
+      syncAssetManagerPanelInLayout(
+        syncOutputPanelInLayout(layout, options.outputPanelOpen),
+        options.assetManagerPanelOpen,
+      ),
+      options.openPlaceDockPlaceIds,
+      options.serverPlaceOrder,
     ),
-    options.openPlaceDockPlaceIds,
-    options.serverPlaceOrder,
+    options.openAssetDockAssetIds,
   )
 }
 

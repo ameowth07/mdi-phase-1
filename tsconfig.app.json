@@ -15,6 +15,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    "paths": {
+      "@mdi/legacy-ribbon": ["./packages/legacy-ribbon/src/index.ts"],
+      "@mdi/legacy-ribbon/tokens.css": ["./packages/legacy-ribbon/src/tokens.css"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

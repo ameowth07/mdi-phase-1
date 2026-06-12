@@ -1,7 +1,7 @@
 import { PROTOTYPE_SETTINGS_DEFAULTS } from './components/StudioWindowsOS/prototypeDefaults'
 import { DEFAULT_OPEN_PLACE_DOCK_PLACE_IDS } from './components/StudioWindowsOS/placeDockPanels'
 
-export type StudioPhase = 1 | 2
+export type StudioPhase = 1 | 2 | 'color-playground'
 
 export type PhaseEntryOption = {
   phase: StudioPhase
@@ -22,16 +22,26 @@ export const PHASE_ENTRY_OPTIONS: readonly PhaseEntryOption[] = [
     description:
       'Game and place workspace: game title in the app bar, Lobby and joined places, Level 1 in the bottom dock, and triple-click Client to join more places.',
   },
+  {
+    phase: 'color-playground',
+    title: 'Color playground',
+    description:
+      'Phase 2 workspace with color operators at the top of Theme settings — tune hue, saturation, lightness, and contrast on the live UI.',
+  },
 ] as const
 
 export function isPhase2(phase: StudioPhase): boolean {
-  return phase === 2
+  return phase === 2 || phase === 'color-playground'
+}
+
+export function isColorPlayground(phase: StudioPhase): boolean {
+  return phase === 'color-playground'
 }
 
 /** Runtime defaults; Phase 1 overrides a subset of boolean experiment flags. */
 export function prototypeDefaultsForPhase(phase: StudioPhase) {
   const base = { ...PROTOTYPE_SETTINGS_DEFAULTS }
-  if (phase === 2) return base
+  if (isPhase2(phase)) return base
   return {
     ...base,
     serversPersistIntoEdit: false,
@@ -41,7 +51,7 @@ export function prototypeDefaultsForPhase(phase: StudioPhase) {
 }
 
 export function initialOpenPlaceDockPlaceIds(phase: StudioPhase): string[] {
-  return phase === 2 ? [...DEFAULT_OPEN_PLACE_DOCK_PLACE_IDS] : []
+  return isPhase2(phase) ? [...DEFAULT_OPEN_PLACE_DOCK_PLACE_IDS] : []
 }
 
 /** Phase 1 app bar title (see docs/phase-1/window-and-naming.md). */

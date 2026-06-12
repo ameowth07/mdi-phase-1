@@ -58,6 +58,8 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   clientTabUsesPlaceName: false,
   isolationTabOpen: true,
   hoverScriptTabOpen: true,
+  /** Asset Manager Open → dock as a bottom document tab instead of a floating window. */
+  openAssetAsDockedDocument: true,
 } as const
 
 export type PrototypeSettingsDefaults = typeof PROTOTYPE_SETTINGS_DEFAULTS

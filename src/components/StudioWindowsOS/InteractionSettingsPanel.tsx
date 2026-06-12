@@ -9,7 +9,7 @@ import {
   type ThemeSliderElements,
 } from './themeColorOperators'
 import type { StudioPhase } from '../../studioPhase'
-import { isPhase2 } from '../../studioPhase'
+import { isColorPlayground, isPhase2 } from '../../studioPhase'
 
 const SURFACE_PRESET_BUTTONS: { id: SurfacePresetId; label: string }[] = [
   { id: 150, label: 'Surface_150' },
@@ -91,6 +91,8 @@ export type InteractionSettingsPanelProps = {
   onOpenFloatingExplorer?: () => void
   /** When set, undocks Drone / HoverScript into a floating document window. */
   onUndockDocument?: () => void
+  /** Focus the Drone isolation panel and close all place documents. */
+  onExperienceAssetOnly?: () => void
   /** Opens a Client Script document tab in the main workspace. */
   onOpenClientScript?: () => void
   /** Opens a Server Script document tab in the main workspace. */
@@ -106,6 +108,9 @@ export type InteractionSettingsPanelProps = {
   /** When on, place servers joined in test stay open as edit place documents after stop. */
   serversPersistIntoEdit?: boolean
   onServersPersistIntoEditChange?: (value: boolean) => void
+  /** Asset Manager Open → dock asset as a bottom document tab instead of floating. */
+  openAssetAsDockedDocument?: boolean
+  onOpenAssetAsDockedDocumentChange?: (value: boolean) => void
   /** Test Server tab label uses place display name instead of `Server`. */
   serverTabUsesPlaceName?: boolean
   onServerTabUsesPlaceNameChange?: (value: boolean) => void
@@ -204,6 +209,7 @@ export default function InteractionSettingsPanel({
   onOpenFloatingProperties,
   onOpenFloatingExplorer,
   onUndockDocument,
+  onExperienceAssetOnly,
   onOpenClientScript,
   onOpenServerScript,
   onThrowError,
@@ -212,6 +218,8 @@ export default function InteractionSettingsPanel({
   onReset,
   serversPersistIntoEdit = true,
   onServersPersistIntoEditChange,
+  openAssetAsDockedDocument = true,
+  onOpenAssetAsDockedDocumentChange,
   serverTabUsesPlaceName = true,
   onServerTabUsesPlaceNameChange,
   clientTabUsesPlaceName = false,
@@ -219,8 +227,9 @@ export default function InteractionSettingsPanel({
   studioPhase = 2,
 }: InteractionSettingsPanelProps) {
   const phase2 = isPhase2(studioPhase)
-  const [gameEditorExperimentsOpen, setGameEditorExperimentsOpen] = useState(true)
-  const [colorOperatorsOpen, setColorOperatorsOpen] = useState(false)
+  const colorPlayground = isColorPlayground(studioPhase)
+  const [gameEditorExperimentsOpen, setGameEditorExperimentsOpen] = useState(!colorPlayground)
+  const [colorOperatorsOpen, setColorOperatorsOpen] = useState(colorPlayground)
   const [miscOpen, setMiscOpen] = useState(true)
   const badgeOptionsDisabled = explorerNoBadge
 
@@ -278,7 +287,10 @@ export default function InteractionSettingsPanel({
   )
 
   return (
-    <div className={css.root} data-name="ThemeSettings">
+    <div
+      className={`${css.root} ${colorPlayground ? css.colorPlaygroundRoot : ''}`.trim()}
+      data-name="ThemeSettings"
+    >
       {phase2 ? (
         <section className={`${css.collapsible} ${css.gameEditorExperimentsSection}`}>
           <button
@@ -359,6 +371,57 @@ export default function InteractionSettingsPanel({
                       ) : null}
                     </button>
                     <span className={css.label}>Client tab = Client / {'{place name}'}</span>
+                  </div>
+                </div>
+              </section>
+              {onExperienceAssetOnly ? (
+                <section
+                  className={css.group}
+                  aria-labelledby="game-editor-experiments-layout-heading"
+                >
+                  <h2 id="game-editor-experiments-layout-heading" className={css.groupLabel}>
+                    Layout
+                  </h2>
+                  <div className={css.layoutActions}>
+                    <button
+                      type="button"
+                      className={css.openAssetBtn}
+                      disabled={testingMode}
+                      aria-disabled={testingMode}
+                      onClick={onExperienceAssetOnly}
+                    >
+                      Experience asset view
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+              <section
+                className={css.group}
+                aria-labelledby="game-editor-experiments-auxiliary-panel-heading"
+              >
+                <h2
+                  id="game-editor-experiments-auxiliary-panel-heading"
+                  className={css.groupLabel}
+                >
+                  Asset interactions
+                </h2>
+                <div className={css.options}>
+                  <div className={css.row}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={openAssetAsDockedDocument}
+                      aria-label="Open asset as docked document"
+                      className={`${css.checkboxBtn} ${openAssetAsDockedDocument ? css.checkboxBtnChecked : ''}`}
+                      onClick={() =>
+                        onOpenAssetAsDockedDocumentChange?.(!openAssetAsDockedDocument)
+                      }
+                    >
+                      {openAssetAsDockedDocument ? (
+                        <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                      ) : null}
+                    </button>
+                    <span className={css.label}>Open asset as docked document</span>
                   </div>
                 </div>
               </section>
@@ -518,6 +581,11 @@ export default function InteractionSettingsPanel({
             <button type="button" className={css.presetBtn} onClick={handleResetTheme}>
               Default (Surface_100)
             </button>
+            {onReset ? (
+              <button type="button" className={css.presetBtn} onClick={handleReset}>
+                Reset
+              </button>
+            ) : null}
           </div>
         </div>
           </div>
@@ -626,7 +694,10 @@ export default function InteractionSettingsPanel({
               </div>
             </section>
 
-            {onOpenAssetWindow || onOpenFloatingProperties || onOpenFloatingExplorer || onUndockDocument ? (
+            {onOpenAssetWindow ||
+            onOpenFloatingProperties ||
+            onOpenFloatingExplorer ||
+            onUndockDocument ? (
               <section className={css.group} aria-labelledby="interaction-layout-actions-heading">
                 <h2 id="interaction-layout-actions-heading" className={css.groupLabel}>
                   Layout actions
@@ -1096,14 +1167,6 @@ export default function InteractionSettingsPanel({
           </div>
         ) : null}
       </section>
-
-      {onReset ? (
-        <div className={css.resetRow}>
-          <button type="button" className={css.openAssetBtn} onClick={handleReset}>
-            Reset
-          </button>
-        </div>
-      ) : null}
     </div>
   )
 }

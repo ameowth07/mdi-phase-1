@@ -25,7 +25,7 @@
   height: 36px;
   flex-shrink: 0;
   backdrop-filter: blur(50px);
-  background: var(--overmedia-100);
+  background: var(--overmedia-100, hsla(230, 11%, 11%, 0.92));
 }
 
 .mezzLeft {
@@ -388,7 +388,7 @@
 }
 
 .ribbonTabActive {
-  background: var(--shift-300);
+  background: var(--shift-300, rgba(208, 217, 251, 0.12));
   color: var(--content-emphasis, #f7f7f8);
 }
 
@@ -535,7 +535,7 @@
 }
 
 .toggleColActive .toggleBtn {
-  background: var(--shift-300);
+  background: var(--shift-300, rgba(208, 217, 251, 0.12));
 }
 
 .toggleBtn {
@@ -555,7 +555,7 @@
 .splitMain:hover,
 .splitDrop:hover,
 .spinBoxCtrl:hover {
-  background: var(--shift-200);
+  background: var(--shift-200, rgba(208, 217, 251, 0.08));
 }
 
 .toggleBtn:active,
@@ -566,16 +566,16 @@
 .splitMain.ribbonToolActive,
 .toggleBtn[aria-pressed='true'],
 .splitMain[aria-pressed='true'] {
-  background: var(--shift-300);
+  background: var(--shift-300, rgba(208, 217, 251, 0.12));
 }
 
 .toggleBtn[aria-pressed='true']:hover,
 .splitMain[aria-pressed='true']:hover {
-  background: var(--shift-300);
+  background: var(--shift-300, rgba(208, 217, 251, 0.12));
 }
 
 .ribbonToolActive {
-  background: var(--shift-300);
+  background: var(--shift-300, rgba(208, 217, 251, 0.12));
 }
 
 .toggleLabel {

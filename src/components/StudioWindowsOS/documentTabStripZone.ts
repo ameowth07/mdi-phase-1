@@ -1,12 +1,17 @@
 import type { EditIsolationTabId, MainScriptTabId, SimDocumentStripTab } from './documentTabClose'
 import {
+  DOCKED_TEST_SERVER_PLACE_ID,
   isSimPlaceServerTab,
   placeIdFromPlaceServerTab,
+  placeServerUsesMainStripTab,
   simPlaceServerTabId,
 } from './placeServerTabs'
 import { isSimClientInstanceId } from './simMultiClient'
 import { reorderVisibleTabs } from './documentTabReorder'
 
+export type DocumentTabStripZone = 'main' | 'iso' | 'dock'
+
+/** @deprecated Use DocumentTabStripZone — main and iso only. */
 export type CombinedTabStripZone = 'main' | 'iso'
 
 /** Mode-specific keys used when rendering tabs. */
@@ -22,6 +27,7 @@ export type PersistentTabKey =
   | `dm:${SimViewportFocus}`
   | `dm:client-${number}`
   | `dm:place-server:${string}`
+  | `dock:${string}`
   | `script:${MainScriptTabId}`
   | `iso:${EditIsolationTabId}`
 
@@ -49,6 +55,18 @@ export function scriptPersistentKey(id: MainScriptTabId): PersistentTabKey {
 
 export function isoPersistentKey(id: EditIsolationTabId): PersistentTabKey {
   return `iso:${id}`
+}
+
+export function dockPersistentKey(placeId: string): PersistentTabKey {
+  return `dock:${placeId}`
+}
+
+export function placeIdFromDockPersistentKey(key: PersistentTabKey): string | null {
+  return key.startsWith('dock:') ? key.slice(5) : null
+}
+
+export function isDockPersistentKey(key: PersistentTabKey): boolean {
+  return key.startsWith('dock:')
 }
 
 export function simStripTabToPersistent(tab: SimDocumentStripTab): PersistentTabKey {
@@ -87,7 +105,12 @@ export function insertPlaceServerPersistentKeyAfterClient(
 }
 
 export function isPersistentTabKey(value: string): value is PersistentTabKey {
-  return value.startsWith('dm:') || value.startsWith('script:') || value.startsWith('iso:')
+  return (
+    value.startsWith('dm:') ||
+    value.startsWith('dock:') ||
+    value.startsWith('script:') ||
+    value.startsWith('iso:')
+  )
 }
 
 export function combinedKeyToPersistent(key: CombinedTabKey | PersistentTabKey): PersistentTabKey | null {
@@ -141,11 +164,13 @@ export function normalizePersistentZoneKeys(
   return result
 }
 
-export function defaultPersistentTabZone(key: PersistentTabKey): CombinedTabStripZone {
-  return key.startsWith('iso:') ? 'iso' : 'main'
+export function defaultPersistentTabZone(key: PersistentTabKey): DocumentTabStripZone {
+  if (key.startsWith('iso:')) return 'iso'
+  if (key.startsWith('dock:')) return 'dock'
+  return 'main'
 }
 
-export function defaultTabZone(key: CombinedTabKey): CombinedTabStripZone {
+export function defaultTabZone(key: CombinedTabKey): DocumentTabStripZone {
   const persistent = combinedKeyToPersistent(key)
   return persistent != null ? defaultPersistentTabZone(persistent) : 'main'
 }
@@ -225,27 +250,94 @@ export function moveTabBetweenZones(
   toZone: CombinedTabStripZone,
   toIndex: number,
 ): { mainKeys: PersistentTabKey[]; isoKeys: PersistentTabKey[] } | null {
-  const fromList = fromZone === 'main' ? mainKeys : isoKeys
-  const movedKey = fromList[fromIndex]
-  if (movedKey == null) return null
+  const moved = moveTabBetweenThreeZones(
+    mainKeys,
+    isoKeys,
+    [],
+    fromZone,
+    fromIndex,
+    toZone,
+    toIndex,
+    DOCKED_TEST_SERVER_PLACE_ID,
+  )
+  if (moved == null) return null
+  return { mainKeys: moved.mainKeys, isoKeys: moved.isoKeys }
+}
 
-  let nextMain = mainKeys.filter((k) => k !== movedKey)
-  let nextIso = isoKeys.filter((k) => k !== movedKey)
-
-  if (fromZone === 'main') {
-    nextMain = mainKeys.filter((_, i) => i !== fromIndex)
-  } else {
-    nextIso = isoKeys.filter((_, i) => i !== fromIndex)
+/** Convert a tab key when it lands in another strip (main / iso / bottom dock). */
+export function normalizePersistentKeyForZone(
+  key: PersistentTabKey,
+  toZone: DocumentTabStripZone,
+  dockedPlaceId: string = DOCKED_TEST_SERVER_PLACE_ID,
+): PersistentTabKey | null {
+  if (toZone === 'dock') {
+    if (key.startsWith('dock:')) return key
+    if (key === 'dm:server') return dockPersistentKey(dockedPlaceId)
+    if (key.startsWith('dm:place-server:')) {
+      return dockPersistentKey(key.slice('dm:place-server:'.length))
+    }
+    return null
   }
 
-  const target = toZone === 'main' ? [...nextMain] : [...nextIso]
+  if (key.startsWith('dock:')) {
+    const placeId = key.slice(5)
+    if (toZone === 'main' && placeServerUsesMainStripTab(placeId)) {
+      return `dm:place-server:${placeId}` as PersistentTabKey
+    }
+    return key
+  }
+
+  if (toZone === 'main' && key === 'dm:server') return key
+  return key
+}
+
+export function moveTabBetweenThreeZones(
+  mainKeys: readonly PersistentTabKey[],
+  isoKeys: readonly PersistentTabKey[],
+  dockKeys: readonly PersistentTabKey[],
+  fromZone: DocumentTabStripZone,
+  fromIndex: number,
+  toZone: DocumentTabStripZone,
+  toIndex: number,
+  dockedPlaceId: string = DOCKED_TEST_SERVER_PLACE_ID,
+): {
+  mainKeys: PersistentTabKey[]
+  isoKeys: PersistentTabKey[]
+  dockKeys: PersistentTabKey[]
+} | null {
+  const fromList =
+    fromZone === 'main' ? mainKeys : fromZone === 'iso' ? isoKeys : dockKeys
+  const rawKey = fromList[fromIndex]
+  if (rawKey == null) return null
+
+  const movedKey = normalizePersistentKeyForZone(rawKey, toZone, dockedPlaceId)
+  if (movedKey == null) return null
+
+  let nextMain = [...mainKeys]
+  let nextIso = [...isoKeys]
+  let nextDock = [...dockKeys]
+
+  const removeFrom = (zone: DocumentTabStripZone, index: number) => {
+    if (zone === 'main') nextMain = nextMain.filter((_, i) => i !== index)
+    else if (zone === 'iso') nextIso = nextIso.filter((_, i) => i !== index)
+    else nextDock = nextDock.filter((_, i) => i !== index)
+  }
+
+  removeFrom(fromZone, fromIndex)
+  nextMain = nextMain.filter((k) => k !== rawKey && k !== movedKey)
+  nextIso = nextIso.filter((k) => k !== rawKey && k !== movedKey)
+  nextDock = nextDock.filter((k) => k !== rawKey && k !== movedKey)
+
+  const target =
+    toZone === 'main' ? nextMain : toZone === 'iso' ? nextIso : nextDock
   const insertAt = Math.max(0, Math.min(toIndex, target.length))
   target.splice(insertAt, 0, movedKey)
 
   if (toZone === 'main') nextMain = target
-  else nextIso = target
+  else if (toZone === 'iso') nextIso = target
+  else nextDock = target
 
-  return { mainKeys: nextMain, isoKeys: nextIso }
+  return { mainKeys: nextMain, isoKeys: nextIso, dockKeys: nextDock }
 }
 
 /** Preserve closed-tab slots in a stored order while applying a new left-to-right open order. */
@@ -270,13 +362,17 @@ export function mergeOpenTabOrder<T extends string>(
 function persistentKeysInStripOrder(
   mainKeys: readonly PersistentTabKey[],
   isoKeys: readonly PersistentTabKey[],
+  dockKeys: readonly PersistentTabKey[] = [],
 ): PersistentTabKey[] {
-  return [...mainKeys, ...isoKeys]
+  return [...mainKeys, ...isoKeys, ...dockKeys]
 }
 
 function simTabsFromPersistentKeys(keys: readonly PersistentTabKey[]): SimDocumentStripTab[] {
   return keys
     .map((k) => {
+      if (k.startsWith('dock:')) {
+        return simPlaceServerTabId(k.slice(5))
+      }
       if (k.startsWith('dm:')) {
         const dmId = k.slice(3)
         if (dmId === 'client' || dmId === 'server') return dmId
@@ -370,12 +466,13 @@ export function syncAllDocumentOrdersFromPersistentZones(
   simOrder: readonly SimDocumentStripTab[],
   scriptOrder: readonly MainScriptTabId[],
   isoTabOrder: readonly EditIsolationTabId[],
+  dockKeys: readonly PersistentTabKey[] = [],
 ): {
   simOrder: SimDocumentStripTab[]
   scriptOrder: MainScriptTabId[]
   isoTabOrder: EditIsolationTabId[]
 } {
-  const stripOrder = persistentKeysInStripOrder(mainKeys, isoKeys)
+  const stripOrder = persistentKeysInStripOrder(mainKeys, isoKeys, dockKeys)
   const openSim = simTabsFromPersistentKeys(stripOrder)
   const openScripts = scriptIdsFromPersistentKeys(stripOrder)
   const openIso = isoIdsFromPersistentKeys(stripOrder)
@@ -484,22 +581,50 @@ export function reconcileCombinedZoneKeys(
   defaultMain: readonly PersistentTabKey[],
   defaultIso: readonly PersistentTabKey[],
 ): { main: PersistentTabKey[]; iso: PersistentTabKey[] } {
+  const merged = reconcileDocumentStripZoneKeys(
+    mainExplicit,
+    isoExplicit,
+    null,
+    defaultMain,
+    defaultIso,
+    [],
+  )
+  return { main: merged.main, iso: merged.iso }
+}
+
+export function reconcileDocumentStripZoneKeys(
+  mainExplicit: readonly (CombinedTabKey | PersistentTabKey)[] | null | undefined,
+  isoExplicit: readonly (CombinedTabKey | PersistentTabKey)[] | null | undefined,
+  dockExplicit: readonly (CombinedTabKey | PersistentTabKey)[] | null | undefined,
+  defaultMain: readonly PersistentTabKey[],
+  defaultIso: readonly PersistentTabKey[],
+  defaultDock: readonly PersistentTabKey[],
+): { main: PersistentTabKey[]; iso: PersistentTabKey[]; dock: PersistentTabKey[] } {
   const mainNorm = normalizePersistentZoneKeys(mainExplicit)
   const isoNorm = normalizePersistentZoneKeys(isoExplicit)
+  const dockNorm = normalizePersistentZoneKeys(dockExplicit)
 
-  if (mainNorm == null && isoNorm == null) {
-    return { main: [...defaultMain], iso: [...defaultIso] }
+  if (mainNorm == null && isoNorm == null && dockNorm == null) {
+    return {
+      main: [...defaultMain],
+      iso: [...defaultIso],
+      dock: [...defaultDock],
+    }
   }
 
-  const openKeys = new Set([...defaultMain, ...defaultIso])
+  const openKeys = new Set([...defaultMain, ...defaultIso, ...defaultDock])
   const main = (mainNorm ?? []).filter(
     (k) =>
       openKeys.has(k) ||
       isSessionClientInstancePersistentKey(k) ||
-      k.startsWith('dm:place-server:'),
+      k.startsWith('dm:place-server:') ||
+      k.startsWith('dock:'),
   )
-  const iso = (isoNorm ?? []).filter((k) => openKeys.has(k))
-  const assigned = new Set<PersistentTabKey>([...main, ...iso])
+  const iso = (isoNorm ?? []).filter(
+    (k) => openKeys.has(k) || k.startsWith('dock:') || k === 'dm:server',
+  )
+  const dock = (dockNorm ?? []).filter((k) => openKeys.has(k) || k.startsWith('dock:'))
+  const assigned = new Set<PersistentTabKey>([...main, ...iso, ...dock])
 
   for (const key of defaultMain) {
     if (!assigned.has(key)) {
@@ -513,6 +638,12 @@ export function reconcileCombinedZoneKeys(
       assigned.add(key)
     }
   }
+  for (const key of defaultDock) {
+    if (!assigned.has(key)) {
+      dock.push(key)
+      assigned.add(key)
+    }
+  }
 
-  return { main, iso }
+  return { main, iso, dock }
 }

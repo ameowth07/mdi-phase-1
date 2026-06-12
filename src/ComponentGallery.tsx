@@ -1,7 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import StudioWindowsOS from './components/StudioWindowsOS/StudioWindowsOS'
-import LegacyRibbon from './components/StudioWindowsOS/LegacyRibbon'
-import { RibbonToolbar } from './components/StudioWindowsOS/RibbonToolbar'
+import { LegacyRibbon, RibbonToolbar } from '@mdi/legacy-ribbon'
 import PropertiesPanel from './components/StudioWindowsOS/PropertiesPanel'
 import InteractionSettingsPanel from './components/StudioWindowsOS/InteractionSettingsPanel'
 import AssetManagerPanel from './components/StudioWindowsOS/AssetManagerPanel'
@@ -258,7 +257,7 @@ export default function ComponentGallery() {
         <PreviewCard
           id="ribbon"
           title="Legacy ribbon"
-          meta="LegacyRibbon.tsx — mezzanine, tabs, playback"
+          meta="@mdi/legacy-ribbon — mezzanine, tabs, playback"
           heightClass={styles.previewRibbon}
         >
           <LegacyRibbon />
@@ -267,7 +266,7 @@ export default function ComponentGallery() {
         <PreviewCard
           id="ribbon-toolbar"
           title="Ribbon toolbar"
-          meta="RibbonToolbar.tsx — transform / part / material tools"
+          meta="@mdi/legacy-ribbon — transform / part / material tools"
           heightClass={styles.previewToolbar}
         >
           <RibbonToolbar />

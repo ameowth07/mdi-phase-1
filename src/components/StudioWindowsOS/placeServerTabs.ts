@@ -27,6 +27,41 @@ export function placeServerUsesMainStripTab(placeId: string): boolean {
   return placeId !== DOCKED_TEST_SERVER_PLACE_ID
 }
 
+/**
+ * Level-1 server art with avatars only while the client is still in that place.
+ * Once the client teleports on (e.g. to Level 2), show the empty server placeholder.
+ */
+export function level1ServerShowsJoinedClient(
+  placeId: string,
+  clientSimActive: boolean,
+  clientViewPlaceId: string,
+  joinedPlaceIds: readonly string[],
+): boolean {
+  if (clientSimActive) return clientViewPlaceId === placeId
+  return joinedPlaceIds.includes(placeId)
+}
+
+/** Lobby → first server place; otherwise the next place in game order. */
+export function nextServerPlaceAfterClientView(
+  serverPlaces: readonly Place[],
+  clientViewPlaceId: string,
+  defaultPlaceId: string,
+): Place | undefined {
+  if (serverPlaces.length === 0) return undefined
+  if (clientViewPlaceId === defaultPlaceId) return serverPlaces[0]
+  const idx = serverPlaces.findIndex((p) => p.id === clientViewPlaceId)
+  if (idx < 0) return serverPlaces[0]
+  return serverPlaces[idx + 1]
+}
+
+export function canAdvanceClientToNextPlace(
+  serverPlaces: readonly Place[],
+  clientViewPlaceId: string,
+  defaultPlaceId: string,
+): boolean {
+  return nextServerPlaceAfterClientView(serverPlaces, clientViewPlaceId, defaultPlaceId) != null
+}
+
 function lastClientStripIndex(order: readonly SimDocumentStripTab[]): number {
   let last = -1
   for (let i = 0; i < order.length; i++) {

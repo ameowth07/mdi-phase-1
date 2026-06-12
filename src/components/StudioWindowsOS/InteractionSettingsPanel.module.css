@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 100%;
   padding: 4px 12px 10px;
   font-size: 12px;
   line-height: 1.4;
@@ -24,6 +25,18 @@
 
 .colorOperatorsSection {
   order: 1;
+}
+
+.colorPlaygroundRoot .colorOperatorsSection {
+  order: -3;
+}
+
+.colorPlaygroundRoot .gameEditorExperimentsSection {
+  order: -2;
+}
+
+.colorPlaygroundRoot .focusSettingsSection {
+  order: -1;
 }
 
 .collapsibleHeader {
@@ -340,11 +353,6 @@
 .openAssetBtn:disabled:hover,
 .openAssetBtn:disabled:active {
   background: rgba(208, 217, 251, 0.14);
-}
-
-.resetRow {
-  display: flex;
-  padding-top: 4px;
 }
 
 .scriptTabActions {

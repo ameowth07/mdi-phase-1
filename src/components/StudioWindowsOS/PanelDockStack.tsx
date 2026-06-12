@@ -2,11 +2,12 @@ import type { ReactNode } from 'react'
 import { publicAssetUrl } from '../../publicAssetUrl'
 import type { DockPanelId, DockZoneId, PanelStackState } from './panelDock'
 import { panelDockLabel, reorderStackTabs, setStackActiveTab } from './panelDock'
-import { isPlaceDockPanelId, type PlaceDockPanelId } from './placeDockPanels'
+import { isDocumentDockPanelId, type DocumentDockPanelId } from './documentDockPanels'
 import PlaceDocumentDockTabStrip, {
   type PlaceDocumentDockTabRenderContext,
 } from './PlaceDocumentDockTabStrip'
 import { useTabRowDragReorder } from './useTabRowDragReorder'
+import type { TriZoneTabDragBindings } from './useTriZoneTabDrag'
 import styles from './StudioWindowsOS.module.css'
 import dockStyles from './PanelDock.module.css'
 
@@ -32,10 +33,11 @@ export type PanelDockStackProps = {
   stackMajor?: boolean
   resolvePlaceDisplayName?: (placeId: string) => string | undefined
   renderPlaceDocumentTab?: (
-    panelId: PlaceDockPanelId,
+    panelId: DocumentDockPanelId,
     ctx: PlaceDocumentDockTabRenderContext,
   ) => ReactNode
   onPlaceTabStripPointerDown?: (e: React.PointerEvent<HTMLElement>) => void
+  documentTabStripDrag?: TriZoneTabDragBindings | null
 }
 
 function tabActivateHandlers(
@@ -63,15 +65,20 @@ export default function PanelDockStack({
   resolvePlaceDisplayName,
   renderPlaceDocumentTab,
   onPlaceTabStripPointerDown,
+  documentTabStripDrag = null,
 }: PanelDockStackProps) {
   const auxTabDrag = useTabRowDragReorder((from, to) => {
     onStackChange(reorderStackTabs(stack, from, to))
   })
 
-  const placeTabs = stack.tabs.filter((t): t is PlaceDockPanelId => isPlaceDockPanelId(t))
-  const auxTabs = stack.tabs.filter((t) => !isPlaceDockPanelId(t))
-  const useDocumentPlaceTabs = zone === 'bottom' && placeTabs.length > 0 && !!renderPlaceDocumentTab
-  const showDocumentTabStrip = useDocumentPlaceTabs && placeTabs.length > 1
+  const documentTabs = stack.tabs.filter((t): t is DocumentDockPanelId =>
+    isDocumentDockPanelId(t),
+  )
+  const auxTabs = stack.tabs.filter((t) => !isDocumentDockPanelId(t))
+  const useDocumentPlaceTabs = zone === 'bottom' && documentTabs.length > 0 && !!renderPlaceDocumentTab
+  /** Single-tab dock still uses the shared strip when tri-zone drag is active (drop target + draggable tab). */
+  const showDocumentTabStrip =
+    useDocumentPlaceTabs && (documentTabs.length > 1 || documentTabStripDrag != null)
   const showAuxTabRow = auxTabs.length > 1 || (auxTabs.length > 0 && showDocumentTabStrip)
 
   const tabbed = stack.tabs.length > 1
@@ -84,27 +91,28 @@ export default function PanelDockStack({
     placeDocumentTabStripInDock: showDocumentTabStrip,
   }
 
-  const reorderPlaceTabs = (from: number, to: number) => {
-    const visible = stack.tabs.filter((t): t is PlaceDockPanelId => isPlaceDockPanelId(t))
+  const reorderDocumentTabs = (from: number, to: number) => {
+    const visible = stack.tabs.filter((t): t is DocumentDockPanelId => isDocumentDockPanelId(t))
     const reordered = [...visible]
     const [moved] = reordered.splice(from, 1)
     if (moved == null) return
     reordered.splice(to, 0, moved)
-    let pi = 0
-    const tabs = stack.tabs.map((t) => (isPlaceDockPanelId(t) ? reordered[pi++]! : t))
+    let di = 0
+    const tabs = stack.tabs.map((t) => (isDocumentDockPanelId(t) ? reordered[di++]! : t))
     onStackChange({ ...stack, tabs })
   }
 
-  const documentStripActiveTab = isPlaceDockPanelId(activePanel) ? activePanel : null
+  const documentStripActiveTab = isDocumentDockPanelId(activePanel) ? activePanel : null
 
   const stackChrome = useDocumentPlaceTabs ? (
-    <div className={dockStyles.documentDockStack}>
+    <div className={dockStyles.documentDockStack} data-document-dock-stack="true">
       {showDocumentTabStrip ? (
         <PlaceDocumentDockTabStrip
-          tabs={placeTabs}
-          activeTab={documentStripActiveTab ?? placeTabs[0]!}
-          onReorder={reorderPlaceTabs}
+          tabs={documentTabs}
+          activeTab={documentStripActiveTab ?? documentTabs[0]!}
+          onReorder={reorderDocumentTabs}
           onActivate={(panelId) => onStackChange(setStackActiveTab(stack, panelId))}
+          documentTabStripDrag={documentTabStripDrag}
           renderTab={(panelId, ctx) =>
             renderPlaceDocumentTab(panelId, {
               ...ctx,

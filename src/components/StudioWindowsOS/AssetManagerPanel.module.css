@@ -1,6 +1,5 @@
-/* Asset Manager — Figma 3994:57525; theme tokens inherit from `.frame` */
+/* Asset Manager — Figma 6040:143434; theme tokens inherit from `.frame` */
 .root {
-  --am-sidebar-width: 240px;
   --am-toolbar-divider: hsla(
     calc(0 + var(--delta-hue)),
     calc(0% * var(--sat-multiplier)),
@@ -109,24 +108,69 @@
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  flex-direction: row;
-  overflow: hidden;
-}
-
-.sidebar {
-  flex: 0 0 var(--am-sidebar-width);
-  min-width: 0;
-  display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.searchRow {
+.panelHeader {
   flex: 0 0 40px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 8px;
   padding: 8px;
+}
+
+.dropdown {
+  flex: 0 0 200px;
+  width: 200px;
+  min-width: 0;
+  max-width: 200px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  color: var(--content-default, #d5d7dd);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: default;
+}
+
+.dropdownIcon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--content-emphasis, #f7f7f8);
+  display: block;
+}
+
+.dropdownLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdownChevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.panelHeaderTools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .iconBtn {
@@ -144,206 +188,12 @@
   cursor: default;
 }
 
-.searchField {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  border-radius: 8px;
-  background: var(--shift-200);
-  color: var(--content-default, #d5d7dd);
-}
-
-.searchField svg {
-  flex-shrink: 0;
-  opacity: 0.9;
-}
-
-.searchPlaceholder {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--content-default, #d5d7dd);
-}
-
-.tree {
+.content {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-bottom: 8px;
-}
-
-.treeSection {
-  display: flex;
-  flex-direction: column;
-}
-
-.treeRow {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 24px;
-  padding: 0 4px;
-  margin: 0 8px;
-  border-radius: 4px;
-  color: var(--content-default, #d5d7dd);
-  cursor: pointer;
-}
-
-.treeRowHover {
-  background: var(--shift-200);
-}
-
-.treeRowChildOfSelected {
-  background: var(--highlight-200);
-}
-
-.treeRowSelected {
-  background: var(--highlight-300);
-}
-
-.treeRowInner {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.treeRowBold .treeLabel {
-  font-weight: 600;
-}
-
-.treeIndent {
-  flex: 0 0 16px;
-  width: 16px;
-}
-
-.treeToggle {
-  flex: 0 0 16px;
-  width: 16px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--content-muted, #bcbec8);
-}
-
-.treeToggleSpacer {
-  flex: 0 0 16px;
-  width: 16px;
-}
-
-.treeIcon {
-  flex: 0 0 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--content-default, #d5d7dd);
-}
-
-.treeLabel {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dividerV {
-  flex: 0 0 1px;
-  align-self: stretch;
-  background: var(--stroke-muted, rgba(208, 217, 251, 0.08));
-}
-
-.main {
-  flex: 1 1 auto;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.toolbar {
-  flex: 0 0 40px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-}
-
-.toolbarNav {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  overflow: hidden;
-}
-
-.toolbarBreadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 0 4px;
-  color: var(--content-default, #d5d7dd);
-}
-
-.toolbarBreadcrumb svg {
-  flex-shrink: 0;
-}
-
-.breadcrumbLabel {
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.toolbarTools {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 24px;
-}
-
-.toolbarIconGroup {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.toolbarDivider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--am-toolbar-divider);
-}
-
-.importBtn {
-  height: 24px;
-  padding: 0 10px;
-  border: none;
-  border-radius: 4px;
-  background: var(--shift-300, rgba(208, 217, 251, 0.12));
-  color: var(--content-emphasis, #f7f7f8);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.4;
-  cursor: default;
-  white-space: nowrap;
 }
 
 .tableWrap {
@@ -357,7 +207,7 @@
 .tableHead {
   flex: 0 0 24px;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr);
   align-items: center;
   padding: 4px 0;
 }
@@ -393,7 +243,7 @@
 
 .tableRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr);
   align-items: center;
   min-height: 40px;
   padding: 4px 8px;
@@ -408,7 +258,7 @@
 }
 
 .tableRowSelected {
-  background: var(--highlight-300);
+  background: var(--highlight-200);
 }
 
 .cellName {
@@ -449,4 +299,45 @@
 
 .cellTextEmphasis {
   color: var(--content-emphasis, #f7f7f8);
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 400;
+  min-width: 160px;
+  padding: 4px;
+  border-radius: 6px;
+  background: rgba(25, 26, 31, 0.94);
+  backdrop-filter: blur(40px);
+  box-shadow:
+    0 0 0 1px var(--stroke-muted, rgba(208, 217, 251, 0.08)),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    Roboto,
+    sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--content-emphasis, #f7f7f8);
+  font: inherit;
+  line-height: 1.4;
+  text-align: left;
+  cursor: default;
+}
+
+.contextMenuItem:hover {
+  background: var(--shift-200, rgba(208, 217, 251, 0.08));
 }

@@ -912,6 +912,13 @@
   justify-content: flex-start;
 }
 
+/* Game editor experiments: Experience asset only — isolation fills the document panel. */
+.editCombinedTabStrip.experienceAssetOnlyLayout > .editTabStripIso,
+.editWorkspaceSplit.experienceAssetOnlyLayout > .assetIsolationPanel {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .assetIsolationWorkspace {
   flex: 1 1 auto;
   min-height: 0;
@@ -929,24 +936,6 @@
   height: 100%;
   object-fit: cover;
   object-position: center center;
-}
-
-.hoverScriptEditor {
-  position: relative;
-  z-index: 0;
-  box-sizing: border-box;
-  margin: 0;
-  min-height: 100%;
-  padding: 12px 14px;
-  overflow: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  font-size: 13px;
-  line-height: 1.45;
-  color: #e4e6ed;
-  background: #0d0e12;
-  white-space: pre-wrap;
-  tab-size: 2;
 }
 
 /** Main Drone Racer document — Script tab fills client viewport. */
@@ -1011,6 +1000,31 @@
   gap: var(--workspace-gutter);
   background: var(--surface-0);
   overflow: hidden;
+}
+
+/** Asset Manager — full-height column in the left rail when open. */
+.left {
+  flex: 0 0 291px;
+  width: 291px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-0);
+  overflow: hidden;
+}
+
+.leftDockedPanelWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-100);
+}
+
+.leftDockedPanelWrap .panelBody {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /** Explorer / Properties — fixed slots in the right rail (not dock-draggable). */
@@ -1176,6 +1190,25 @@
 .floatingDocumentBody > .assetIsolationPanel {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
+}
+
+.floatingPlaceDocumentHostOffset {
+  top: calc(var(--studio-right-panel-top) + 48px + 28px * var(--floating-place-slot, 1));
+  left: calc(var(--workspace-gutter) * 2 + 48px + 24px * var(--floating-place-slot, 1));
+}
+
+.floatingPlaceDocumentBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.floatingPlaceDocumentBody > section {
+  flex: 1 1 auto;
   min-height: 0;
 }
 

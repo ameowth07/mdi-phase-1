@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { publicAssetUrl } from '../../publicAssetUrl'
 import css from './ClientDeviceFrame.module.css'
 
@@ -7,10 +7,14 @@ const CLIENT_DEVICE_REFERENCE_ASSET = 'assets/ClientSim.jpg'
 
 export type ClientDeviceFrameProps = {
   children: ReactNode
+  onScreenPointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void
 }
 
 /** Wraps client place viewport content in the same phone frame as lobby ClientSim. */
-export default function ClientDeviceFrame({ children }: ClientDeviceFrameProps) {
+export default function ClientDeviceFrame({
+  children,
+  onScreenPointerDown,
+}: ClientDeviceFrameProps) {
   return (
     <div className={css.root} data-client-device-frame>
       <img
@@ -22,7 +26,9 @@ export default function ClientDeviceFrame({ children }: ClientDeviceFrameProps) 
       <div className={css.chrome}>
         <div className={css.bezel} aria-hidden />
         <div className={css.notch} aria-hidden />
-        <div className={css.screen}>{children}</div>
+        <div className={css.screen} onPointerDown={onScreenPointerDown}>
+          {children}
+        </div>
       </div>
     </div>
   )

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { publicAssetUrl } from '../../publicAssetUrl'
-import type { PlaceDockPanelId } from './placeDockPanels'
+import type { DocumentDockPanelId } from './documentDockPanels'
 import { useTabRowDragReorder, type TabRowDragBindings } from './useTabRowDragReorder'
+import { isTriZoneTabDrag, type TriZoneTabDragBindings } from './useTriZoneTabDrag'
 import styles from './StudioWindowsOS.module.css'
 import dockStyles from './PanelDock.module.css'
 
@@ -14,17 +15,19 @@ const TAB_DRAG_CLASSES = {
 export type PlaceDocumentDockTabRenderContext = {
   active: boolean
   tabIndex: number
-  drag: TabRowDragBindings
+  drag: TabRowDragBindings | TriZoneTabDragBindings
   onActivate: () => void
 }
 
 export type PlaceDocumentDockTabStripProps = {
-  tabs: readonly PlaceDockPanelId[]
-  activeTab: PlaceDockPanelId
+  tabs: readonly DocumentDockPanelId[]
+  activeTab: DocumentDockPanelId
   onReorder: (fromIndex: number, toIndex: number) => void
-  onActivate: (panelId: PlaceDockPanelId) => void
-  renderTab: (panelId: PlaceDockPanelId, ctx: PlaceDocumentDockTabRenderContext) => ReactNode
+  onActivate: (panelId: DocumentDockPanelId) => void
+  renderTab: (panelId: DocumentDockPanelId, ctx: PlaceDocumentDockTabRenderContext) => ReactNode
   onTabStripPointerDown?: (e: React.PointerEvent<HTMLElement>) => void
+  /** Shared main / iso / dock document tab drag (bottom place strip). */
+  documentTabStripDrag?: TriZoneTabDragBindings | null
 }
 
 export default function PlaceDocumentDockTabStrip({
@@ -34,15 +37,19 @@ export default function PlaceDocumentDockTabStrip({
   onActivate,
   renderTab,
   onTabStripPointerDown,
+  documentTabStripDrag = null,
 }: PlaceDocumentDockTabStripProps) {
-  const tabDrag = useTabRowDragReorder(onReorder)
+  const localTabDrag = useTabRowDragReorder(onReorder)
+  const useSharedDrag = documentTabStripDrag != null
+  const tabDrag = useSharedDrag ? documentTabStripDrag : localTabDrag
 
   return (
     <div
-      ref={tabDrag.rowRef}
+      ref={useSharedDrag ? documentTabStripDrag.dockRowRef : localTabDrag.rowRef}
       className={`${styles.tabRow} ${dockStyles.documentDockTabRow}`}
       role="tablist"
-      aria-label="Place documents"
+      aria-label="Documents"
+      data-document-dock-tab-row="true"
       onPointerDown={onTabStripPointerDown}
     >
       {tabs.map((panelId, tabIndex) =>
@@ -61,14 +68,27 @@ export default function PlaceDocumentDockTabStrip({
 }
 
 export function placeDocumentDockTabDragProps(
-  drag: TabRowDragBindings,
+  drag: TabRowDragBindings | TriZoneTabDragBindings,
   tabIndex: number,
 ) {
+  const triDrag = isTriZoneTabDrag(drag as object)
+    ? (drag as TriZoneTabDragBindings)
+    : null
+  const rowDrag = triDrag == null ? (drag as TabRowDragBindings) : null
+  const dragClass =
+    triDrag != null
+      ? triDrag.tabClass('dock', tabIndex, TAB_DRAG_CLASSES)
+      : rowDrag!.tabClass(tabIndex, TAB_DRAG_CLASSES)
+  const dragTabProps =
+    triDrag != null
+      ? triDrag.getTabProps('dock', tabIndex)
+      : rowDrag!.getTabProps(tabIndex)
+
   return {
     dragTabIndex: tabIndex,
-    dragClassName: drag.tabClass(tabIndex, TAB_DRAG_CLASSES),
+    dragClassName: dragClass,
     dragTabProps: {
-      ...drag.getTabProps(tabIndex),
+      ...dragTabProps,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation()
         if (drag.consumeClickAfterDrag()) {

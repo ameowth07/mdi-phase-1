@@ -1,6 +1,7 @@
 import type { PointerEvent, ReactNode } from 'react'
 import type { DockPanelId, DockZoneId, PanelStackState } from './panelDock'
 import PanelDockStack, { type PanelDockStackProps } from './PanelDockStack'
+import type { TriZoneTabDragBindings } from './useTriZoneTabDrag'
 import dockStyles from './PanelDock.module.css'
 import styles from './StudioWindowsOS.module.css'
 
@@ -17,7 +18,9 @@ export type PanelDockZoneProps = {
   resolvePlaceDisplayName?: (placeId: string) => string | undefined
   renderPlaceDocumentTab?: PanelDockStackProps['renderPlaceDocumentTab']
   onPlaceTabStripPointerDown?: (e: PointerEvent<HTMLElement>) => void
+  documentTabStripDrag?: TriZoneTabDragBindings | null
   className?: string
+  onHostPointerDown?: () => void
 }
 
 export default function PanelDockZone({
@@ -30,7 +33,9 @@ export default function PanelDockZone({
   resolvePlaceDisplayName,
   renderPlaceDocumentTab,
   onPlaceTabStripPointerDown,
+  documentTabStripDrag = null,
   className,
+  onHostPointerDown,
 }: PanelDockZoneProps) {
   const zoneClass =
     zone === 'right'
@@ -43,7 +48,11 @@ export default function PanelDockZone({
   }
 
   return (
-    <div className={`${zoneClass} ${className ?? ''}`.trim()} data-panel-dock-zone={zone}>
+    <div
+      className={`${zoneClass} ${className ?? ''}`.trim()}
+      data-panel-dock-zone={zone}
+      onPointerDownCapture={() => onHostPointerDown?.()}
+    >
       {stacks.map((stack, stackIndex) => (
         <div
           key={stack.stackId}
@@ -70,6 +79,7 @@ export default function PanelDockZone({
             resolvePlaceDisplayName={resolvePlaceDisplayName}
             renderPlaceDocumentTab={renderPlaceDocumentTab}
             onPlaceTabStripPointerDown={onPlaceTabStripPointerDown}
+            documentTabStripDrag={documentTabStripDrag}
             fixedHeight={
               stack.tabs.length === 1 && stack.tabs[0] === 'prototypeSettings'
             }

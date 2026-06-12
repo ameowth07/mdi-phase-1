@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { publicAssetUrl } from '../../publicAssetUrl'
 import ClientDeviceFrame from './ClientDeviceFrame'
 import deviceCss from './ClientDeviceFrame.module.css'
@@ -21,7 +22,7 @@ const CLIENT_SIM_ASSET: Record<NonNullable<ClientSimProps['variant']>, string> =
   'level-1': 'assets/level-1-client.png',
 }
 
-const TRIPLE_CLICK_WINDOW_MS = 700
+const TRIPLE_CLICK_WINDOW_MS = 900
 
 export default function ClientSim({
   variant = 'lobby',
@@ -32,7 +33,7 @@ export default function ClientSim({
 }: ClientSimProps) {
   const clickBurstRef = useRef({ count: 0, lastAt: 0 })
 
-  const handleImageClick = useCallback(() => {
+  const registerTripleClick = useCallback(() => {
     if (!onJoinNextPlace || loading || !canJoinNextPlace) return
     const now = Date.now()
     if (now - clickBurstRef.current.lastAt > TRIPLE_CLICK_WINDOW_MS) {
@@ -46,25 +47,42 @@ export default function ClientSim({
     }
   }, [canJoinNextPlace, loading, onJoinNextPlace])
 
+  const onTripleClickPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return
+      if ((e.target as HTMLElement).closest('button')) return
+      e.stopPropagation()
+      registerTripleClick()
+    },
+    [registerTripleClick],
+  )
+
+  const onDeviceScreenPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      onTripleClickPointerDown(e)
+    },
+    [onTripleClickPointerDown],
+  )
+
   const simImage = (
     <img
       src={publicAssetUrl(CLIENT_SIM_ASSET[variant])}
       alt="Client simulation"
       data-name={variant === 'level-1' ? 'Level1ClientSim' : 'ClientSim'}
       className={variant === 'level-1' ? deviceCss.screenContent : css.image}
+      draggable={false}
     />
   )
 
   return (
     <div
       className={css.root}
-      onClick={(e) => {
-        e.stopPropagation()
-        handleImageClick()
-      }}
+      onPointerDown={variant === 'lobby' ? onTripleClickPointerDown : undefined}
     >
       {variant === 'level-1' ? (
-        <ClientDeviceFrame>{simImage}</ClientDeviceFrame>
+        <ClientDeviceFrame onScreenPointerDown={onDeviceScreenPointerDown}>
+          {simImage}
+        </ClientDeviceFrame>
       ) : (
         simImage
       )}

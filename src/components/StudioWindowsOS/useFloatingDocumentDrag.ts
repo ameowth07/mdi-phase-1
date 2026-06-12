@@ -8,11 +8,13 @@ export function useFloatingDocumentDrag(options: {
   frameRef: RefObject<HTMLElement | null>
   position: FloatingDocumentPosition | null
   onPositionChange: (position: FloatingDocumentPosition) => void
+  hostSelector?: string
 }): {
   positionStyle: CSSProperties | undefined
   onDragHandlePointerDown: (e: ReactPointerEvent<HTMLElement>) => void
 } {
-  const { frameRef, position, onPositionChange } = options
+  const { frameRef, position, onPositionChange, hostSelector = '[data-floating-document]' } =
+    options
 
   const positionRef = useRef(position)
   positionRef.current = position
@@ -25,7 +27,7 @@ export function useFloatingDocumentDrag(options: {
       if ((e.target as HTMLElement).closest('button')) return
 
       const panelEl = (e.currentTarget as HTMLElement).closest(
-        '[data-floating-document]',
+        hostSelector,
       ) as HTMLElement | null
       const frame = frameRef.current
       if (panelEl == null || frame == null) return
@@ -68,7 +70,7 @@ export function useFloatingDocumentDrag(options: {
       window.addEventListener('pointerup', finish)
       window.addEventListener('pointercancel', finish)
     },
-    [frameRef],
+    [frameRef, hostSelector],
   )
 
   const positionStyle: CSSProperties | undefined = position
