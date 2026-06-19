@@ -3,6 +3,7 @@ import { publicAssetUrl } from '../../publicAssetUrl'
 import css from './DesktopEnvironment.module.css'
 
 const STUDIO_TASKBAR_ICON = publicAssetUrl('assets/roblox-studio-taskbar-icon.png')
+const DESKTOP_WALLPAPER = publicAssetUrl('assets/desktop-wallpaper.png')
 
 const DESKTOP_ICONS = [
   { glyph: '🗑️', label: 'Recycle Bin', opensLauncher: false },
@@ -49,7 +50,11 @@ export default function DesktopEnvironment({
     <div className={css.desktopRoot}>
       <div className={css.monitor} role="presentation">
         <div className={css.screen}>
-          <div className={css.wallpaper} aria-hidden />
+          <div
+            className={css.wallpaper}
+            aria-hidden
+            style={{ backgroundImage: `url("${DESKTOP_WALLPAPER}")` }}
+          />
           <div className={css.iconColumn}>
             {DESKTOP_ICONS.map(({ glyph, label, opensLauncher }) =>
               opensLauncher && onDocumentsOpen ? (

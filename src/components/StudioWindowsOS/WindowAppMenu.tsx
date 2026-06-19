@@ -5,10 +5,19 @@ import { panelDockLabel, type DockPanelId } from './panelDock'
 import css from './TestAppMenu.module.css'
 
 const WINDOW_PANEL_TOGGLES = [
+  'studioSettings',
+  'prototypeSettings',
   placeDockPanelId('level-1'),
   'assetManager',
   'output',
-] as const satisfies readonly DockPanelId[]
+] as const satisfies readonly (DockPanelId | 'studioSettings')[]
+
+export type WindowPanelToggleId = (typeof WINDOW_PANEL_TOGGLES)[number]
+
+function windowPanelLabel(panelId: WindowPanelToggleId): string {
+  if (panelId === 'studioSettings') return 'Studio Settings'
+  return panelDockLabel(panelId)
+}
 
 export type WindowAppMenuProps = {
   triggerClassName?: string
@@ -16,9 +25,11 @@ export type WindowAppMenuProps = {
   /** Phase 2 — bottom-dock place documents in the Window menu. */
   showPlaceDockPanels?: boolean
   assetManagerOpen: boolean
+  studioSettingsOpen: boolean
+  prototypeSettingsOpen: boolean
   placeLevel1Open: boolean
   outputOpen: boolean
-  onTogglePanel: (panelId: (typeof WINDOW_PANEL_TOGGLES)[number]) => void
+  onTogglePanel: (panelId: WindowPanelToggleId) => void
 }
 
 export default function WindowAppMenu({
@@ -26,6 +37,8 @@ export default function WindowAppMenu({
   disabled = false,
   showPlaceDockPanels = true,
   assetManagerOpen,
+  studioSettingsOpen,
+  prototypeSettingsOpen,
   placeLevel1Open,
   outputOpen,
   onTogglePanel,
@@ -38,7 +51,9 @@ export default function WindowAppMenu({
   const menuPanels = showPlaceDockPanels
     ? WINDOW_PANEL_TOGGLES
     : WINDOW_PANEL_TOGGLES.filter((id) => !isPlaceDockPanelId(id))
-  const panelOpen: Record<(typeof WINDOW_PANEL_TOGGLES)[number], boolean> = {
+  const panelOpen: Record<WindowPanelToggleId, boolean> = {
+    studioSettings: studioSettingsOpen,
+    prototypeSettings: prototypeSettingsOpen,
     [level1DockPanel]: placeLevel1Open,
     assetManager: assetManagerOpen,
     output: outputOpen,
@@ -100,7 +115,7 @@ export default function WindowAppMenu({
                 <span className={css.itemCheckGutter} aria-hidden>
                   {checked ? <Check size={12} strokeWidth={2.5} /> : null}
                 </span>
-                <span className={css.itemLabel}>{panelDockLabel(panelId)}</span>
+                <span className={css.itemLabel}>{windowPanelLabel(panelId)}</span>
               </button>
             )
           })}

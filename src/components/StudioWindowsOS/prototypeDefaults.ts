@@ -1,5 +1,11 @@
 export type EditDocumentFocus = 'main' | 'isolation' | 'hoverScript'
 
+import type { ToolSelectionColor } from './toolSelectionColor'
+import type { RibbonIconSize } from './ribbonIconSize'
+import type { UiScale } from './uiScale'
+
+export type { ToolSelectionColor, UiScale }
+
 export type MainDocumentEditorTab =
   | 'droneRacer'
   | 'scriptA'
@@ -8,6 +14,8 @@ export type MainDocumentEditorTab =
   | 'serverScript'
 
 export type SimViewportFocus = 'client' | 'server'
+
+export type StudioColorTheme = 'dark' | 'light'
 
 /** Current prototype defaults — Reset restores these values. */
 export const PROTOTYPE_SETTINGS_DEFAULTS = {
@@ -60,6 +68,24 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   hoverScriptTabOpen: true,
   /** Asset Manager Open → dock as a bottom document tab instead of a floating window. */
   openAssetAsDockedDocument: true,
+  /** When on, Client / Server / Drone hues follow theme color operators. */
+  linkSemanticColors: false,
+  /** When link is on, semantics follow hue only (not sat / lightness / contrast). */
+  linkSemanticHueOnly: true,
+  /** When semantic link is on, ribbon icon accent hues follow theme color operators. */
+  linkIconAccents: false,
+  /** Ribbon panel toggles — off icons use content-default only; on uses emphasis + muted-blue fill. */
+  panelTogglesUseFills: false,
+  /** Toolbar icon stack size inside each ribbon tool button (px). */
+  ribbonIconSize: 24 as RibbonIconSize,
+  /** Figma Studio Surface Colors theme — dark or light token bases. */
+  studioColorTheme: 'dark' as StudioColorTheme,
+  /** App chrome scale — viewport game/sim media stays at 100%. */
+  uiScale: 100 as UiScale,
+  /** Ribbon toolbar selected-tool background + accent treatment. */
+  toolSelectionColor: 'shift_300' as ToolSelectionColor,
+  /** Blue highlight — remap neutral icon fills to the selection accent on active tools. */
+  toolSelectionIncludeNeutrals: false,
 } as const
 
 export type PrototypeSettingsDefaults = typeof PROTOTYPE_SETTINGS_DEFAULTS

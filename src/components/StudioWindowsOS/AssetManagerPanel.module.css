@@ -1,19 +1,14 @@
 /* Asset Manager — Figma 6040:143434; theme tokens inherit from `.frame` */
 .root {
-  --am-toolbar-divider: hsla(
-    calc(0 + var(--delta-hue)),
-    calc(0% * var(--sat-multiplier)),
-    calc((94% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.1
-  );
+  --am-toolbar-divider: var(--stroke-muted);
 
   flex: 1 1 0;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface-100, #191a1f);
-  border: 1px solid var(--surface-100, #191a1f);
+  background: var(--surface-100);
+  border: 1px solid var(--stroke-muted);
   overflow: hidden;
 }
 
@@ -29,7 +24,7 @@
 .header {
   flex: 0 0 24px;
   position: relative;
-  background: rgba(208, 217, 251, 0.04);
+  background: var(--shift-100);
 }
 
 .headerDraggable {
@@ -50,7 +45,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
-  color: var(--panel-chrome-title, #bcbec8);
+  color: var(--panel-chrome-title);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -134,8 +129,8 @@
   padding: 0 4px;
   border: none;
   border-radius: 4px;
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
-  color: var(--content-default, #d5d7dd);
+  background: var(--shift-200, var(--shift-200));
+  color: var(--content-default);
   font: inherit;
   font-size: 12px;
   line-height: 1.4;
@@ -181,7 +176,7 @@
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--content-default, #d5d7dd);
+  color: var(--content-default);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,7 +215,7 @@
   font-size: 10px;
   font-weight: 600;
   line-height: 1.4;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
 }
 
 .colHeadName {
@@ -247,7 +242,7 @@
   align-items: center;
   min-height: 40px;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--stroke-muted, rgba(208, 217, 251, 0.08));
+  border-bottom: 1px solid var(--stroke-muted);
   gap: 16px;
   border-radius: 4px;
   cursor: pointer;
@@ -273,12 +268,12 @@
   width: 28px;
   height: 28px;
   border-radius: 4px;
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  color: var(--content-default, #d5d7dd);
+  color: var(--content-default);
 }
 
 .thumb img {
@@ -294,7 +289,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--content-default, #d5d7dd);
+  color: var(--content-default);
 }
 
 .cellTextEmphasis {
@@ -307,17 +302,11 @@
   min-width: 160px;
   padding: 4px;
   border-radius: 6px;
-  background: rgba(25, 26, 31, 0.94);
-  backdrop-filter: blur(40px);
+  background: var(--surface-200);
   box-shadow:
-    0 0 0 1px var(--stroke-muted, rgba(208, 217, 251, 0.08)),
+    0 0 0 1px var(--stroke-muted),
     0 12px 32px rgba(0, 0, 0, 0.45);
-  font-family:
-    'Segoe UI',
-    system-ui,
-    -apple-system,
-    Roboto,
-    sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -339,5 +328,5 @@
 }
 
 .contextMenuItem:hover {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }

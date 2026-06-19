@@ -10,19 +10,32 @@ import type {
 } from 'react'
 import { Monitor, Music, Server, SquareArrowOutUpRight } from 'lucide-react'
 import ClientSim from './ClientSim'
-import LegacyRibbon from './LegacyRibbon'
+import LegacyRibbon, { type RibbonPanelToggleId, type RibbonPanelToggles } from './LegacyRibbon'
 import TestAppMenu, { type TestAppMenuFocusTarget } from './TestAppMenu'
-import WindowAppMenu from './WindowAppMenu'
+import WindowAppMenu, { type WindowPanelToggleId } from './WindowAppMenu'
+import FloatingStudioSettingsWindow from './FloatingStudioSettingsWindow'
+import {
+  STUDIO_SETTINGS_DEFAULT_SIZE,
+  type FloatingWindowSize,
+} from './useFloatingWindowResize'
+import type { StudioThemePresetId } from './studioThemePresets'
 import ServerSim from './ServerSim'
 import AssetManagerPanel from './AssetManagerPanel'
+import ToolboxPanel from './ToolboxPanel'
 import Level1ExplorerTreeView from './Level1ExplorerTreeView'
+import ExplorerTreeIcon from './ExplorerTreeIcon'
+import type { StudioColorTheme } from './themeColorOperators'
 import { buildPlaceTabClassName } from './buildPlaceTabClassName'
 import DocumentPlaceTab from './DocumentPlaceTab'
 import PlaceDocumentPanel from './PlaceDocumentPanel'
 import { placeDocumentDockTabDragProps } from './PlaceDocumentDockTabStrip'
 import { generateLevel1ExplorerTree, type Level1ExplorerTreeData } from './level1ExplorerData'
+import {
+  DRONE_RACER_EXPLORER_ROWS,
+  DRONE_RACER_EXPLORER_TREE,
+} from './droneRacerExplorerData'
 import TabWithPathTooltip, { PathTooltipBubble, usePathTooltip } from './TabWithPathTooltip'
-import { TabPlaceWorkspaceIcon } from './documentTabIcons'
+import { TabPlaceWorkspaceIcon, TabScriptEditIcon, TabLocalScriptEditIcon, TabModelIcon, TabCloseButton, TabCloseIcon } from './documentTabIcons'
 import OutputPanel, { type OutputLogEntry } from './OutputPanel'
 import {
   CAMERA_ZOOM_SCRIPT_DOCUMENT,
@@ -38,7 +51,6 @@ import {
   type ClientScriptDocument,
 } from './clientScripts'
 import {
-  DATAMODEL_INSET_FOCUS_BORDER,
   resolveDatamodelTintFocus,
   resolveExplorerSelectionTintFocus,
   type ExplorerRetentionKind,
@@ -182,6 +194,8 @@ import {
   type MainDocumentEditorTab,
   type SimViewportFocus,
 } from './prototypeDefaults'
+import { uiScaleFactor } from './uiScale'
+import type { ToolSelectionColor } from './toolSelectionColor'
 import {
   placeById,
   placeRootPathTooltip,
@@ -225,22 +239,6 @@ const DRONE_ISOLATION_EXPLORER_CHILDREN = [
   { id: 'drone-isolation-rotor-a', label: 'RotorA' },
   { id: 'drone-isolation-rotor-b', label: 'RotorB' },
   { id: 'drone-isolation-sensor', label: 'Sensor' },
-] as const
-
-const DRONE_RACER_EXPLORER_ROWS = [
-  'workspace',
-  'camera',
-  'terrain',
-  'billboard',
-  'shop',
-  'shopkeeper',
-  'counter',
-  'shelves',
-  'register',
-  'door',
-  'players',
-  'lighting',
-  'materialservice',
 ] as const
 
 const FLAT_SIM_EXPLORER_ROWS = ['workspace', 'players', 'lighting', 'materialservice'] as const
@@ -361,20 +359,7 @@ const ASSET_ISOLATION_IMAGE_FOCUSED = publicAssetUrl('assets/asset-isolation-sel
 
 /** Explorer edit tree — direct parent id per row (for “child of selected” tint). */
 const EXPLORER_EDIT_PARENT: Record<string, string | null> = {
-  workspace: null,
-  camera: 'workspace',
-  terrain: 'workspace',
-  billboard: 'workspace',
-  shop: 'workspace',
-  shopkeeper: 'shop',
-  counter: 'shop',
-  shelves: 'shop',
-  register: 'shop',
-  door: 'shop',
-  players: 'workspace',
-  lighting: 'workspace',
-  materialservice: 'workspace',
-  /** Flat Bunny Explorer — single row id (not in datamodel tree). */
+  ...DRONE_RACER_EXPLORER_TREE.parentMap,
   bunnyExplorerRow: null,
   [DRONE_ISOLATION_EXPLORER_ROW_ID]: null,
   'drone-isolation-hover-script': DRONE_ISOLATION_EXPLORER_ROW_ID,
@@ -384,21 +369,9 @@ const EXPLORER_EDIT_PARENT: Record<string, string | null> = {
   'drone-isolation-sensor': DRONE_ISOLATION_EXPLORER_ROW_ID,
 }
 
-/** Explorer row → Properties breadcrumb label and Roblox class name (prototype default: Model). */
+/** Explorer row → Properties breadcrumb label and Roblox class name. */
 const EXPLORER_ROW_META: Record<string, { label: string; className: string }> = {
-  workspace: { label: 'Workspace', className: 'Model' },
-  camera: { label: 'Camera', className: 'Model' },
-  terrain: { label: 'Terrain', className: 'Model' },
-  billboard: { label: 'Billboard', className: 'Model' },
-  shop: { label: 'Shop', className: 'Model' },
-  shopkeeper: { label: 'Shopkeeper', className: 'Model' },
-  counter: { label: 'Counter', className: 'Model' },
-  shelves: { label: 'Shelves', className: 'Model' },
-  register: { label: 'Register', className: 'Model' },
-  door: { label: 'Door', className: 'Model' },
-  players: { label: 'Players', className: 'Model' },
-  lighting: { label: 'Lighting', className: 'Model' },
-  materialservice: { label: 'MaterialService', className: 'Model' },
+  ...DRONE_RACER_EXPLORER_TREE.rowMeta,
   'c2-replicated': { label: 'ReplicatedStorage', className: 'Folder' },
   'c2-starter': { label: 'StarterPlayer', className: 'StarterPlayer' },
   'c2-startergui': { label: 'StarterGui', className: 'StarterGui' },
@@ -507,6 +480,22 @@ function scriptTabDatamodelFocus(tab: MainDocumentEditorTab): ScriptDatamodelFoc
   return 'drone'
 }
 
+/** Edit-mode script tabs use neutral system-contrast stroke, not semantic drone. */
+function scriptTabStrokeDatamodel(
+  tab: MainDocumentEditorTab,
+  clientSim: boolean | undefined,
+): ScriptDatamodelFocus | null {
+  return clientSim ? scriptTabDatamodelFocus(tab) : null
+}
+
+/** Edit-mode iso tabs use neutral system-contrast stroke, not semantic drone. */
+function isoTabStrokeDatamodel(
+  selected: boolean,
+  clientSim: boolean | undefined,
+): ScriptDatamodelFocus | null {
+  return selected && clientSim ? 'drone' : null
+}
+
 function simStripTabDatamodel(tabId: SimDocumentStripTab): ScriptDatamodelFocus {
   if (tabId === 'server' || isSimPlaceServerTab(tabId)) return 'server'
   if (tabId === 'client' || isSimClientInstanceId(tabId)) return 'client'
@@ -555,7 +544,7 @@ function simTintClipPath(frame: DOMRect, hole: DOMRect): string | undefined {
 function TabDiamond({ className }: { className?: string } = {}) {
   return (
     <svg
-      className={className ?? styles.tabDiamond}
+      className={className ?? `${styles.tabDiamond} ${styles.tabNeutralIcon}`}
       viewBox="0 0 12 12"
       aria-hidden
     >
@@ -568,35 +557,13 @@ function TabDiamond({ className }: { className?: string } = {}) {
   )
 }
 
-/** Client sim — Drone Racer tab: same Lucide pattern as Server tab (`Server`), client brand hue. */
-function TabCloseButton({ onClose }: { onClose: (e: React.MouseEvent) => void }) {
-  return (
-    <button
-      type="button"
-      className={styles.tabClose}
-      aria-label="Close tab"
-      onPointerDown={(e) => {
-        e.stopPropagation()
-        onClose(e)
-      }}
-      onClick={(e) => {
-        e.stopPropagation()
-        onClose(e)
-      }}
-    >
-      <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-    </button>
-  )
-}
-
 /** Client sim — Drone Racer tab: brand hue matches semantic Client stroke. */
 function TabClientSimDocumentIcon() {
   return (
     <Monitor
       size={12}
       strokeWidth={1.5}
-      className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-      color={DATAMODEL_INSET_FOCUS_BORDER.client}
+      className={`${styles.tabDiamond} ${styles.tabDiamondBrand} ${styles.iconSemanticClient}`}
       aria-hidden
     />
   )
@@ -608,37 +575,13 @@ function TabServerSimDocumentIcon() {
     <Server
       size={12}
       strokeWidth={1.5}
-      className={`${styles.tabDiamond} ${styles.tabDiamondBrand}`}
-      color={DATAMODEL_INSET_FOCUS_BORDER.server}
+      className={`${styles.tabDiamond} ${styles.tabDiamondBrand} ${styles.iconSemanticServer}`}
       aria-hidden
     />
   )
 }
 
 /** Edit-mode ModuleScript tab — document icon (4× asset, shown at 16×16). */
-function TabScriptEditIcon() {
-  return (
-    <img
-      src={publicAssetUrl('assets/tab-script-edit.png')}
-      alt=""
-      className={`${styles.tabDiamond} ${styles.tabScriptEditIcon}`}
-      aria-hidden
-    />
-  )
-}
-
-/** Edit-mode LocalScript (client copy) — blue document + monitor (4× asset, 16×16 in tab). */
-function TabLocalScriptEditIcon() {
-  return (
-    <img
-      src={publicAssetUrl('assets/tab-localscript-edit.png')}
-      alt=""
-      className={`${styles.tabDiamond} ${styles.tabScriptEditIcon}`}
-      aria-hidden
-    />
-  )
-}
-
 const TabDroneRacerWorkspaceIcon = TabPlaceWorkspaceIcon
 
 /** Explorer disclosure — same stroke chevron as ribbon split (LegacyRibbon / RibbonToolbar), not Unicode triangles. */
@@ -984,11 +927,6 @@ function PanelChrome({
   showPopoutAction = true,
   showCloseAction = true,
 }: PanelChromeProps) {
-  const close =
-    assetVariant === 'explorer'
-      ? publicAssetUrl('assets/panel-close.svg')
-      : publicAssetUrl('assets/panel-close-x-2.svg')
-
   const showSimExplorerBadge =
     assetVariant === 'explorer' && explorerFocusBadgeTarget != null
   const showIsolationExplorerBadge =
@@ -1079,7 +1017,7 @@ function PanelChrome({
               aria-label="Close panel"
               onClick={onClose}
             >
-              <img src={close} alt="" />
+              <TabCloseIcon />
             </button>
           ) : null}
         </div>
@@ -1102,6 +1040,7 @@ function ExplorerTree({
   editSelectedRowId,
   onEditSelectedRowIdChange,
   level1ExplorerTree = null,
+  colorTheme = 'dark',
 }: {
   clientSim: boolean
   /** Bunny asset frame — Explorer is a single “Bunny” row (no datamodel hierarchy). */
@@ -1127,6 +1066,8 @@ function ExplorerTree({
   onEditSelectedRowIdChange: (rowId: string) => void
   /** Level 1 place — generated hierarchy (Workspace, Camera, Terrain, …). */
   level1ExplorerTree?: Level1ExplorerTreeData | null
+  /** Figma explorer icons — light vs dark theme variant. */
+  colorTheme?: StudioColorTheme
 }) {
   const explorerTintFocus = useMemo(
     () =>
@@ -1231,6 +1172,7 @@ function ExplorerTree({
         selectedRowId={editSelectedRowId}
         onSelectRow={onEditSelectedRowIdChange}
         selectionTintActive={selectionTintActive}
+        colorTheme={colorTheme}
       />
     )
   }
@@ -1246,7 +1188,12 @@ function ExplorerTree({
           onClick={() => onEditSelectedRowIdChange(rowId)}
         >
           <TreeChevron mode="spacer" />
-          <TabDiamond />
+          <ExplorerTreeIcon
+            rowId="bunnyExplorerRow"
+            label="Bunny"
+            className="Model"
+            theme={colorTheme}
+          />
           <span className={styles.treeLabel}>Bunny</span>
         </div>
       </div>
@@ -1265,11 +1212,11 @@ function ExplorerTree({
       <div className={styles.tree} {...explorerTreeProps}>
         <div {...bindDroneIsolationRow(DRONE_ISOLATION_EXPLORER_ROW_ID)}>
           <TreeChevron mode="open" />
-          <img
-            src={publicAssetUrl('assets/Model.png')}
-            alt=""
-            className={`${styles.treeExplorerModelIcon} ${styles.bitmapIconCrisp}`}
-            aria-hidden
+          <ExplorerTreeIcon
+            rowId={DRONE_ISOLATION_EXPLORER_ROW_ID}
+            label={DRONE_WORKSPACE_TAB_LABEL}
+            className="Model"
+            theme={colorTheme}
           />
           <span className={styles.treeLabel}>{DRONE_WORKSPACE_TAB_LABEL}</span>
         </div>
@@ -1277,7 +1224,12 @@ function ExplorerTree({
           {DRONE_ISOLATION_EXPLORER_CHILDREN.map(({ id, label }) => (
             <div key={id} {...bindDroneIsolationRow(id)} style={{ paddingLeft: 20 }}>
               <TreeChevron mode="spacer" />
-              <span className={styles.treeIcon}>◇</span>
+              <ExplorerTreeIcon
+                rowId={id}
+                label={label}
+                className={explorerRowMeta(id).className}
+                theme={colorTheme}
+              />
               <span className={styles.treeLabel}>{label}</span>
             </div>
           ))}
@@ -1294,10 +1246,10 @@ function ExplorerTree({
       simMultiClientMode && simViewportFocus === 'client' && simActiveClientInstanceIndex != null
         ? explorerTreeForClientInstance(simActiveClientInstanceIndex)
         : [
-            { id: 'workspace', label: 'Workspace', icon: '●', iconColor: '#4a9eff' },
-            { id: 'players', label: 'Players', icon: '☺', iconColor: '#e8944a' },
-            { id: 'lighting', label: 'Lighting', icon: '💡' },
-            { id: 'materialservice', label: 'MaterialService', icon: '⌗' },
+            { id: 'workspace', label: 'Workspace', className: 'Model' },
+            { id: 'players', label: 'Players', className: 'Players' },
+            { id: 'lighting', label: 'Lighting', className: 'Model' },
+            { id: 'materialservice', label: 'MaterialService', className: 'Model' },
           ]
 
     return (
@@ -1305,12 +1257,12 @@ function ExplorerTree({
         {clientTreeRows.map((row, rowIndex) => (
           <div key={row.id} {...bindFlatSimRow(row.id)}>
             <TreeChevron mode={rowIndex === 0 ? 'closed' : rowIndex === 1 ? 'spacer' : 'closed'} />
-            <span
-              className={styles.treeIcon}
-              style={row.iconColor != null ? { color: row.iconColor } : undefined}
-            >
-              {row.icon}
-            </span>
+            <ExplorerTreeIcon
+              rowId={row.id}
+              label={row.label}
+              className={row.className ?? explorerRowMeta(row.id).className}
+              theme={colorTheme}
+            />
             <span className={styles.treeLabel}>{row.label}</span>
           </div>
         ))}
@@ -1320,98 +1272,22 @@ function ExplorerTree({
 
   return (
     <div className={styles.tree} {...explorerTreeProps}>
-      <div {...bindMainExplorerRow('workspace')}>
-        <TreeChevron mode="open" />
-        <span className={styles.treeIcon} style={{ color: '#4a9eff' }}>
-          ●
-        </span>
-        <span className={styles.treeLabel}>Workspace</span>
-      </div>
-      <div {...bindMainExplorerRow('camera')} style={{ paddingLeft: 22 }}>
-        <TreeChevron mode="spacer" />
-        <span className={styles.treeIcon}>▣</span>
-        <span className={styles.treeLabel}>Camera</span>
-      </div>
-      <div {...bindMainExplorerRow('terrain')} style={{ paddingLeft: 22 }}>
-        <TreeChevron mode="spacer" />
-        <span className={styles.treeIcon} style={{ color: '#6b4' }}>
-          ▲
-        </span>
-        <span className={styles.treeLabel}>Terrain</span>
-      </div>
-      <div {...bindMainExplorerRow('billboard')} style={{ paddingLeft: 22 }}>
-        <TreeChevron mode="closed" />
-        <span className={styles.treeIcon} style={{ color: '#e8d44d' }}>
-          ■
-        </span>
-        <span className={styles.treeLabel}>Billboard</span>
-      </div>
-      <div className={`${styles.treeNested} ${styles.guide}`}>
-        <div {...bindMainExplorerRow('shop')}>
-          <TreeChevron mode="open" />
-          <span className={styles.treeIcon} style={{ color: '#e8d44d' }}>
-            ■
-          </span>
-          <span className={styles.treeLabel}>Shop</span>
-        </div>
+      {DRONE_RACER_EXPLORER_TREE.display.map((node) => (
         <div
-          {...bindMainExplorerRow('shopkeeper')}
-          style={{ paddingLeft: 20 }}
+          key={node.id}
+          {...bindMainExplorerRow(node.id)}
+          style={node.depth > 0 ? { paddingLeft: 22 * node.depth } : undefined}
         >
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon}>◇</span>
-          <span className={styles.treeLabel}>Shopkeeper</span>
+          <TreeChevron mode={node.chevron} />
+          <ExplorerTreeIcon
+            rowId={node.id}
+            label={node.label}
+            className={node.className}
+            theme={colorTheme}
+          />
+          <span className={styles.treeLabel}>{node.label}</span>
         </div>
-        <div
-          {...bindMainExplorerRow('counter')}
-          style={{ paddingLeft: 20 }}
-        >
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon}>◇</span>
-          <span className={styles.treeLabel}>Counter</span>
-        </div>
-        <div
-          {...bindMainExplorerRow('shelves')}
-          style={{ paddingLeft: 20 }}
-        >
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon}>◇</span>
-          <span className={styles.treeLabel}>Shelves</span>
-        </div>
-        <div
-          {...bindMainExplorerRow('register')}
-          style={{ paddingLeft: 20 }}
-        >
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon}>◇</span>
-          <span className={styles.treeLabel}>Register</span>
-        </div>
-        <div
-          {...bindMainExplorerRow('door')}
-          style={{ paddingLeft: 20 }}
-        >
-          <TreeChevron mode="closed" />
-          <span className={styles.treeIcon}>◇</span>
-          <span className={styles.treeLabel}>Door</span>
-        </div>
-      </div>
-      <div {...bindMainExplorerRow('players')} style={{ paddingLeft: 22 }}>
-        <TreeChevron mode="spacer" />
-        <span className={styles.treeIcon} style={{ color: '#e8944a' }}>
-          ☺
-        </span>
-        <span className={styles.treeLabel}>Players</span>
-      </div>
-      <div {...bindMainExplorerRow('lighting')} style={{ paddingLeft: 22 }}>
-        <TreeChevron mode="closed" />
-        <span className={styles.treeIcon}>💡</span>
-        <span className={styles.treeLabel}>Lighting</span>
-      </div>
-      <div {...bindMainExplorerRow('materialservice')} style={{ paddingLeft: 22 }}>
-        <TreeChevron mode="closed" />
-        <span className={styles.treeIcon}>⌗</span>
-        <span className={styles.treeLabel}>MaterialService</span>
-      </div>
+      ))}
     </div>
   )
 }
@@ -2454,12 +2330,14 @@ function DroneRacerWorkspace({
 
   const selectSimClientStripTab = useCallback(
     (tab: SimDocumentStripTab) => {
+      onFocusLobbyPlace?.()
       onSimViewportFocusChange?.('client')
       onSimFocusedStripTabChange?.(tab)
       onMainDocumentEditorTabChange('droneRacer')
       onEditDocumentFocusChange('main')
     },
     [
+      onFocusLobbyPlace,
       onSimViewportFocusChange,
       onSimFocusedStripTabChange,
       onMainDocumentEditorTabChange,
@@ -2555,6 +2433,7 @@ function DroneRacerWorkspace({
   const connectedTabMaskDeps = [
     mainDocumentEditorTab,
     editDocumentFocus,
+    documentHostFocus,
     clientSim,
     playModeSplitView,
     simFocusedStripTab,
@@ -2599,10 +2478,13 @@ function DroneRacerWorkspace({
   const mainStripAssetDocumentActive = activeMainStripAssetId != null
   const mainStripServerPlaceDocumentFocused = (placeId: string) =>
     activeEditPlaceId === placeId && mainStripPlaceDocumentFocused
-  /** Main document strip: tab stroke while a main-strip place document has focus. */
+  /** Main document strip: tab stroke while the main column owns document focus. */
+  const editMainStripTabStrokeActive = !clientSim && editDocumentFocus === 'main'
   const mainStripTabStrokeActive =
-    editDocumentFocus === 'main' &&
-    (mainStripPlaceDocumentActive || mainStripAssetDocumentActive)
+    editMainStripTabStrokeActive ||
+    (clientSim &&
+      editDocumentFocus === 'main' &&
+      (mainStripPlaceDocumentActive || mainStripAssetDocumentActive))
   const editMainStripPlaceTabStrokeOn =
     tabStrokeOn || (!clientSim && !!editDatamodelShowStroke)
   const editMainStripPlaceSemanticStrokeOn =
@@ -2612,10 +2494,15 @@ function DroneRacerWorkspace({
     mainStripPlaceDocumentFocused &&
     mainDocumentEditorTab === 'droneRacer' &&
     activeMainStripAssetId == null
-  /** Asset isolation strip: tab stroke only while the isolation column has focus. */
-  const isoStripTabStrokeActive =
-    documentHostFocus === 'iso' &&
+  /** Asset isolation strip: tab stroke while an isolation document has focus. */
+  const editIsoStripTabStrokeActive =
+    !clientSim &&
     (editDocumentFocus === 'isolation' || editDocumentFocus === 'hoverScript')
+  const isoStripTabStrokeActive =
+    editIsoStripTabStrokeActive ||
+    (clientSim &&
+      documentHostFocus === 'iso' &&
+      (editDocumentFocus === 'isolation' || editDocumentFocus === 'hoverScript'))
 
   /** Active = this tab is the visible document (only one active tab per strip). */
   const buildTabClass = (
@@ -2626,22 +2513,29 @@ function DroneRacerWorkspace({
   ) => {
     const parts = [styles.tab, active ? styles.tabActive : styles.tabInactive]
     const showTabStroke = tabStrokeActive ?? active
-    if (showTabStroke && tabStrokeOn) {
+    const editFocusStroke = !clientSim && active && showTabStroke
+
+    if (showTabStroke && (tabStrokeOn || editFocusStroke)) {
       parts.push(styles.tabActiveTopStroke)
-      if (tabStrokeConnectedOn) {
-        parts.push(styles.tabActiveStrokeConnected)
-        if (active) parts.push(styles.tabActiveTabConnected)
-      } else if (tabStrokeAllEdgesOn) {
-        parts.push(styles.tabActiveAllEdgesStroke)
+      if (tabStrokeOn) {
+        if (tabStrokeConnectedOn) {
+          parts.push(styles.tabActiveStrokeConnected)
+          if (active) parts.push(styles.tabActiveTabConnected)
+        } else if (tabStrokeAllEdgesOn) {
+          parts.push(styles.tabActiveAllEdgesStroke)
+        }
+        if (strokeOn && datamodel != null) {
+          parts.push(
+            datamodel === 'client'
+              ? styles.tabActiveTopStrokeClient
+              : datamodel === 'server'
+                ? styles.tabActiveTopStrokeServer
+                : styles.tabActiveTopStrokeDrone,
+          )
+        }
       }
-      if (strokeOn && datamodel != null) {
-        parts.push(
-          datamodel === 'client'
-            ? styles.tabActiveTopStrokeClient
-            : datamodel === 'server'
-              ? styles.tabActiveTopStrokeServer
-              : styles.tabActiveTopStrokeDrone,
-        )
+      if (editFocusStroke) {
+        parts.push(styles.tabActiveTopStrokeEdit)
       }
     }
     if (showTabStroke && tabTintOn && datamodel === 'client') {
@@ -3175,6 +3069,7 @@ function DroneRacerWorkspace({
     extraTabs?: { clientScript?: boolean; serverScript?: boolean },
   ) => {
     const selectDroneRacerScriptTab = (tab: 'scriptA' | 'scriptB') => {
+      onMainDocumentHostFocus?.()
       onFocusLobbyPlace?.()
       onEditDocumentFocusChange('main')
       onTabChange(tab)
@@ -3192,7 +3087,7 @@ function DroneRacerWorkspace({
           const tabClass = (selected: boolean) =>
             buildTabClass(
               selected,
-              selected ? scriptTabDatamodelFocus(tabId as MainDocumentEditorTab) : null,
+              selected ? scriptTabStrokeDatamodel(tabId as MainDocumentEditorTab, clientSim) : null,
               tabDragClasses(drag, tabIndex),
               selected && mainStripTabStrokeActive,
             )
@@ -3294,6 +3189,7 @@ function DroneRacerWorkspace({
     dragZone?: DocumentTabStripZone,
   ) => {
     const selectDroneRacerScriptTab = (tab: 'scriptA' | 'scriptB') => {
+      onMainDocumentHostFocus?.()
       onFocusLobbyPlace?.()
       onEditDocumentFocusChange('main')
       strip.onTabChange(tab)
@@ -3507,9 +3403,7 @@ function DroneRacerWorkspace({
       {orderedTabs
         .filter(isSimStripTabOpen)
         .map((tabId, tabIndex) => renderSimDocumentStripTab(tabId, tabIndex, drag, strip))}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
+      <div className={styles.tabRowUnderline} aria-hidden />
     </div>
   )
 
@@ -3529,7 +3423,7 @@ function DroneRacerWorkspace({
     const tabClass = (selected: boolean) =>
       buildTabClass(
         selected,
-        selected ? 'drone' : null,
+        selected ? isoTabStrokeDatamodel(selected, clientSim) : null,
         tabDragClassesAny(combinedTabDrag, tabIndex, zone),
         zone === 'iso' ? selected && isoStripTabStrokeActive : undefined,
       )
@@ -3545,16 +3439,12 @@ function DroneRacerWorkspace({
           className={tabClass(isolationTabDocumentActive)}
           {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
           {...tabActivateHandlersAny(combinedTabDrag, () => {
+            onIsoDocumentHostFocus?.()
             onClearIsoStripAssetSelection?.()
             onEditDocumentFocusChange('isolation')
           })}
         >
-          <img
-            src={publicAssetUrl('assets/Model.png')}
-            alt=""
-            className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
-            aria-hidden
-          />
+          <TabModelIcon />
           <span>{DRONE_WORKSPACE_TAB_LABEL}</span>
           <TabCloseButton onClose={() => closeEditIsolationTab('isolation')} />
         </TabWithPathTooltip>
@@ -3571,6 +3461,7 @@ function DroneRacerWorkspace({
         className={tabClass(hoverScriptTabDocumentActive)}
         {...tabPropsAny(combinedTabDrag, tabIndex, zone)}
         {...tabActivateHandlersAny(combinedTabDrag, () => {
+          onIsoDocumentHostFocus?.()
           onClearIsoStripAssetSelection?.()
           onEditDocumentFocusChange('hoverScript')
         })}
@@ -3590,12 +3481,13 @@ function DroneRacerWorkspace({
     const tabClass = (selected: boolean) =>
       buildTabClass(
         selected,
-        selected ? scriptTabDatamodelFocus(tabId as MainDocumentEditorTab) : null,
+        selected ? scriptTabStrokeDatamodel(tabId as MainDocumentEditorTab, clientSim) : null,
         tabDragClassesAny(combinedTabDrag, tabIndex, zone),
         zone === 'main' ? selected && mainStripTabStrokeActive : undefined,
       )
 
     const selectDroneRacerScriptTab = (tab: 'scriptA' | 'scriptB') => {
+      onMainDocumentHostFocus?.()
       onFocusLobbyPlace?.()
       onEditDocumentFocusChange('main')
       onMainDocumentEditorTabChange(tab)
@@ -3808,9 +3700,7 @@ function DroneRacerWorkspace({
           return isSimStripTabOpen(tab)
         })
         .map((key, tabIndex) => renderCombinedZoneTab(key, tabIndex, zone))}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
+      <div className={styles.tabRowUnderline} aria-hidden />
     </div>
   )
 
@@ -3899,7 +3789,7 @@ function DroneRacerWorkspace({
                 aria-selected={assetTabSelected}
                 className={buildTabClass(
                   assetTabSelected,
-                  assetTabSelected ? 'drone' : null,
+                  assetTabSelected ? isoTabStrokeDatamodel(assetTabSelected, clientSim) : null,
                   '',
                   assetTabSelected && isoStripTabStrokeActive,
                 )}
@@ -3915,38 +3805,17 @@ function DroneRacerWorkspace({
                 }}
               >
                 {asset.thumb === 'audio' ? (
-                  <Music size={12} strokeWidth={1.5} className={styles.tabDiamond} aria-hidden />
+                  <Music size={12} strokeWidth={1.5} className={`${styles.tabDiamond} ${styles.tabNeutralIcon}`} aria-hidden />
                 ) : (
-                  <img
-                    src={publicAssetUrl('assets/Model.png')}
-                    alt=""
-                    className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
-                    aria-hidden
-                  />
+                  <TabModelIcon />
                 )}
                 <span>{asset.name}</span>
-                <button
-                  type="button"
-                  className={styles.tabClose}
-                  aria-label="Close tab"
-                  onPointerDown={(e) => {
-                    e.stopPropagation()
-                    onCloseIsoStripAssetTab?.(asset.id)
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCloseIsoStripAssetTab?.(asset.id)
-                  }}
-                >
-                  <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-                </button>
+                <TabCloseButton onClose={() => onCloseIsoStripAssetTab?.(asset.id)} />
               </TabWithPathTooltip>
             )
           })
         : null}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
+      <div className={styles.tabRowUnderline} aria-hidden />
     </div>
   ) : (
     <div
@@ -3959,7 +3828,7 @@ function DroneRacerWorkspace({
         const tabClass = (selected: boolean) =>
           buildTabClass(
             selected,
-            selected ? 'drone' : null,
+            selected ? isoTabStrokeDatamodel(selected, clientSim) : null,
             tabDragClasses(editIsolationTabDrag, tabIndex),
             selected && isoStripTabStrokeActive,
           )
@@ -3975,16 +3844,12 @@ function DroneRacerWorkspace({
               className={tabClass(isolationTabDocumentActive)}
               {...editIsolationTabDrag.getTabProps(tabIndex)}
               {...tabActivateHandlers(editIsolationTabDrag, () => {
+                onIsoDocumentHostFocus?.()
                 onClearIsoStripAssetSelection?.()
                 onEditDocumentFocusChange('isolation')
               })}
             >
-              <img
-                src={publicAssetUrl('assets/Model.png')}
-                alt=""
-                className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
-                aria-hidden
-              />
+              <TabModelIcon />
               <span>{DRONE_WORKSPACE_TAB_LABEL}</span>
               <TabCloseButton onClose={() => closeEditIsolationTab('isolation')} />
             </TabWithPathTooltip>
@@ -4001,6 +3866,7 @@ function DroneRacerWorkspace({
             className={tabClass(hoverScriptTabDocumentActive)}
             {...editIsolationTabDrag.getTabProps(tabIndex)}
             {...tabActivateHandlers(editIsolationTabDrag, () => {
+              onIsoDocumentHostFocus?.()
               onClearIsoStripAssetSelection?.()
               onEditDocumentFocusChange('hoverScript')
             })}
@@ -4023,7 +3889,7 @@ function DroneRacerWorkspace({
                 aria-selected={assetTabSelected}
                 className={buildTabClass(
                   assetTabSelected,
-                  assetTabSelected ? 'drone' : null,
+                  assetTabSelected ? isoTabStrokeDatamodel(assetTabSelected, clientSim) : null,
                   '',
                   assetTabSelected && isoStripTabStrokeActive,
                 )}
@@ -4039,50 +3905,28 @@ function DroneRacerWorkspace({
                 }}
               >
                 {asset.thumb === 'audio' ? (
-                  <Music size={12} strokeWidth={1.5} className={styles.tabDiamond} aria-hidden />
+                  <Music size={12} strokeWidth={1.5} className={`${styles.tabDiamond} ${styles.tabNeutralIcon}`} aria-hidden />
                 ) : (
-                  <img
-                    src={publicAssetUrl('assets/Model.png')}
-                    alt=""
-                    className={`${styles.tabDiamond} ${styles.bitmapIconCrisp}`}
-                    aria-hidden
-                  />
+                  <TabModelIcon />
                 )}
                 <span>{asset.name}</span>
-                <button
-                  type="button"
-                  className={styles.tabClose}
-                  aria-label="Close tab"
-                  onPointerDown={(e) => {
-                    e.stopPropagation()
-                    onCloseIsoStripAssetTab?.(asset.id)
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCloseIsoStripAssetTab?.(asset.id)
-                  }}
-                >
-                  <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-                </button>
+                <TabCloseButton onClose={() => onCloseIsoStripAssetTab?.(asset.id)} />
               </TabWithPathTooltip>
             )
           })
         : null}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
+      <div className={styles.tabRowUnderline} aria-hidden />
     </div>
   )
 
   const assetIsolationColumnAside = (
-    <aside className={styles.assetIsolationPanel} aria-label={DRONE_WORKSPACE_TAB_LABEL}>
+    <aside
+      className={styles.assetIsolationPanel}
+      aria-label={DRONE_WORKSPACE_TAB_LABEL}
+      {...(isolationColumnEditInsetRing ? { 'data-isolation-column-focused': '' as const } : {})}
+    >
       <div
-        className={[
-          styles.assetIsolationWorkspace,
-          isolationColumnEditInsetRing ? null : styles.editWorkspaceInactiveBleedCrop,
-        ]
-          .filter(Boolean)
-          .join(' ')}
+        className={styles.assetIsolationWorkspace}
         onPointerDown={() => {
           onIsoDocumentHostFocus?.()
           onEditDocumentFocusChange(
@@ -4124,14 +3968,16 @@ function DroneRacerWorkspace({
             return <ScriptEditor source={HOVER_SCRIPT_SOURCE} />
           }
           return (
-            <img
-              src={
-                droneIsolationPreviewInIso
-                  ? ASSET_ISOLATION_IMAGE_FOCUSED
-                  : ASSET_ISOLATION_IMAGE
-              }
-              alt=""
-            />
+            <div className={styles.assetIsolationImageLayer}>
+              <img
+                src={
+                  droneIsolationPreviewInIso
+                    ? ASSET_ISOLATION_IMAGE_FOCUSED
+                    : ASSET_ISOLATION_IMAGE
+                }
+                alt=""
+              />
+            </div>
           )
         })()}
         {showIsolationColumnChromeRing ? (
@@ -4538,7 +4384,7 @@ function DroneRacerWorkspace({
         {bunnyAssetWindow ? <TabDiamond /> : <TabDroneRacerWorkspaceIcon />}
         <span>{mainRootTabLabel}</span>
         <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+          <TabCloseIcon />
         </button>
       </TabWithPathTooltip>
       {phase2 && !clientSim
@@ -4563,6 +4409,7 @@ function DroneRacerWorkspace({
                     placeTabSelected &&
                     editMainStripPlaceSemanticStrokeOn,
                   datamodel: 'drone',
+                  editMode: true,
                 })}
                 leadingIcon="place"
                 selected={placeTabSelected}
@@ -4592,6 +4439,7 @@ function DroneRacerWorkspace({
                   tabStrokeConnected: tabStrokeConnectedOn,
                   strokeOn: false,
                   datamodel: 'drone',
+                  editMode: true,
                 })}
                 onPointerDown={(e) => {
                   e.stopPropagation()
@@ -4605,26 +4453,12 @@ function DroneRacerWorkspace({
                 }}
               >
                 {asset.thumb === 'audio' ? (
-                  <Music size={12} strokeWidth={1.5} className={styles.tabDiamond} aria-hidden />
+                  <Music size={12} strokeWidth={1.5} className={`${styles.tabDiamond} ${styles.tabNeutralIcon}`} aria-hidden />
                 ) : (
                   <TabDiamond />
                 )}
                 <span>{asset.name}</span>
-                <button
-                  type="button"
-                  className={styles.tabClose}
-                  aria-label="Close tab"
-                  onPointerDown={(e) => {
-                    e.stopPropagation()
-                    onCloseMainStripAssetTab?.(asset.id)
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCloseMainStripAssetTab?.(asset.id)
-                  }}
-                >
-                  <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-                </button>
+                <TabCloseButton onClose={() => onCloseMainStripAssetTab?.(asset.id)} />
               </TabWithPathTooltip>
             )
           })
@@ -4634,9 +4468,7 @@ function DroneRacerWorkspace({
             renderCombinedZoneTab(key, tabIndex, 'main'),
           )
         : optionalScriptTabs}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
+      <div className={styles.tabRowUnderline} aria-hidden />
     </div>
   )
 
@@ -5403,6 +5235,33 @@ export default function StudioWindowsOS({
   const [openAssetAsDockedDocument, setOpenAssetAsDockedDocument] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.openAssetAsDockedDocument,
   )
+  const [linkSemanticColors, setLinkSemanticColors] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.linkSemanticColors,
+  )
+  const [linkSemanticHueOnly, setLinkSemanticHueOnly] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.linkSemanticHueOnly,
+  )
+  const [linkIconAccents, setLinkIconAccents] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.linkIconAccents,
+  )
+  const [panelTogglesUseFills, setPanelTogglesUseFills] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.panelTogglesUseFills,
+  )
+  const [ribbonIconSize, setRibbonIconSize] = useState(
+    PROTOTYPE_SETTINGS_DEFAULTS.ribbonIconSize,
+  )
+  const [studioColorTheme, setStudioColorTheme] = useState<'dark' | 'light'>(
+    PROTOTYPE_SETTINGS_DEFAULTS.studioColorTheme,
+  )
+  const [uiScale, setUiScale] = useState(
+    PROTOTYPE_SETTINGS_DEFAULTS.uiScale,
+  )
+  const [toolSelectionColor, setToolSelectionColor] = useState<ToolSelectionColor>(
+    PROTOTYPE_SETTINGS_DEFAULTS.toolSelectionColor,
+  )
+  const [toolSelectionIncludeNeutrals, setToolSelectionIncludeNeutrals] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.toolSelectionIncludeNeutrals,
+  )
   const [openAssetDockAssetIds, setOpenAssetDockAssetIds] = useState<string[]>([])
   const [openMainStripAssetIds, setOpenMainStripAssetIds] = useState<string[]>([])
   const [openIsoStripAssetIds, setOpenIsoStripAssetIds] = useState<string[]>([])
@@ -5428,6 +5287,16 @@ export default function StudioWindowsOS({
 
   const floatingExplorerOpen = floatingWindows.some((w) => w.tabs.includes('explorer'))
   const floatingPropertiesOpen = floatingWindows.some((w) => w.tabs.includes('properties'))
+  const [explorerPanelOpen, setExplorerPanelOpen] = useState(true)
+  const [propertiesPanelOpen, setPropertiesPanelOpen] = useState(true)
+  const [prototypeSettingsPanelOpen, setPrototypeSettingsPanelOpen] = useState(true)
+  const [studioSettingsOpen, setStudioSettingsOpen] = useState(false)
+  const [studioSettingsPosition, setStudioSettingsPosition] =
+    useState<FloatingDocumentPosition | null>(null)
+  const [studioSettingsSize, setStudioSettingsSize] =
+    useState<FloatingWindowSize>(STUDIO_SETTINGS_DEFAULT_SIZE)
+  const [studioThemePreset, setStudioThemePreset] =
+    useState<StudioThemePresetId>('contrast-dark')
   const [documentUndocked, setDocumentUndocked] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.floatingDocumentOpen,
   )
@@ -5891,6 +5760,7 @@ export default function StudioWindowsOS({
 
   const [outputPanelOpen, setOutputPanelOpen] = useState(false)
   const [assetManagerPanelOpen, setAssetManagerPanelOpen] = useState(false)
+  const [toolboxPanelOpen, setToolboxPanelOpen] = useState(false)
   const [serversPersistIntoEdit, setServersPersistIntoEdit] = useState<boolean>(
     phaseDefaults.serversPersistIntoEdit,
   )
@@ -6234,6 +6104,11 @@ export default function StudioWindowsOS({
       }
     })
 
+    setStudioSettingsPosition((pos) => {
+      if (pos != null) return { left: pos.left - dx, top: pos.top - dy }
+      return pos
+    })
+
     setFloatingPlaceWindows((windows) =>
       windows.map((w) => {
         if (w.position != null) {
@@ -6284,6 +6159,7 @@ export default function StudioWindowsOS({
   }, [windowDragOffset, documentUndocked])
 
   const openFloatingExplorer = useCallback(() => {
+    setExplorerPanelOpen(true)
     setFloatingWindows((windows) => {
       const existing = findFloatingWindowWithTab(windows, 'explorer')
       if (existing != null) {
@@ -6296,6 +6172,7 @@ export default function StudioWindowsOS({
   }, [])
 
   const openFloatingProperties = useCallback(() => {
+    setPropertiesPanelOpen(true)
     setFloatingWindows((windows) => {
       const existing = findFloatingWindowWithTab(windows, 'properties')
       if (existing != null) {
@@ -6338,6 +6215,39 @@ export default function StudioWindowsOS({
     })
   }, [])
 
+  const handleRibbonPanelToggle = useCallback(
+    (panelId: RibbonPanelToggleId, open: boolean) => {
+      if (panelId === 'toolbox') {
+        setToolboxPanelOpen(open)
+        return
+      }
+      if (panelId === 'explorer') {
+        setExplorerPanelOpen(open)
+        if (!open) closeFloatingTab('explorer')
+        return
+      }
+      if (panelId === 'properties') {
+        setPropertiesPanelOpen(open)
+        if (!open) closeFloatingTab('properties')
+        return
+      }
+      if (panelId === 'assets') {
+        setAssetManagerPanelOpen(open)
+      }
+    },
+    [closeFloatingTab],
+  )
+
+  const ribbonPanelToggles = useMemo(
+    (): RibbonPanelToggles => ({
+      toolbox: toolboxPanelOpen,
+      explorer: explorerPanelOpen,
+      properties: propertiesPanelOpen,
+      assets: assetManagerPanelOpen,
+    }),
+    [toolboxPanelOpen, explorerPanelOpen, propertiesPanelOpen, assetManagerPanelOpen],
+  )
+
   const handleFloatingWindowMerge = useCallback(
     (sourceWindowId: string, targetWindowId: string, mergedActiveTab: FloatingSidePanelId) => {
       setFloatingWindows((windows) =>
@@ -6366,7 +6276,11 @@ export default function StudioWindowsOS({
   ])
 
   const toggleWindowPanel = useCallback(
-    (panelId: DockPanelId) => {
+    (panelId: WindowPanelToggleId) => {
+      if (panelId === 'studioSettings') {
+        setStudioSettingsOpen((open) => !open)
+        return
+      }
       if (panelId === 'assetManager') {
         setAssetManagerPanelOpen((open) => !open)
         return
@@ -6378,6 +6292,10 @@ export default function StudioWindowsOS({
       }
       if (panelId === 'output') {
         setOutputPanelOpen((open) => !open)
+        return
+      }
+      if (panelId === 'prototypeSettings') {
+        setPrototypeSettingsPanelOpen((open) => !open)
       }
     },
     [openPlaceDockPlaceIds, setPlaceDockOpen],
@@ -6385,10 +6303,10 @@ export default function StudioWindowsOS({
 
   const hiddenDockPanels = useMemo((): DockPanelId[] => {
     const hidden: DockPanelId[] = []
-    if (floatingExplorerOpen) hidden.push('explorer')
-    if (floatingPropertiesOpen) hidden.push('properties')
+    if (floatingExplorerOpen || !explorerPanelOpen) hidden.push('explorer')
+    if (floatingPropertiesOpen || !propertiesPanelOpen) hidden.push('properties')
     return hidden
-  }, [floatingExplorerOpen, floatingPropertiesOpen])
+  }, [floatingExplorerOpen, floatingPropertiesOpen, explorerPanelOpen, propertiesPanelOpen])
 
   const visibleBottomDockStacks = useMemo(
     () =>
@@ -6481,6 +6399,17 @@ export default function StudioWindowsOS({
     setEditWorkspaceDocumentFocus(d.editWorkspaceDocumentFocus)
     setPanelTitlesLeftAligned(d.panelTitlesLeftAligned)
     setOpenAssetAsDockedDocument(d.openAssetAsDockedDocument)
+    setLinkSemanticColors(d.linkSemanticColors)
+    setLinkSemanticHueOnly(d.linkSemanticHueOnly)
+    setLinkIconAccents(d.linkIconAccents)
+    setPanelTogglesUseFills(d.panelTogglesUseFills)
+    setRibbonIconSize(d.ribbonIconSize)
+    setStudioColorTheme(d.studioColorTheme)
+    setUiScale(d.uiScale)
+    setToolSelectionColor(d.toolSelectionColor)
+    setToolSelectionIncludeNeutrals(d.toolSelectionIncludeNeutrals)
+    setExplorerPanelOpen(true)
+    setPropertiesPanelOpen(true)
     setOpenAssetDockAssetIds([])
     setOpenMainStripAssetIds([])
     setOpenIsoStripAssetIds([])
@@ -6547,6 +6476,7 @@ export default function StudioWindowsOS({
     setClientScriptDocument(DEFAULT_CLIENT_SCRIPT_DOCUMENT)
     setOutputPanelOpen(false)
     setAssetManagerPanelOpen(false)
+    setToolboxPanelOpen(false)
     setOutputLogEntries(INITIAL_OUTPUT_LOG)
     setSimExplorerSelectedRowClient(null)
     setSimExplorerSelectedRowServer(null)
@@ -6775,6 +6705,7 @@ export default function StudioWindowsOS({
           strokeOn: false,
           tabTintOn: false,
           datamodel: 'drone',
+          editMode: !clientSimActive,
         })
         return (
           <TabWithPathTooltip
@@ -6795,26 +6726,12 @@ export default function StudioWindowsOS({
             }}
           >
             {asset.thumb === 'audio' ? (
-              <Music size={12} strokeWidth={1.5} className={styles.tabDiamond} aria-hidden />
+              <Music size={12} strokeWidth={1.5} className={`${styles.tabDiamond} ${styles.tabNeutralIcon}`} aria-hidden />
             ) : (
               <TabDiamond />
             )}
             <span>{asset.name}</span>
-            <button
-              type="button"
-              className={styles.tabClose}
-              aria-label="Close tab"
-              onPointerDown={(e) => {
-                e.stopPropagation()
-                setAssetDockOpen(assetId, false)
-              }}
-              onClick={(e) => {
-                e.stopPropagation()
-                setAssetDockOpen(assetId, false)
-              }}
-            >
-              <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-            </button>
+            <TabCloseButton onClose={() => setAssetDockOpen(assetId, false)} />
           </TabWithPathTooltip>
         )
       }
@@ -6847,6 +6764,7 @@ export default function StudioWindowsOS({
             strokeOn: playModeHasStroke && dockPlaceFocused,
             tabTintOn: clientSimActive && playModeTabTint && dockPlaceFocused,
             datamodel: clientSimActive ? 'server' : 'drone',
+            editMode: !clientSimActive,
           })}
           leadingIcon={clientSimActive ? 'server' : 'place'}
           selected={ctx.active}
@@ -6933,6 +6851,7 @@ export default function StudioWindowsOS({
                   level1ExplorerTree={
                     explorerTreeKind === 'level1Hierarchy' ? currentLevelExplorerTree : null
                   }
+                  colorTheme={studioColorTheme}
                 />
               </div>
             </>
@@ -6962,6 +6881,8 @@ export default function StudioWindowsOS({
                 title="Prototype settings"
                 assetVariant="properties"
                 titleAlign={panelChromeTitleAlign}
+                onClose={() => setPrototypeSettingsPanelOpen(false)}
+                showPopoutAction={false}
               />
               <div className={styles.panelBodyInteraction}>
               <InteractionSettingsPanel
@@ -7032,6 +6953,24 @@ export default function StudioWindowsOS({
                 onServerTabUsesPlaceNameChange={setServerTabUsesPlaceName}
                 clientTabUsesPlaceName={clientTabUsesPlaceName}
                 onClientTabUsesPlaceNameChange={setClientTabUsesPlaceName}
+                linkSemanticColors={linkSemanticColors}
+                onLinkSemanticColorsChange={setLinkSemanticColors}
+                linkSemanticHueOnly={linkSemanticHueOnly}
+                onLinkSemanticHueOnlyChange={setLinkSemanticHueOnly}
+                linkIconAccents={linkIconAccents}
+                onLinkIconAccentsChange={setLinkIconAccents}
+                panelTogglesUseFills={panelTogglesUseFills}
+                onPanelTogglesUseFillsChange={setPanelTogglesUseFills}
+                ribbonIconSize={ribbonIconSize}
+                onRibbonIconSizeChange={setRibbonIconSize}
+                studioColorTheme={studioColorTheme}
+                onStudioColorThemeChange={setStudioColorTheme}
+                uiScale={uiScale}
+                onUiScaleChange={setUiScale}
+                toolSelectionColor={toolSelectionColor}
+                onToolSelectionColorChange={setToolSelectionColor}
+                toolSelectionIncludeNeutrals={toolSelectionIncludeNeutrals}
+                onToolSelectionIncludeNeutralsChange={setToolSelectionIncludeNeutrals}
                 studioPhase={studioPhase}
               />
               </div>
@@ -7395,19 +7334,40 @@ export default function StudioWindowsOS({
     if (clientSimActive) setExperienceAssetOnlyMode(false)
   }, [clientSimActive])
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = studioColorTheme
+  }, [studioColorTheme])
+
   return (
     <div
       ref={frameRef}
       className={styles.frame}
       data-node-id="3841:114990"
       data-name="Studio - Windows OS"
+      data-ui-scale={uiScale}
+      data-tool-selection-color={toolSelectionColor}
+      {...(toolSelectionColor === 'blue_highlight' && toolSelectionIncludeNeutrals
+        ? { 'data-tool-selection-include-neutrals': '' as const }
+        : {})}
+      style={{ ['--ui-scale' as string]: uiScaleFactor(uiScale) }}
       {...(floatingWindows.length > 0 ||
       floatingPlaceWindows.length > 0 ||
       floatingAssetWindows.length > 0 ||
+      studioSettingsOpen ||
       documentUndocked
         ? { 'data-floating-panels': '' as const }
         : {})}
+      {...(linkSemanticColors ? { 'data-link-semantic-colors': '' as const } : {})}
+      {...(linkSemanticColors && linkSemanticHueOnly
+        ? { 'data-link-semantic-hue-only': '' as const }
+        : {})}
+      {...(linkSemanticColors && linkIconAccents
+        ? { 'data-link-icon-accents': '' as const }
+        : {})}
+      {...(panelTogglesUseFills ? { 'data-panel-toggles-use-fills': '' as const } : {})}
+      data-ribbon-icon-size={ribbonIconSize}
     >
+      <div className={styles.frameScaledContent}>
       <div className={styles.frameShell}>
       <header
         className={styles.appBar}
@@ -7416,7 +7376,14 @@ export default function StudioWindowsOS({
       >
         <div className={styles.appBarLeft}>
           <button type="button" className={styles.logoBtn} aria-label="App menu">
-            <img src={publicAssetUrl('assets/appbar-logo.svg')} alt="" />
+            <span
+              className={styles.appBarLogoMask}
+              style={{
+                maskImage: `url("${publicAssetUrl('assets/appbar-logo.svg')}")`,
+                WebkitMaskImage: `url("${publicAssetUrl('assets/appbar-logo.svg')}")`,
+              }}
+              aria-hidden
+            />
           </button>
           <nav className={styles.menu} aria-label="Application menu">
             {MENUS.map((label) =>
@@ -7440,6 +7407,8 @@ export default function StudioWindowsOS({
                   disabled={bunnyAssetWindow}
                   showPlaceDockPanels={phase2}
                   assetManagerOpen={assetManagerPanelOpen}
+                  studioSettingsOpen={studioSettingsOpen}
+                  prototypeSettingsOpen={prototypeSettingsPanelOpen}
                   placeLevel1Open={isPlaceDockOpen('level-1')}
                   outputOpen={outputPanelOpen}
                   onTogglePanel={toggleWindowPanel}
@@ -7476,7 +7445,10 @@ export default function StudioWindowsOS({
         </div>
       </header>
 
+      <div className={styles.ribbonBlock}>
       <LegacyRibbon
+        panelToggles={ribbonPanelToggles}
+        onPanelToggle={handleRibbonPanelToggle}
         simulating={clientSimActive}
         simViewportFocus={simViewportFocus}
         onSimViewportFocusToggle={() => {
@@ -7746,18 +7718,30 @@ export default function StudioWindowsOS({
           setCombinedMainZoneKeys(null)
         }}
       />
+      </div>
 
       <div className={styles.workspaceGutter} aria-hidden />
 
       <div className={styles.panels} data-node-id="3841:115136">
-        {assetManagerPanelOpen ? (
+        {toolboxPanelOpen || assetManagerPanelOpen ? (
           <aside className={styles.left} data-node-id="3841:115189">
-            <div className={styles.leftDockedPanelWrap}>
-              {renderDockedPanel('assetManager', {
-                tabbed: false,
-                placeDocumentTabStripInDock: false,
-              })}
-            </div>
+            {toolboxPanelOpen ? (
+              <div className={styles.leftDockedPanelWrap}>
+                <ToolboxPanel
+                  fillDock
+                  titleAlign={panelChromeTitleAlign}
+                  onClose={() => setToolboxPanelOpen(false)}
+                />
+              </div>
+            ) : null}
+            {assetManagerPanelOpen ? (
+              <div className={styles.leftDockedPanelWrap}>
+                {renderDockedPanel('assetManager', {
+                  tabbed: false,
+                  placeDocumentTabStripInDock: false,
+                })}
+              </div>
+            ) : null}
           </aside>
         ) : null}
         {clientSimActive ? (
@@ -7980,23 +7964,29 @@ export default function StudioWindowsOS({
           </section>
         )}
 
-        <aside className={styles.right} data-node-id="3841:115190">
-          {!floatingExplorerOpen ? (
+        <aside
+          className={styles.right}
+          data-node-id="3841:115190"
+          data-prototype-settings-open={prototypeSettingsPanelOpen ? 'true' : 'false'}
+        >
+          {explorerPanelOpen && !floatingExplorerOpen ? (
             <div className={styles.rightDockedPanelWrap} data-node-id="3841:115191">
               {renderDockedPanel('explorer', { tabbed: false, placeDocumentTabStripInDock: false })}
             </div>
           ) : null}
-          {!floatingPropertiesOpen ? (
+          {propertiesPanelOpen && !floatingPropertiesOpen ? (
             <div className={styles.rightDockedPanelWrap} data-node-id="3841:115196">
               {renderDockedPanel('properties', { tabbed: false, placeDocumentTabStripInDock: false })}
             </div>
           ) : null}
-          <div className={`${styles.panel} ${styles.panelInteraction}`}>
-            {renderDockedPanel('prototypeSettings', {
-              tabbed: false,
-              placeDocumentTabStripInDock: false,
-            })}
-          </div>
+          {prototypeSettingsPanelOpen ? (
+            <div className={`${styles.panel} ${styles.panelInteraction}`}>
+              {renderDockedPanel('prototypeSettings', {
+                tabbed: false,
+                placeDocumentTabStripInDock: false,
+              })}
+            </div>
+          ) : null}
         </aside>
       </div>
 
@@ -8007,6 +7997,21 @@ export default function StudioWindowsOS({
         datamodelTintFocus={footerDatamodelTintFocus}
       />
       </div>
+
+      {studioSettingsOpen ? (
+        <FloatingStudioSettingsWindow
+          frameRef={frameRef}
+          position={studioSettingsPosition}
+          onPositionChange={setStudioSettingsPosition}
+          size={studioSettingsSize}
+          onSizeChange={setStudioSettingsSize}
+          onClose={() => setStudioSettingsOpen(false)}
+          studioColorTheme={studioColorTheme}
+          onStudioColorThemeChange={setStudioColorTheme}
+          themePreset={studioThemePreset}
+          onThemePresetChange={setStudioThemePreset}
+        />
+      ) : null}
 
       {floatingWindows.map((win) => (
         <FloatingPanelWindow
@@ -8080,6 +8085,7 @@ export default function StudioWindowsOS({
                   level1ExplorerTree={
                     explorerTreeKind === 'level1Hierarchy' ? currentLevelExplorerTree : null
                   }
+                  colorTheme={studioColorTheme}
                 />
               </div>
             ) : (
@@ -8142,17 +8148,18 @@ export default function StudioWindowsOS({
 
       {tintActive ? (
         <div
-          className={styles.simFullTintOverlay}
+          className={`${styles.simFullTintOverlay} ${
+            simViewportFocus === 'client'
+              ? styles.simFullTintOverlayClient
+              : styles.simFullTintOverlayServer
+          }`}
           style={{
-            background:
-              simViewportFocus === 'client'
-                ? 'rgba(37, 99, 235, 0.05)'
-                : 'rgba(22, 163, 74, 0.05)',
             clipPath: tintClipPath ?? 'none',
           }}
           aria-hidden
         />
       ) : null}
+      </div>
     </div>
   )
 }

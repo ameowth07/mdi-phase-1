@@ -1,3 +1,7 @@
 export { default as LegacyRibbon } from './LegacyRibbon'
 export type { LegacyRibbonProps, SimViewportFocus, TestRunMode } from './LegacyRibbon'
 export { RibbonToolbar } from './RibbonToolbar'
+export type { RibbonPanelToggleId, RibbonPanelToggles, RibbonToolbarProps } from './RibbonToolbar'
+export { default as Checkbox } from './Checkbox'
+export type { CheckboxProps } from './Checkbox'
+export { default as NumberInput } from './NumberInput'

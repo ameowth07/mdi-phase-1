@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Anchor, Check, Globe, Lock, MoreHorizontal, Package2, X } from 'lucide-react'
+import { Anchor, Globe, Lock, MoreHorizontal, Package2, X } from 'lucide-react'
 import type { DatamodelTintFocus } from './datamodelTint'
+import Checkbox from './Checkbox'
 import css from './PropertiesPanel.module.css'
 
 const FOCUSABLE_INPUT_PROPS = {
@@ -14,7 +15,7 @@ function ChevDownSm() {
       <path
         d="M1 1.2L5 4.8L9 1.2"
         fill="none"
-        stroke="#f7f7f8"
+        stroke="currentColor"
         strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -97,14 +98,8 @@ function PropRow({
 
 function CheckboxControl({ checked }: { checked: boolean }) {
   return (
-    <div className={css.checkboxCell} tabIndex={0} role="checkbox" aria-checked={checked}>
-      {checked ? (
-        <div className={css.checkbox}>
-          <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
-        </div>
-      ) : (
-        <div className={css.checkboxUnchecked} aria-hidden />
-      )}
+    <div className={css.checkboxCell}>
+      <Checkbox checked={checked} aria-label="Checkbox" />
     </div>
   )
 }

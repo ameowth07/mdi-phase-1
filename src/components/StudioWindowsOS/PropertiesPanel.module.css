@@ -8,22 +8,22 @@
   align-items: stretch;
   height: 100%;
   min-height: 0;
-  background: var(--surface-100, #191a1f);
-  color: var(--content-default, #d5d7dd);
+  background: var(--surface-100);
+  color: var(--content-default);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .root[data-properties-tint='client'] {
-  --properties-input-focus-border: #4ec8e9;
+  --properties-input-focus-border: var(--semantic-client-stroke);
 }
 
 .root[data-properties-tint='server'] {
-  --properties-input-focus-border: #47b84f;
+  --properties-input-focus-border: var(--semantic-server-stroke);
 }
 
 .root[data-properties-tint='drone'] {
-  --properties-input-focus-border: rgba(255, 255, 255, 0.5);
+  --properties-input-focus-border: var(--semantic-drone-stroke);
 }
 
 .emptyState {
@@ -42,7 +42,7 @@
   max-width: 220px;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
 }
 
 /* Frontmatter: Mypart row + toggles */
@@ -63,7 +63,7 @@
   gap: 8px;
   height: 24px;
   padding: 2px 4px 2px 4px;
-  border-bottom: 1px solid rgba(208, 217, 251, 0.16);
+  border-bottom: 1px solid var(--stroke-emphasis);
   border-radius: 4px;
 }
 
@@ -135,7 +135,7 @@
   flex-shrink: 0;
 }
 
-/* Facets chips */
+/* Facets chips — Figma Chip Small (1203:3257 light · 1203:3258 dark) */
 .facets {
   flex: 0 0 32px;
   display: flex;
@@ -154,30 +154,30 @@
 }
 
 .chip {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
+  min-height: 24px;
   max-height: 24px;
   padding: 0 8px;
   border: none;
-  border-radius: 999px;
-  font: inherit;
-  font-size: 12px;
+  border-radius: 9999px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sans);
   font-weight: 600;
-  line-height: 1;
+  line-height: var(--font-size-sans);
   white-space: nowrap;
   cursor: default;
 }
 
 .chipInactive {
-  background: rgba(208, 217, 251, 0.12);
-  color: #f7f7f8;
+  background: var(--action-standard-background, var(--shift-300));
+  color: var(--content-emphasis);
 }
 
 .chipActive {
-  background: #fff;
-  color: #202227;
+  background: var(--chip-active-background);
+  color: var(--inverse-content-emphasis);
 }
 
 .scroll {
@@ -202,11 +202,10 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: var(--content-emphasis);
 }
 
-.sectionChevron img {
-  width: 10px;
-  height: 6px;
+.sectionChevron svg {
   display: block;
   opacity: 0.95;
 }
@@ -252,7 +251,7 @@
   padding-left: 8px;
   font-size: 12px;
   font-weight: 400;
-  color: var(--content-default, #d5d7dd);
+  color: var(--content-default);
   line-height: 1.4;
 }
 
@@ -271,19 +270,19 @@
   min-height: 24px;
   flex: 1 1 auto;
   min-width: 0;
-  background: var(--shift-100, rgba(208, 217, 251, 0.04));
+  background: var(--shift-100, var(--shift-100));
   border-radius: 4px;
   overflow: hidden;
   outline: none;
 }
 
 .inputShell:hover {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }
 
 .inputShell:focus,
 .inputShell:focus-visible {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
   box-shadow: inset 0 0 0 var(--properties-input-focus-ring-width, 1px)
     var(--properties-input-focus-border, #657bf4);
 }
@@ -298,9 +297,9 @@
 }
 
 .mono {
-  font-family: 'Builder Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: 12px;
-  line-height: 12px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sans);
+  line-height: var(--line-height-sans);
   color: var(--content-emphasis, #f7f7f8);
 }
 
@@ -330,11 +329,11 @@
   border-radius: inherit;
   background: radial-gradient(
       60% 60% at 30% 25%,
-      rgba(255, 255, 255, 0.55),
+      color-mix(in srgb, var(--content-emphasis) 55%, transparent),
       transparent 70%
     ),
     linear-gradient(145deg, #8b8a8f 0%, #5c5b60 45%, #3a3940 100%);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 0 1px var(--stroke-muted);
 }
 
 .swatchSq {
@@ -342,7 +341,7 @@
   height: 12px;
   border-radius: 2px;
   background: #a3a2a5;
-  border: 1px solid rgba(208, 217, 251, 0.12);
+  border: 1px solid var(--stroke-default);
   flex-shrink: 0;
 }
 
@@ -359,7 +358,7 @@
 
 .inputMuted {
   opacity: 0.5;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
   font-size: 12px;
 }
 
@@ -371,12 +370,13 @@
   align-items: center;
   justify-content: center;
   padding-right: 2px;
+  color: var(--content-muted);
 }
 
 .vDiv {
   align-self: stretch;
   width: 1px;
-  background: rgba(208, 217, 251, 0.12);
+  background: var(--shift-300);
   flex-shrink: 0;
 }
 
@@ -387,18 +387,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--shift-100, rgba(208, 217, 251, 0.04));
+  background: var(--shift-100, var(--shift-100));
   border-radius: 4px 0 0 4px;
   outline: none;
 }
 
 .colorSwatchSeg:hover {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }
 
 .colorSwatchSeg:focus,
 .colorSwatchSeg:focus-visible {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
   box-shadow: inset 0 0 0 var(--properties-input-focus-ring-width, 1px)
     var(--properties-input-focus-border, #657bf4);
 }
@@ -431,17 +431,17 @@
   gap: 2px;
   min-height: 24px;
   padding: 0 6px;
-  background: var(--shift-100, rgba(208, 217, 251, 0.04));
+  background: var(--shift-100, var(--shift-100));
   outline: none;
 }
 
 .numCell:hover {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }
 
 .numCell:focus,
 .numCell:focus-visible {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
   box-shadow: inset 0 0 0 var(--properties-input-focus-ring-width, 1px)
     var(--properties-input-focus-border, #657bf4);
 }
@@ -452,7 +452,7 @@
 
 .degSuffix {
   font-size: 11px;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
 }
 
 .numCellFirst {
@@ -497,7 +497,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: rgba(208, 217, 251, 0.12);
+  background: var(--shift-300);
 }
 
 .originHeader {
@@ -527,39 +527,13 @@
 }
 
 .checkboxCell:hover {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }
 
-.checkboxCell:focus,
-.checkboxCell:focus-visible {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+.checkboxCell:focus-within {
+  background: var(--shift-200, var(--shift-200));
   box-shadow: 0 0 0 var(--properties-input-focus-ring-width, 1px)
     var(--properties-input-focus-border, #657bf4);
-}
-
-.checkbox {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: #f7f7f8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.checkboxMark {
-  color: #202227;
-  flex-shrink: 0;
-}
-
-.checkboxUnchecked {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: rgba(208, 217, 251, 0.04);
-  border: 1.25px solid rgba(208, 217, 251, 0.16);
-  flex-shrink: 0;
 }
 
 .parentInputShell {

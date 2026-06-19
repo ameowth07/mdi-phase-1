@@ -1,15 +1,45 @@
 /**
- * Design tokens for @mdi/legacy-ribbon.
- * Import once in your app entry (e.g. main.tsx):
- *
- *   import '@mdi/legacy-ribbon/tokens.css'
+ * Standalone fallbacks when @mdi/legacy-ribbon is used outside the Studio app.
+ * In mdi, :root tokens from studioColorTokens.css + studioColorComputed.css take precedence.
  */
 :root {
+  --surface-0: #121215;
   --surface-100: #191a1f;
+  --surface-300: hsl(227, 10%, 17%);
   --content-default: #d5d7dd;
-  --content-emphasis: #f7f7f8;
   --content-muted: #bcbec8;
-  --overmedia-100: hsla(230, 11%, 11%, 0.92);
+  --content-emphasis: #f7f7f8;
+  --inverse-content-emphasis: #202227;
+  --system-contrast: #f7f7f8;
+  --stroke-contrast: rgba(208, 217, 251, 0.4);
   --shift-200: rgba(208, 217, 251, 0.08);
   --shift-300: rgba(208, 217, 251, 0.12);
+  --stroke-default: rgba(208, 217, 251, 0.12);
+  --stroke-muted: rgba(208, 217, 251, 0.08);
+  --stroke-emphasis: rgba(208, 217, 251, 0.16);
+  --shift-100: rgba(208, 217, 251, 0.04);
+  --shift-400: rgba(208, 217, 251, 0.16);
+  --accent-blue-300: #3c64fa;
+  --accent-muted-blue-200: #7986a5;
+  --action-standard-background: var(--shift-300);
+}
+
+[data-theme='light'] {
+  --surface-0: #ffffff;
+  --surface-100: #f7f7f8;
+  --surface-300: hsl(210, 8%, 95%);
+  --content-default: #494d5a;
+  --content-muted: #6a6f81;
+  --content-emphasis: #202227;
+  --inverse-content-emphasis: #f7f7f8;
+  --system-contrast: #202227;
+  --stroke-contrast: rgba(27, 37, 75, 0.5);
+  --shift-200: rgba(27, 37, 75, 0.08);
+  --shift-300: rgba(27, 37, 75, 0.12);
+  --stroke-default: rgba(27, 37, 75, 0.12);
+  --stroke-muted: rgba(27, 37, 75, 0.08);
+  --stroke-emphasis: rgba(27, 37, 75, 0.16);
+  --accent-blue-300: #3c64fa;
+  --accent-muted-blue-200: #7a88b8;
+  --action-standard-background: var(--shift-300);
 }

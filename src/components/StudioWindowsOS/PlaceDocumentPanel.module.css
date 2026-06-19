@@ -4,8 +4,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface-100, #191a1f);
-  border: 1px solid var(--surface-100, #191a1f);
+  background: var(--surface-100);
+  border: 1px solid var(--stroke-muted);
   overflow: hidden;
 }
 

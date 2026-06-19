@@ -4,6 +4,20 @@ import type { DatamodelTintFocus } from './datamodelTint'
 import { publicAssetUrl } from '../../publicAssetUrl'
 import css from './StudioFooter.module.css'
 
+function FooterIcon({ assetPath }: { assetPath: string }) {
+  const url = publicAssetUrl(assetPath)
+  return (
+    <span
+      className={css.footerIconMask}
+      style={{
+        maskImage: `url("${url}")`,
+        WebkitMaskImage: `url("${url}")`,
+      }}
+      aria-hidden
+    />
+  )
+}
+
 export type StudioFooterProps = {
   /** Footer “Questions” overlay — add strings to populate the list. */
   questions?: readonly string[]
@@ -53,7 +67,7 @@ export default function StudioFooter({
                 aria-pressed={historyToggleActive}
                 onClick={() => setHistoryToggleActive((a) => !a)}
               >
-                <img src={publicAssetUrl('assets/footer-cmd-history-toggle.svg')} alt="" />
+                <FooterIcon assetPath="assets/footer-cmd-history-toggle.svg" />
               </button>
               <button type="button" className={css.localSelect} aria-label="Run context">
                 <span>Local</span>
@@ -85,15 +99,15 @@ export default function StudioFooter({
                 aria-controls="footer-questions-overlay"
                 onClick={() => setQuestionsOpen(!questionsOpen)}
               >
-                <img src={publicAssetUrl('assets/footer-cmd-comment.svg')} alt="" />
+                <FooterIcon assetPath="assets/footer-cmd-comment.svg" />
               </button>
               <button type="button" className={css.appBarIconBtn} aria-label="Cloud sync">
-                <img src={publicAssetUrl('assets/footer-cmd-cloud.svg')} alt="" />
+                <FooterIcon assetPath="assets/footer-cmd-cloud.svg" />
               </button>
             </div>
             <div className={css.verticalDivider} aria-hidden />
             <button type="button" className={css.historyUtilityBtn} aria-label="History">
-              <img src={publicAssetUrl('assets/cmd-diamond.svg')} alt="" />
+              <FooterIcon assetPath="assets/cmd-diamond.svg" />
               <span>History</span>
             </button>
           </div>

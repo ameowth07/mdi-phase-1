@@ -1,3 +1,7 @@
+@import './styles/fonts.css';
+@import './styles/studioColorTokens.css';
+@import './styles/studioColorComputed.css';
+
 :root {
   --delta-hue: 0;
   --sat-multiplier: 1;
@@ -14,6 +18,9 @@
 body {
   margin: 0;
   background: #0a0a0b;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sans);
+  line-height: var(--line-height-sans);
 }
 
 #root {

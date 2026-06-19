@@ -75,6 +75,7 @@ export default function PlaceDocumentPanel({
     strokeOn: strokeOn && documentFocused,
     tabTintOn: tabTintOn && documentFocused,
     datamodel: testServerView ? 'server' : 'drone',
+    editMode: !testServerView,
   })
 
   const viewportClass = testServerView
@@ -107,9 +108,7 @@ export default function PlaceDocumentPanel({
             onActivate={onFocusDocument}
             onClose={onTabClose}
           />
-          <div className={tabStyles.tabRowUnderline} aria-hidden>
-            <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-          </div>
+          <div className={tabStyles.tabRowUnderline} aria-hidden />
         </div>
       )}
 

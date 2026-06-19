@@ -1,101 +1,7 @@
 .frame {
-  --workspace-gutter: 2px;
-  --surface-0: hsl(
-    calc(240 + var(--delta-hue)),
-    calc(8% * var(--sat-multiplier)),
-    calc((8% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
-  );
-  --surface-100: hsl(
-    calc(230 + var(--delta-hue)),
-    calc(11% * var(--sat-multiplier)),
-    calc((11% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
-  );
-  --surface-200: hsl(
-    calc(228 + var(--delta-hue)),
-    calc(11% * var(--sat-multiplier)),
-    calc((13% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
-  );
-  --content-default: hsl(
-    calc(225 + var(--delta-hue)),
-    calc(11% * var(--sat-multiplier)),
-    calc((85% + var(--lightness-offset)) * var(--contrast-scale))
-  );
-  --content-muted: hsl(
-    calc(230 + var(--delta-hue)),
-    calc(10% * var(--sat-multiplier)),
-    calc((76% + var(--lightness-offset)) * var(--contrast-scale))
-  );
-  --content-emphasis: hsl(
-    calc(240 + var(--delta-hue)),
-    calc(7% * var(--sat-multiplier)),
-    calc((97% + var(--lightness-offset)) * var(--contrast-scale))
-  );
-  /** PanelChrome titles — same base as content-muted. */
-  --panel-chrome-title: hsl(
-    calc(230 + var(--delta-hue)),
-    calc(10% * var(--sat-multiplier)),
-    calc((76% + var(--lightness-offset)) * var(--contrast-scale))
-  );
-  --stroke-default: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.12
-  );
-  --stroke-muted: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.08
-  );
-  /** #D0D9FB @ 4% — active / focused document tabs */
-  --shift-100: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.04
-  );
-  --shift-200: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.08
-  );
-  --shift-300: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.12
-  );
-  /** Action/Standard/Background */
-  --action-standard-background: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.12
-  );
-  --shift-400: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.16
-  );
-  /** Selection highlight — #657bf4 */
-  --highlight-400: rgba(101, 123, 244, 0.4);
-  --highlight-300: rgba(101, 123, 244, 0.32);
-  --highlight-200: rgba(101, 123, 244, 0.2);
-  --overmedia-100: hsla(
-    calc(230 + var(--delta-hue)),
-    calc(11% * var(--sat-multiplier)),
-    calc((11% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
-    0.92
-  );
-  --beta-stroke: hsla(
-    calc(227 + var(--delta-hue)),
-    calc(84% * var(--sat-multiplier)),
-    calc((90% + var(--lightness-offset)) * var(--contrast-scale)),
-    0.4
-  );
+  --ui-scale: 1;
+  --ui-layout-factor: calc(1 / var(--ui-scale));
+  --workspace-gutter: calc(2px * var(--ui-layout-factor));
   /** Drone Racer + asset isolation — white inset focus ring (Has focus stroke). */
   --edit-workspace-focus-ring-width: 1px;
   /** Client/Server viewport panel — semantic focus stroke (Has stroke). */
@@ -107,47 +13,295 @@
     0.5
   );
 
+  /** Client / Server / Drone semantic palette — fixed unless Link semantic colors is on. */
+  --semantic-client-stroke: #4ec8e9;
+  --semantic-server-stroke: #47b84f;
+  --semantic-drone-stroke: rgba(255, 255, 255, 0.5);
+  --semantic-client-tab-tint: #02223b;
+  --semantic-server-tab-tint: #032609;
+  --semantic-client-selection: #043b5d;
+  --semantic-client-selection-muted: #02223b;
+  --semantic-server-selection: rgba(57, 197, 130, 0.32);
+  --semantic-server-selection-muted: rgba(57, 197, 130, 0.2);
+  --semantic-drone-selection: rgba(218, 93, 149, 0.32);
+  --semantic-drone-selection-muted: rgba(218, 93, 149, 0.2);
+  --semantic-client-footer: #043b5d;
+  --semantic-server-footer: #074010;
+  --semantic-drone-footer: rgba(218, 93, 149, 0.32);
+  --semantic-client-full-tint: rgba(37, 99, 235, 0.05);
+  --semantic-server-full-tint: rgba(22, 163, 74, 0.05);
+
+  /** Ribbon icon accent palette — fixed unless Link icon accents is on (requires Link semantic colors). */
+  --ribbon-accent-violet: #7644fd;
+  --ribbon-accent-green: #0fb369;
+  --ribbon-accent-magenta: #e26cf4;
+  --ribbon-accent-blue-deep: #284de2;
+  --ribbon-accent-blue: #5581fc;
+  --ribbon-accent-blue-ui: #3c64fa;
+  --ribbon-accent-yellow: #f5c73d;
+  --ribbon-accent-orange: #f87935;
+  --ribbon-accent-character: #e1621e;
+  --ribbon-accent-cyan: #0cc3e4;
+  --ribbon-accent-pink: #e8457e;
+
+  /** Ribbon toolbar selected-tool fill — overridden by data-tool-selection-color. */
+  --ribbon-tool-selection-bg: var(--shift-300);
+  --ribbon-tool-selection-accent: #447ffd;
+
   width: 100%;
   max-width: 1472px;
   height: 904px;
   max-height: var(--studio-frame-max-height, calc(100vh - 24px));
   position: relative;
   /* Match docked Explorer / Properties height in the right rail (split above prototype settings). */
-  --frame-appbar-height: 32px;
-  --ribbon-block-height: 101px;
-  --frame-footer-block-height: 41px;
-  --prototype-settings-panel-height: 300px;
+  --frame-appbar-design-height: 32px;
+  --ribbon-block-design-height: 101px;
+  --frame-footer-design-height: 41px;
+  --prototype-settings-panel-height: calc(300px * var(--ui-layout-factor));
+  --studio-right-major-panel-height: calc(210px * var(--ui-layout-factor));
+  --studio-panel-rail-width: calc(291px * var(--ui-layout-factor));
+  --studio-center-flex-basis: calc(1179px * var(--ui-layout-factor));
+  --studio-panels-region-design-height: calc(
+    904px - var(--frame-appbar-design-height) - 2px - var(--ribbon-block-design-height) - 2px -
+      2px - var(--frame-footer-design-height)
+  );
+  /** Bottom document dock — share of center column (352px of ~724px panels region at 100%). */
+  --studio-center-dock-share: calc(352px / var(--studio-panels-region-design-height));
+  /** Used for floating panel geometry (design-time chrome heights). */
   --studio-panels-region-height: calc(
-    100% - var(--frame-appbar-height) - var(--workspace-gutter) - var(--ribbon-block-height) -
-      var(--workspace-gutter) - var(--workspace-gutter) - var(--frame-footer-block-height)
+    904px - var(--frame-appbar-design-height) - 2px - var(--ribbon-block-design-height) - 2px -
+      2px - var(--frame-footer-design-height)
   );
-  --studio-right-docked-panel-height: calc(
-    (
-        var(--studio-panels-region-height) - var(--prototype-settings-panel-height) -
-          var(--workspace-gutter) * 2
-      ) / 2
-  );
+  --studio-right-docked-panel-height: var(--studio-right-major-panel-height);
   --studio-right-panel-top: calc(
-    var(--frame-appbar-height) + var(--workspace-gutter) + var(--ribbon-block-height) +
-      var(--workspace-gutter)
+    var(--frame-appbar-design-height) + var(--workspace-gutter) +
+      var(--ribbon-block-design-height) + var(--workspace-gutter)
   );
   display: flex;
   flex-direction: column;
   background: var(--surface-0);
   color: var(--content-default);
-  font-family:
-    'Segoe UI',
-    system-ui,
-    -apple-system,
-    Roboto,
-    sans-serif;
-  font-size: 12px;
-  line-height: 1.4;
-  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sans);
+  line-height: var(--line-height-sans);
+  --frame-radius: 12px;
+  border-radius: var(--frame-radius);
   overflow: hidden;
   box-shadow:
     0 0 0 1px var(--stroke-default),
     0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+/** Scales app chrome inside a fixed frame; layout factor preserves region proportions. */
+.frameScaledContent {
+  position: relative;
+  width: calc(100% / var(--ui-scale));
+  height: calc(904px / var(--ui-scale));
+  transform: scale(var(--ui-scale));
+  transform-origin: top left;
+  border-radius: var(--frame-radius);
+}
+
+/** Light theme Client/Server focus + footer tint — Figma 6401:167782. */
+[data-theme='light'] .frame {
+  --semantic-client-stroke: #07659c;
+  --semantic-server-stroke: #0d7315;
+  --semantic-client-footer: #82dcf2;
+  --semantic-server-footer: #99e19e;
+}
+
+/** Theme operators also retune Client / Server / Drone when Link semantic colors is enabled. */
+.frame[data-link-semantic-colors] {
+  --semantic-client-stroke: hsl(
+    calc(193 + var(--delta-hue)),
+    calc(76% * var(--sat-multiplier)),
+    calc((61% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --semantic-server-stroke: hsl(
+    calc(125 + var(--delta-hue)),
+    calc(44% * var(--sat-multiplier)),
+    calc((50% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --semantic-drone-stroke: hsla(
+    calc(0 + var(--delta-hue)),
+    calc(0% * var(--sat-multiplier)),
+    calc((100% + var(--lightness-offset)) * var(--contrast-scale)),
+    0.5
+  );
+  --semantic-client-tab-tint: hsl(
+    calc(203 + var(--delta-hue)),
+    calc(93% * var(--sat-multiplier)),
+    calc((12% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --semantic-server-tab-tint: hsl(
+    calc(125 + var(--delta-hue)),
+    calc(88% * var(--sat-multiplier)),
+    calc((9% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --semantic-client-selection: hsl(
+    calc(203 + var(--delta-hue)),
+    calc(92% * var(--sat-multiplier)),
+    calc((19% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --semantic-client-selection-muted: hsl(
+    calc(203 + var(--delta-hue)),
+    calc(93% * var(--sat-multiplier)),
+    calc((12% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --semantic-server-selection: hsla(
+    calc(155 + var(--delta-hue)),
+    calc(54% * var(--sat-multiplier)),
+    calc((50% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.32
+  );
+  --semantic-server-selection-muted: hsla(
+    calc(155 + var(--delta-hue)),
+    calc(54% * var(--sat-multiplier)),
+    calc((50% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.2
+  );
+  --semantic-drone-selection: hsla(
+    calc(330 + var(--delta-hue)),
+    calc(64% * var(--sat-multiplier)),
+    calc((61% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.32
+  );
+  --semantic-drone-selection-muted: hsla(
+    calc(330 + var(--delta-hue)),
+    calc(64% * var(--sat-multiplier)),
+    calc((61% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.2
+  );
+  --semantic-client-footer: hsl(
+    calc(203 + var(--delta-hue)),
+    calc(92% * var(--sat-multiplier)),
+    calc((19% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --semantic-server-footer: hsl(
+    calc(125 + var(--delta-hue)),
+    calc(88% * var(--sat-multiplier)),
+    calc((14% + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+  );
+  --semantic-drone-footer: hsla(
+    calc(330 + var(--delta-hue)),
+    calc(64% * var(--sat-multiplier)),
+    calc((61% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.32
+  );
+  --semantic-client-full-tint: hsla(
+    calc(217 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((53% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.05
+  );
+  --semantic-server-full-tint: hsla(
+    calc(142 + var(--delta-hue)),
+    calc(76% * var(--sat-multiplier)),
+    calc((36% + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    0.05
+  );
+}
+
+/** Linked semantics — hue shift only; sat / lightness / contrast stay at brand baseline. */
+.frame[data-link-semantic-colors][data-link-semantic-hue-only] {
+  --semantic-client-stroke: hsl(calc(193 + var(--delta-hue)), 76%, 61%);
+  --semantic-server-stroke: hsl(calc(125 + var(--delta-hue)), 44%, 50%);
+  --semantic-drone-stroke: hsla(calc(0 + var(--delta-hue)), 0%, 100%, 0.5);
+  --semantic-client-tab-tint: hsl(calc(203 + var(--delta-hue)), 93%, 12%);
+  --semantic-server-tab-tint: hsl(calc(125 + var(--delta-hue)), 88%, 9%);
+  --semantic-client-selection: hsl(calc(203 + var(--delta-hue)), 92%, 19%);
+  --semantic-client-selection-muted: hsl(calc(203 + var(--delta-hue)), 93%, 12%);
+  --semantic-server-selection: hsla(calc(155 + var(--delta-hue)), 54%, 50%, 0.32);
+  --semantic-server-selection-muted: hsla(calc(155 + var(--delta-hue)), 54%, 50%, 0.2);
+  --semantic-drone-selection: hsla(calc(330 + var(--delta-hue)), 64%, 61%, 0.32);
+  --semantic-drone-selection-muted: hsla(calc(330 + var(--delta-hue)), 64%, 61%, 0.2);
+  --semantic-client-footer: hsl(calc(203 + var(--delta-hue)), 92%, 19%);
+  --semantic-server-footer: hsl(calc(125 + var(--delta-hue)), 88%, 14%);
+  --semantic-drone-footer: hsla(calc(330 + var(--delta-hue)), 64%, 61%, 0.32);
+  --semantic-client-full-tint: hsla(calc(217 + var(--delta-hue)), 84%, 53%, 0.05);
+  --semantic-server-full-tint: hsla(calc(142 + var(--delta-hue)), 76%, 36%, 0.05);
+}
+
+/** Theme operators retune ribbon icon accents when Link icon accents is enabled. */
+.frame[data-link-semantic-colors][data-link-icon-accents] {
+  --ribbon-accent-violet: hsl(
+    calc(262 + var(--delta-hue)),
+    calc(98% * var(--sat-multiplier)),
+    calc((63% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-green: hsl(
+    calc(152 + var(--delta-hue)),
+    calc(86% * var(--sat-multiplier)),
+    calc((38% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-magenta: hsl(
+    calc(292 + var(--delta-hue)),
+    calc(84% * var(--sat-multiplier)),
+    calc((68% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-blue-deep: hsl(
+    calc(228 + var(--delta-hue)),
+    calc(76% * var(--sat-multiplier)),
+    calc((52% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-blue: hsl(
+    calc(227 + var(--delta-hue)),
+    calc(96% * var(--sat-multiplier)),
+    calc((66% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-blue-ui: hsl(
+    calc(228 + var(--delta-hue)),
+    calc(95% * var(--sat-multiplier)),
+    calc((61% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-yellow: hsl(
+    calc(45 + var(--delta-hue)),
+    calc(90% * var(--sat-multiplier)),
+    calc((60% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-orange: hsl(
+    calc(21 + var(--delta-hue)),
+    calc(93% * var(--sat-multiplier)),
+    calc((59% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-character: hsl(
+    calc(21 + var(--delta-hue)),
+    calc(75% * var(--sat-multiplier)),
+    calc((50% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-cyan: hsl(
+    calc(189 + var(--delta-hue)),
+    calc(90% * var(--sat-multiplier)),
+    calc((47% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+  --ribbon-accent-pink: hsl(
+    calc(340 + var(--delta-hue)),
+    calc(76% * var(--sat-multiplier)),
+    calc((59% + var(--lightness-offset)) * var(--contrast-scale))
+  );
+}
+
+/** Linked icon accents — hue shift only; sat / lightness / contrast stay at brand baseline. */
+.frame[data-link-semantic-colors][data-link-icon-accents][data-link-semantic-hue-only] {
+  --ribbon-accent-violet: hsl(calc(262 + var(--delta-hue)), 98%, 63%);
+  --ribbon-accent-green: hsl(calc(152 + var(--delta-hue)), 86%, 38%);
+  --ribbon-accent-magenta: hsl(calc(292 + var(--delta-hue)), 84%, 68%);
+  --ribbon-accent-blue-deep: hsl(calc(228 + var(--delta-hue)), 76%, 52%);
+  --ribbon-accent-blue: hsl(calc(227 + var(--delta-hue)), 96%, 66%);
+  --ribbon-accent-blue-ui: hsl(calc(228 + var(--delta-hue)), 95%, 61%);
+  --ribbon-accent-yellow: hsl(calc(45 + var(--delta-hue)), 90%, 60%);
+  --ribbon-accent-orange: hsl(calc(21 + var(--delta-hue)), 93%, 59%);
+  --ribbon-accent-character: hsl(calc(21 + var(--delta-hue)), 75%, 50%);
+  --ribbon-accent-cyan: hsl(calc(189 + var(--delta-hue)), 90%, 47%);
+  --ribbon-accent-pink: hsl(calc(340 + var(--delta-hue)), 76%, 59%);
+}
+
+.frame[data-tool-selection-color='shift_500'] {
+  --ribbon-tool-selection-bg: var(--shift-500);
+}
+
+.frame[data-tool-selection-color='blue_highlight'] {
+  --ribbon-tool-selection-bg: var(--highlight-300);
 }
 
 .frameShell {
@@ -155,8 +309,9 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  border-radius: inherit;
+  border-radius: var(--frame-radius);
   overflow: hidden;
+  background: var(--surface-0);
 }
 
 /** Play mode — 5% overlay tint (matches client / server focus ring hues). */
@@ -168,9 +323,17 @@
   border-radius: inherit;
 }
 
+.simFullTintOverlayClient {
+  background: var(--semantic-client-full-tint);
+}
+
+.simFullTintOverlayServer {
+  background: var(--semantic-server-full-tint);
+}
+
 /* —— Windows title bar —— */
 .appBar {
-  flex: 0 0 32px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -197,12 +360,21 @@
   border-radius: 4px;
   background: transparent;
   cursor: default;
+  color: var(--content-emphasis);
 }
 
-.logoBtn img {
+.appBarLogoMask {
+  display: block;
   width: 12px;
   height: 12px;
-  display: block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
 }
 
 .menu {
@@ -221,6 +393,10 @@
   color: var(--content-default);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.ribbonBlock {
+  flex: 0 0 auto;
 }
 
 .title {
@@ -278,7 +454,7 @@
 }
 
 .center {
-  flex: 1 1 1179px;
+  flex: 1 1 var(--studio-center-flex-basis);
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -288,7 +464,7 @@
 }
 
 .centerWorkspace {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -303,12 +479,19 @@
 }
 
 .centerDock {
-  flex: 0 0 352px;
+  flex: 0 0 calc(var(--studio-center-dock-share) * 100%);
   min-height: 0;
   display: flex;
   flex-direction: row;
   align-items: stretch;
   overflow: hidden;
+}
+
+.centerDock .panel {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .centerDockPanelGutter {
@@ -341,13 +524,7 @@
   bottom: 0;
   height: 1px;
   pointer-events: none;
-}
-
-.tabRowUnderline img,
-.tabRowUnderline svg {
-  width: 100%;
-  height: 1px;
-  display: block;
+  background: var(--stroke-muted);
 }
 
 .tab {
@@ -368,34 +545,37 @@
 }
 
 /**
- * Testing UI: Tab stroke — top on the border edge; bottom outside on the active tab.
+ * Testing UI: Tab stroke — semantic / focus color on the top border edge only.
  */
 .tabActiveTopStroke {
-  --tab-stroke-color: #a3a6b0;
+  --tab-stroke-color: var(--stroke-default);
   border-top-color: var(--tab-stroke-color);
   border-bottom-color: transparent;
-  box-shadow: 0 1px 0 0 var(--tab-stroke-color);
 }
 
 .tabActiveTopStrokeClient {
-  --tab-stroke-color: #4ec8e9;
+  --tab-stroke-color: var(--semantic-client-stroke);
 }
 
 .tabActiveTopStrokeServer {
-  --tab-stroke-color: #47b84f;
+  --tab-stroke-color: var(--semantic-server-stroke);
 }
 
 .tabActiveTopStrokeDrone {
-  --tab-stroke-color: #a3a6b0;
+  --tab-stroke-color: var(--stroke-default);
 }
 
-/** Testing UI: Tab stroke all edges — top/left/right on border; bottom outside. */
+/** Edit mode: focused neutral tab top stroke — Figma bg/system-contrast. */
+.tabActiveTopStrokeEdit:not(.tabActiveTopStrokeClient):not(.tabActiveTopStrokeServer) {
+  --tab-stroke-color: var(--system-contrast);
+}
+
+/** Testing UI: Tab stroke all edges — top/left/right on the border; bottom transparent. */
 .tabActiveTopStroke.tabActiveAllEdgesStroke {
   border-top-color: var(--tab-stroke-color);
   border-left-color: var(--tab-stroke-color);
   border-right-color: var(--tab-stroke-color);
   border-bottom-color: transparent;
-  box-shadow: 0 1px 0 0 var(--tab-stroke-color);
 }
 
 /**
@@ -433,7 +613,6 @@
 [data-tab-stroke-connected] .simSplitViewportRow,
 [data-tab-stroke-connected] .testTriptychBodyRow,
 [data-tab-stroke-connected] .documentPanel > .tabRow ~ .viewport,
-[data-tab-stroke-connected] .assetIsolationPanel > .assetIsolationWorkspace,
 [data-tab-stroke-connected] .floatingDocumentStack > .assetIsolationPanel > .assetIsolationWorkspace {
   margin-top: -1px;
 }
@@ -459,6 +638,13 @@
   z-index: 0;
 }
 
+/** Isolation column: suppress connected gutter when this column is not document-focused. */
+[data-tab-stroke-connected]
+  .assetIsolationPanel:not([data-isolation-column-focused])
+  .tabRow:has([aria-selected='true'])::after {
+  display: none;
+}
+
 /**
  * Gutter focus stroke left/right of the active tab (Tab stroke connected).
  * Widths/color from useConnectedTabGutterMetrics on the tab row.
@@ -473,12 +659,12 @@
   z-index: 2;
   pointer-events: none;
   background-image: linear-gradient(
-      var(--tab-connected-stroke-color, #4ec8e9),
-      var(--tab-connected-stroke-color, #4ec8e9)
+      var(--tab-connected-stroke-color, var(--semantic-client-stroke)),
+      var(--tab-connected-stroke-color, var(--semantic-client-stroke))
     ),
     linear-gradient(
-      var(--tab-connected-stroke-color, #4ec8e9),
-      var(--tab-connected-stroke-color, #4ec8e9)
+      var(--tab-connected-stroke-color, var(--semantic-client-stroke)),
+      var(--tab-connected-stroke-color, var(--semantic-client-stroke))
     );
   background-repeat: no-repeat;
   background-size:
@@ -498,32 +684,67 @@
 [data-tab-stroke-connected] .simDatamodelStrokeOverlay,
 [data-tab-stroke-connected] .serverSimDatamodelStrokeOverlay {
   box-shadow:
-    inset 1px 0 0 0 var(--tab-connected-stroke-color, #38bdf8),
-    inset -1px 0 0 0 var(--tab-connected-stroke-color, #38bdf8),
-    inset 0 -1px 0 0 var(--tab-connected-stroke-color, #38bdf8);
+    inset 1px 0 0 0 var(--tab-connected-stroke-color, var(--semantic-client-stroke)),
+    inset -1px 0 0 0 var(--tab-connected-stroke-color, var(--semantic-client-stroke)),
+    inset 0 -1px 0 0 var(--tab-connected-stroke-color, var(--semantic-client-stroke));
 }
 
 [data-tab-stroke-connected] .viewportClientFocused::after {
   box-shadow:
-    inset 1px 0 0 0 #4ec8e9,
-    inset -1px 0 0 0 #4ec8e9,
-    inset 0 -1px 0 0 #4ec8e9;
+    inset 1px 0 0 0 var(--semantic-client-stroke),
+    inset -1px 0 0 0 var(--semantic-client-stroke),
+    inset 0 -1px 0 0 var(--semantic-client-stroke);
 }
 
 [data-tab-stroke-connected] .serverViewportFocused::after {
   box-shadow:
-    inset 1px 0 0 0 #47b84f,
-    inset -1px 0 0 0 #47b84f,
-    inset 0 -1px 0 0 #47b84f;
+    inset 1px 0 0 0 var(--semantic-server-stroke),
+    inset -1px 0 0 0 var(--semantic-server-stroke),
+    inset 0 -1px 0 0 var(--semantic-server-stroke);
 }
 
 /** Testing UI: Tab tint — filled background on focused Client / Server tabs. */
 .tabActiveTintClient {
-  background: #02223b;
+  background: var(--semantic-client-tab-tint);
 }
 
 .tabActiveTintServer {
-  background: #032609;
+  background: var(--semantic-server-tab-tint);
+}
+
+.iconSemanticClient {
+  color: var(--semantic-client-stroke);
+}
+
+.iconSemanticServer {
+  color: var(--semantic-server-stroke);
+}
+
+/** Neutral tab icons (non–Client/Server) — content ramp. */
+.tabNeutralIcon {
+  color: var(--content-emphasis);
+  opacity: 1;
+}
+
+.tabContentIconMask {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: var(--content-emphasis);
+  opacity: 1;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.tabInactive .tabNeutralIcon {
+  color: var(--content-muted);
+}
+
+.tabInactive .tabContentIconMask {
+  background-color: var(--content-muted);
 }
 
 .tabInactive {
@@ -603,12 +824,21 @@
   align-items: center;
   justify-content: center;
   opacity: 0.85;
+  color: inherit;
 }
 
-.tabClose img,
-.tabClose svg {
+.tabCloseIconMask {
+  display: block;
   width: 12px;
   height: 12px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
 }
 
 .tabDiamond {
@@ -640,7 +870,7 @@
   min-height: 0;
   position: relative;
   overflow: hidden;
-  background: var(--surface-100, #191a1f);
+  background: var(--surface-100);
 }
 
 .viewportClientFocused::after {
@@ -649,7 +879,7 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #4ec8e9;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) var(--semantic-client-stroke);
 }
 
 .viewportAboveSimTint {
@@ -691,6 +921,23 @@
   z-index: 0;
 }
 
+/** UI scale — keep viewport game/sim art at 100% while chrome grows. */
+.frame[data-ui-scale]:not([data-ui-scale='100']) .viewport > img,
+.frame[data-ui-scale]:not([data-ui-scale='100']) .viewport img[data-name],
+.frame[data-ui-scale]:not([data-ui-scale='100']) .serverViewport > img,
+.frame[data-ui-scale]:not([data-ui-scale='100']) .serverViewport img[data-name],
+.frame[data-ui-scale]:not([data-ui-scale='100']) .assetIsolationImageLayer > img {
+  inset: auto !important;
+  top: 0;
+  left: 0;
+  right: auto;
+  bottom: auto;
+  transform: scale(calc(1 / var(--ui-scale)));
+  transform-origin: top left;
+  width: calc(100% * var(--ui-scale)) !important;
+  height: calc(100% * var(--ui-scale)) !important;
+}
+
 /**
  * Edit viewports — inset ring above full-bleed images.
  * Use a real stacking layer (not ::after); some engines paint replaced content above pseudo siblings.
@@ -705,11 +952,16 @@
 }
 
 /**
- * Split edit placeholders (e.g. asset-isolation.jpg) ship with a ~1–2px white “frame” in the bitmap.
- * Clip the inactive column so the real focus chrome is only `editWorkspaceInsetRing` on the active column.
+ * Inactive split column — hide CSS focus ring only; keep image layout identical to the focused column
+ * so toggling focus does not zoom or reflow the placeholder art.
  */
-.editWorkspaceInactiveBleedCrop > img {
-  clip-path: inset(2px);
+.editWorkspaceInactiveBleedCrop > .editWorkspaceInsetRing {
+  display: none;
+}
+
+/** Inactive isolation column — panel chrome only; image layer layout stays fixed. */
+.assetIsolationPanel:not([data-isolation-column-focused]) .assetIsolationWorkspace {
+  background: var(--surface-100);
 }
 
 /** Test mode: Client / Server share one document column — tab strip + single viewport slot. */
@@ -884,6 +1136,12 @@
   min-width: 0;
 }
 
+/** Split placeholders — same cover crop in both columns; focus only changes the inset ring overlay. */
+.editWorkspaceSplit .viewport > img {
+  object-fit: cover;
+  object-position: center center;
+}
+
 /**
  * Test + asset in isolation (tabbed): column shell for Client/Server viewports.
  * Must be a flex column so `simTabbedBody` gets height (plain `.viewport` is not flex — inner sim view collapsed).
@@ -896,7 +1154,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: var(--surface-100, #191a1f);
+  background: var(--surface-100);
 }
 
 .assetIsolationPanel {
@@ -905,7 +1163,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface-100, #191a1f);
+  background: var(--surface-100);
 }
 
 .assetIsolationTabRow {
@@ -928,10 +1186,16 @@
   isolation: isolate;
 }
 
-.assetIsolationWorkspace > img {
+/** Full-bleed isolation art — stable box independent of column focus chrome. */
+.assetIsolationImageLayer {
   position: absolute;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
+}
+
+.assetIsolationImageLayer > img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -952,7 +1216,7 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #38bdf8;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) var(--semantic-client-stroke);
 }
 
 .serverViewport {
@@ -969,7 +1233,7 @@
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #47b84f;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) var(--semantic-server-stroke);
 }
 
 .serverViewport img {
@@ -988,12 +1252,12 @@
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) #47b84f;
+  box-shadow: inset 0 0 0 var(--panel-focus-stroke-width, 1px) var(--semantic-server-stroke);
 }
 
 .right {
-  flex: 0 0 291px;
-  width: 291px;
+  flex: 0 0 var(--studio-panel-rail-width);
+  width: var(--studio-panel-rail-width);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1002,19 +1266,20 @@
   overflow: hidden;
 }
 
-/** Asset Manager — full-height column in the left rail when open. */
+/** Toolbox / Asset Manager — share the left rail; split height when both are open. */
 .left {
-  flex: 0 0 291px;
-  width: 291px;
+  flex: 0 0 var(--studio-panel-rail-width);
+  width: var(--studio-panel-rail-width);
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--workspace-gutter);
   background: var(--surface-0);
   overflow: hidden;
 }
 
 .leftDockedPanelWrap {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1027,14 +1292,20 @@
   min-height: 0;
 }
 
-/** Explorer / Properties — fixed slots in the right rail (not dock-draggable). */
+/** Explorer / Properties — fixed design slots when Prototype settings is open; fill rail when it is closed. */
 .rightDockedPanelWrap {
-  flex: 1 1 0;
-  min-height: var(--studio-right-docked-panel-height);
+  flex: 0 1 var(--studio-right-major-panel-height);
+  max-height: var(--studio-right-major-panel-height);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--surface-100);
+}
+
+.right[data-prototype-settings-open='false'] .rightDockedPanelWrap {
+  flex: 1 1 0;
+  max-height: none;
 }
 
 .rightDockedPanelWrap .panelBody {
@@ -1046,8 +1317,8 @@
 .floatingPanelHost {
   position: absolute;
   top: var(--studio-right-panel-top);
-  right: calc(291px + var(--workspace-gutter) * 2);
-  width: 291px;
+  right: calc(var(--studio-panel-rail-width) + var(--workspace-gutter) * 2);
+  width: var(--studio-panel-rail-width);
   height: var(--studio-right-docked-panel-height);
   display: flex;
   flex-direction: column;
@@ -1072,8 +1343,10 @@
 
 .frame[data-floating-window-dragging] {
   cursor: grabbing;
+  overflow: visible;
 }
 
+/** Let in-frame floating panels extend past the frame edge; main chrome stays clipped in `.frameShell`. */
 .frame[data-floating-panels] {
   overflow: visible;
 }
@@ -1100,7 +1373,7 @@
   touch-action: none;
   user-select: none;
   overflow: visible;
-  background: rgba(208, 217, 251, 0.04);
+  background: var(--shift-100);
 }
 
 .floatingPanelChromeDrag:active {
@@ -1151,6 +1424,54 @@
   z-index: 94;
 }
 
+/** Studio Settings — Figma 1247:279900 floating panel. Size set inline; default centered. */
+.floatingStudioSettingsHost {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  pointer-events: auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--stroke-default),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 96;
+}
+
+.floatingStudioSettingsHost .panel {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.floatingWindowResizeHandle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 5;
+}
+
+.floatingStudioSettingsBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-100);
+}
+
 .floatingDocumentHost .panel {
   flex: 1 1 auto;
   min-height: 0;
@@ -1164,7 +1485,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface-100, #191a1f);
+  background: var(--surface-100);
 }
 
 .floatingDocumentStack {
@@ -1221,16 +1542,17 @@
 }
 
 .panelInteraction {
-  /* Fixed until panels become resizable */
-  flex: 0 0 300px;
-  height: 300px;
-  max-height: 300px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panelBodyInteraction {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
   background: var(--surface-100);
 }
 
@@ -1239,7 +1561,7 @@
   position: relative;
   z-index: 20;
   overflow: visible;
-  background: rgba(208, 217, 251, 0.04);
+  background: var(--shift-100);
 }
 
 .panelHeaderDraggable {
@@ -1258,7 +1580,7 @@
   margin: 0;
   font-size: 12px;
   font-weight: 400;
-  color: var(--panel-chrome-title, #bcbec8);
+  color: var(--panel-chrome-title);
 }
 
 .panelTitleLabel {
@@ -1316,7 +1638,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
-  color: var(--panel-chrome-title, #bcbec8);
+  color: var(--panel-chrome-title);
 }
 
 .explorerFocusBadge {
@@ -1334,7 +1656,7 @@
   position: absolute;
   inset: 0;
   border-radius: 9999px;
-  background: rgba(208, 217, 251, 0.08);
+  background: var(--shift-200);
 }
 
 .explorerFocusBadgeRow {
@@ -1355,11 +1677,11 @@
 }
 
 .explorerFocusBadgeDotClient {
-  background: #335fff;
+  background: var(--semantic-client-stroke);
 }
 
 .explorerFocusBadgeDotServer {
-  background: #0c9b5a;
+  background: var(--semantic-server-stroke);
 }
 
 .explorerFocusBadgeDotDrone {
@@ -1397,7 +1719,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--content-emphasis, #f7f7f8);
+  color: var(--content-default);
 }
 
 .panelAction img,
@@ -1452,27 +1774,27 @@
 
 /* Testing UI → Selection tint: Explorer-only focus hues */
 .tree[data-explorer-tint='client'] .treeRow.selected {
-  background: #043b5d;
+  background: var(--semantic-client-selection);
 }
 
 .tree[data-explorer-tint='client'] .treeRowChildOfSelected {
-  background: #02223b;
+  background: var(--semantic-client-selection-muted);
 }
 
 .tree[data-explorer-tint='server'] .treeRow.selected {
-  background: rgba(57, 197, 130, 0.32);
+  background: var(--semantic-server-selection);
 }
 
 .tree[data-explorer-tint='server'] .treeRowChildOfSelected {
-  background: rgba(57, 197, 130, 0.2);
+  background: var(--semantic-server-selection-muted);
 }
 
 .tree[data-explorer-tint='drone'] .treeRow.selected {
-  background: rgba(218, 93, 149, 0.32);
+  background: var(--semantic-drone-selection);
 }
 
 .tree[data-explorer-tint='drone'] .treeRowChildOfSelected {
-  background: rgba(218, 93, 149, 0.2);
+  background: var(--semantic-drone-selection-muted);
 }
 
 .treeNested {
@@ -1513,8 +1835,16 @@
   text-align: center;
 }
 
+.treeExplorerIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+}
+
 /**
- * Explorer Drone row — `public/assets/Model.png` (4× bitmap, e.g. 64px → display 16px / 1×).
+ * Explorer Drone row — legacy bitmap; prefer ExplorerTreeIcon + SpecialMesh.
  */
 .treeExplorerModelIcon {
   width: 16px;
@@ -1535,7 +1865,7 @@
 }
 
 .guide {
-  border-left: 1px solid rgba(208, 217, 251, 0.06);
+  border-left: 1px solid var(--stroke-muted);
   margin-left: 7px;
   padding-left: 7px;
 }

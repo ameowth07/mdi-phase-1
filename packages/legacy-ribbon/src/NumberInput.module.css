@@ -1,0 +1,112 @@
+/** Figma NumberInput — Ribbon node 5814:42199 (5820:37260, 5820:38812). */
+
+.root {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.contentArea {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--shift-200);
+}
+
+.leading {
+  width: 14px;
+  height: 12px;
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.leading > span {
+  width: 16px;
+  height: 16px;
+}
+
+.text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.value {
+  flex-shrink: 0;
+  padding-left: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--content-default);
+  white-space: nowrap;
+}
+
+.unit {
+  flex-shrink: 0;
+  padding-left: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--content-muted);
+  white-space: nowrap;
+}
+
+.increment {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--action-standard-background, var(--shift-300));
+}
+
+.incBtn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  color: var(--content-emphasis);
+}
+
+.incBtn:hover:not(:disabled) {
+  background: var(--shift-200);
+}
+
+.incBtn:active:not(:disabled) {
+  background: var(--shift-300);
+}
+
+.incBtn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.incIcon {
+  width: 8px;
+  height: 8px;
+  display: block;
+}
+
+.incIcon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

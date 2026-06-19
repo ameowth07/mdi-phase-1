@@ -1,0 +1,113 @@
+/**
+ * Studio surface / content / stroke / shift tokens — Figma Studio Surface Colors.
+ * Dark: node 1192:202 · Light: node 1192:237
+ * Operators (--delta-hue, etc.) on :root still retune computed values on .frame.
+ */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surface */
+  --token-surface-0-h: 240;
+  --token-surface-0-s: 8%;
+  --token-surface-0-l: 8%;
+  --token-surface-100-h: 230;
+  --token-surface-100-s: 11%;
+  --token-surface-100-l: 11%;
+  --token-surface-200-h: 223;
+  --token-surface-200-s: 10%;
+  --token-surface-200-l: 14%;
+  --token-surface-250-h: 225;
+  --token-surface-250-s: 11%;
+  --token-surface-250-l: 15%;
+  --token-surface-300-h: 227;
+  --token-surface-300-s: 10%;
+  --token-surface-300-l: 17%;
+
+  /* Content */
+  --token-content-muted-h: 230;
+  --token-content-muted-s: 10%;
+  --token-content-muted-l: 76%;
+  --token-content-default-h: 225;
+  --token-content-default-s: 11%;
+  --token-content-default-l: 85%;
+  --token-content-emphasis-h: 240;
+  --token-content-emphasis-s: 7%;
+  --token-content-emphasis-l: 97%;
+
+  /* Shift / stroke — #D0D9FB (227 84% 90%) */
+  --token-shift-h: 227;
+  --token-shift-s: 84%;
+  --token-shift-l: 90%;
+  --token-stroke-h: 227;
+  --token-stroke-s: 84%;
+  --token-stroke-l: 90%;
+
+  /* Shift / stroke alpha (shared across themes) */
+  --token-shift-100-a: 0.04;
+  --token-shift-200-a: 0.08;
+  --token-shift-300-a: 0.12;
+  --token-shift-400-a: 0.16;
+  --token-shift-500-a: 0.2;
+  --token-stroke-emphasis-a: 0.16;
+  --token-stroke-default-a: 0.12;
+  --token-stroke-muted-a: 0.08;
+  --token-stroke-contrast-a: 0.4;
+
+  /* System — Figma bg/system-contrast (1195:630) */
+  --system-contrast: #f7f7f8;
+  /* Checkmark on system-contrast fill — Inverse/Content/Emphasis */
+  --inverse-content-emphasis: #202227;
+
+  /* Chip — Figma 1203:3258 */
+  --chip-active-background: #ffffff;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* Surface */
+  --token-surface-0-h: 0;
+  --token-surface-0-s: 0%;
+  --token-surface-0-l: 100%;
+  --token-surface-100-h: 240;
+  --token-surface-100-s: 7%;
+  --token-surface-100-l: 97%;
+  --token-surface-200-h: 0;
+  --token-surface-200-s: 0%;
+  --token-surface-200-l: 100%;
+  --token-surface-250-h: 210;
+  --token-surface-250-s: 8%;
+  --token-surface-250-l: 95%;
+  --token-surface-300-h: 210;
+  --token-surface-300-s: 8%;
+  --token-surface-300-l: 95%;
+
+  /* Content */
+  --token-content-muted-h: 227;
+  --token-content-muted-s: 10%;
+  --token-content-muted-l: 46%;
+  --token-content-default-h: 226;
+  --token-content-default-s: 10%;
+  --token-content-default-l: 32%;
+  --token-content-emphasis-h: 223;
+  --token-content-emphasis-s: 10%;
+  --token-content-emphasis-l: 14%;
+
+  /* Shift / stroke — #1B254B (227 47% 20%) */
+  --token-shift-h: 227;
+  --token-shift-s: 47%;
+  --token-shift-l: 20%;
+  --token-stroke-h: 227;
+  --token-stroke-s: 47%;
+  --token-stroke-l: 20%;
+
+  /* System — Figma bg/system-contrast (1195:638) */
+  --system-contrast: #202227;
+  --inverse-content-emphasis: #f7f7f8;
+  --token-stroke-contrast-a: 0.5;
+
+  /* Chip — Figma 1203:3257 */
+  --chip-active-background: #121215;
+}

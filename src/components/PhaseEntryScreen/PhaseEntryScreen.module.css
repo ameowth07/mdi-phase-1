@@ -15,12 +15,12 @@
   padding: 28px 32px 32px;
   border-radius: 12px;
   background: rgba(32, 32, 36, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--stroke-default);
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    inset 0 1px 0 var(--stroke-muted);
   backdrop-filter: blur(24px) saturate(1.15);
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
   color: #f4f4f5;
 }
 
@@ -35,7 +35,7 @@
   margin: 0 0 24px;
   font-size: 13px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--content-muted);
 }
 
 .options {
@@ -51,9 +51,9 @@
   gap: 6px;
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--stroke-default);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--shift-100);
   color: inherit;
   text-align: left;
   cursor: default;
@@ -64,12 +64,12 @@
 }
 
 .option:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--shift-200);
+  border-color: var(--stroke-emphasis);
 }
 
 .option:focus-visible {
-  outline: 2px solid #60cdff;
+  outline: 2px solid var(--stroke-emphasis);
   outline-offset: 2px;
 }
 
@@ -81,5 +81,5 @@
 .optionDescription {
   font-size: 12px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--content-muted);
 }

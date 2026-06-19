@@ -11,7 +11,7 @@ export const SELECTION_TINT_INPUT_FOCUS_DEFAULT = '#657BF4'
 /** Viewport / panel inset stroke colors — match semantic focus rings in StudioWindowsOS.module.css. */
 export const DATAMODEL_INSET_FOCUS_BORDER: Record<DatamodelTintFocus, string> = {
   client: '#4ec8e9',
-  server: '#47B84F',
+  server: '#47b84f',
   drone: 'rgba(255, 255, 255, 0.5)',
 }
 

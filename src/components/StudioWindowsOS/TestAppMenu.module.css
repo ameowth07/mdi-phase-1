@@ -17,7 +17,7 @@
 
 .trigger:hover,
 .triggerOpen {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }
 
 .menu {
@@ -28,10 +28,9 @@
   min-width: 228px;
   padding: 4px;
   border-radius: 6px;
-  background: rgba(25, 26, 31, 0.94);
-  backdrop-filter: blur(40px);
+  background: var(--surface-200);
   box-shadow:
-    0 0 0 1px var(--stroke-muted, rgba(208, 217, 251, 0.08)),
+    0 0 0 1px var(--stroke-muted),
     0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
@@ -63,11 +62,11 @@
 }
 
 .item:hover:not(:disabled) {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }
 
 .item:disabled {
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
   opacity: 0.55;
 }
 
@@ -79,7 +78,7 @@
 .itemShortcut {
   flex: 0 0 auto;
   font-size: 12px;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
   letter-spacing: 0.02em;
 }
 
@@ -93,5 +92,5 @@
 .separator {
   height: 1px;
   margin: 4px 8px;
-  background: var(--stroke-muted, rgba(208, 217, 251, 0.08));
+  background: var(--stroke-muted);
 }

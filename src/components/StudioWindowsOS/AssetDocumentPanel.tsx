@@ -1,5 +1,5 @@
 import { Music } from 'lucide-react'
-import { publicAssetUrl } from '../../publicAssetUrl'
+import { TabCloseButton } from './documentTabIcons'
 import { buildPlaceTabClassName } from './buildPlaceTabClassName'
 import TabWithPathTooltip from './TabWithPathTooltip'
 import type { AssetCatalogRow } from './assetManagerCatalog'
@@ -52,6 +52,7 @@ export default function AssetDocumentPanel({
     strokeOn: false,
     tabTintOn: false,
     datamodel: 'drone',
+    editMode: true,
   })
 
   return (
@@ -79,28 +80,12 @@ export default function AssetDocumentPanel({
           <AssetTabLeadingIcon asset={asset} />
           <span>{asset.name}</span>
           {onTabClose ? (
-            <button
-              type="button"
-              className={tabStyles.tabClose}
-              aria-label="Close tab"
-              onPointerDown={(e) => {
-                e.stopPropagation()
-                onTabClose()
-              }}
-              onClick={(e) => {
-                e.stopPropagation()
-                onTabClose()
-              }}
-            >
-              <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-            </button>
+            <TabCloseButton onClose={() => onTabClose()} />
           ) : (
             <span className={tabStyles.tabCloseSpacer} aria-hidden />
           )}
         </TabWithPathTooltip>
-        <div className={tabStyles.tabRowUnderline} aria-hidden>
-          <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-        </div>
+        <div className={tabStyles.tabRowUnderline} aria-hidden />
       </div>
       )}
 

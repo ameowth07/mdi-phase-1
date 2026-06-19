@@ -51,7 +51,6 @@ export default function ClientSim({
     (e: ReactPointerEvent<HTMLElement>) => {
       if (e.button !== 0) return
       if ((e.target as HTMLElement).closest('button')) return
-      e.stopPropagation()
       registerTripleClick()
     },
     [registerTripleClick],

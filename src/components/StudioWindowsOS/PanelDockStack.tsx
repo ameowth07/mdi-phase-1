@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { publicAssetUrl } from '../../publicAssetUrl'
 import type { DockPanelId, DockZoneId, PanelStackState } from './panelDock'
 import { panelDockLabel, reorderStackTabs, setStackActiveTab } from './panelDock'
 import { isDocumentDockPanelId, type DocumentDockPanelId } from './documentDockPanels'
@@ -155,9 +154,7 @@ export default function PanelDockStack({
               </button>
             )
           })}
-          <div className={styles.tabRowUnderline} aria-hidden>
-            <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-          </div>
+          <div className={styles.tabRowUnderline} aria-hidden />
         </div>
       ) : null}
     </div>
@@ -192,9 +189,7 @@ export default function PanelDockStack({
               </button>
             )
           })}
-          <div className={styles.tabRowUnderline} aria-hidden>
-            <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-          </div>
+          <div className={styles.tabRowUnderline} aria-hidden />
         </div>
       ) : null}
     </>

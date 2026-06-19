@@ -3,6 +3,8 @@ import { DEFAULT_OPEN_PLACE_DOCK_PLACE_IDS } from './components/StudioWindowsOS/
 
 export type StudioPhase = 1 | 2 | 'color-playground'
 
+export const STUDIO_PHASE_URL_PARAM = 'phase'
+
 export type PhaseEntryOption = {
   phase: StudioPhase
   title: string
@@ -29,6 +31,34 @@ export const PHASE_ENTRY_OPTIONS: readonly PhaseEntryOption[] = [
       'Phase 2 workspace with color operators at the top of Theme settings — tune hue, saturation, lightness, and contrast on the live UI.',
   },
 ] as const
+
+export function studioPhaseToUrlValue(phase: StudioPhase): string {
+  return String(phase)
+}
+
+export function parseStudioPhaseFromUrl(
+  search = typeof window !== 'undefined' ? window.location.search : '',
+): StudioPhase | null {
+  const raw = new URLSearchParams(search).get(STUDIO_PHASE_URL_PARAM)?.trim().toLowerCase()
+  if (raw == null || raw === '') return null
+  if (raw === '1') return 1
+  if (raw === '2') return 2
+  if (raw === 'color-playground' || raw === 'color_playground' || raw === 'colorplayground') {
+    return 'color-playground'
+  }
+  return null
+}
+
+export function syncStudioPhaseUrl(phase: StudioPhase | null): void {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  if (phase == null) {
+    url.searchParams.delete(STUDIO_PHASE_URL_PARAM)
+  } else {
+    url.searchParams.set(STUDIO_PHASE_URL_PARAM, studioPhaseToUrlValue(phase))
+  }
+  window.history.replaceState(window.history.state, '', url)
+}
 
 export function isPhase2(phase: StudioPhase): boolean {
   return phase === 2 || phase === 'color-playground'

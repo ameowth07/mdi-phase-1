@@ -1,61 +1,32 @@
 import { useState, type ReactNode } from 'react'
-import {
-  Anchor,
-  Box,
-  Boxes,
-  ChevronDown,
-  FileCode2,
-  FolderTree,
-  Group,
-  Layers2,
-  Lock,
-  Maximize2,
-  Monitor,
-  MousePointer2,
-  Move,
-  Mountain,
-  PackagePlus,
-  Paintbrush,
-  Palette,
-  RotateCw,
-  Shapes,
-  SlidersHorizontal,
-  UserCircle2,
-  Wrench,
-} from 'lucide-react'
 import css from './ribbon.module.css'
-
-const ic = { size: 15 as const, strokeWidth: 1.5 as const }
+import Checkbox from './Checkbox'
+import NumberInput from './NumberInput'
+import { RibbonChevronSmIcon } from './icons/mezzanineIcons'
+import { SpinIcon, ToolbarIcon, type ToolbarIconId } from './icons/ToolbarIcon'
 
 const DEFAULT_ACTIVE_RIBBON_TOOL = 'select' as const
 
-function G24({ children }: { children: ReactNode }) {
-  return (
-    <div className={css.b24}>
-      <div className={css.glyphCenter}>{children}</div>
-    </div>
-  )
+const PANEL_TOGGLE_IDS = ['toolbox', 'explorer', 'properties', 'assets'] as const
+export type RibbonPanelToggleId = (typeof PANEL_TOGGLE_IDS)[number]
+type PanelToggleId = RibbonPanelToggleId
+
+export type RibbonPanelToggles = Record<RibbonPanelToggleId, boolean>
+
+const DEFAULT_PANEL_TOGGLES: RibbonPanelToggles = {
+  toolbox: true,
+  explorer: true,
+  properties: true,
+  assets: true,
 }
 
-function ChevSm() {
-  return (
-    <svg
-      className={css.chevSvg}
-      width={10}
-      height={10}
-      viewBox="0 0 10 10"
-      aria-hidden
-    >
-      <path
-        d="M2 3L5 6.2L8 3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+export type RibbonToolbarProps = {
+  panelToggles?: RibbonPanelToggles
+  onPanelToggle?: (panelId: RibbonPanelToggleId, open: boolean) => void
+}
+
+function G24({ children }: { children: ReactNode }) {
+  return <div className={css.b24}>{children}</div>
 }
 
 function VDiv() {
@@ -68,18 +39,23 @@ function ToggleTool({
   active,
   onPress,
   children,
+  variant = 'tool',
 }: {
   toolId: string
   label: string
   active: boolean
   onPress: (toolId: string) => void
   children: ReactNode
+  variant?: 'tool' | 'panel'
 }) {
+  const activeClass = variant === 'panel' ? css.panelToggleActive : css.ribbonToolActive
+  const colActiveClass = variant === 'panel' ? css.panelToggleColActive : css.toggleColActive
+
   return (
-    <div className={`${css.toggleCol} ${active ? css.toggleColActive : ''}`}>
+    <div className={`${css.toggleCol} ${variant === 'panel' ? css.panelToggleCol : ''} ${active ? colActiveClass : ''}`}>
       <button
         type="button"
-        className={`${css.toggleBtn} ${active ? css.ribbonToolActive : ''}`}
+        className={`${css.toggleBtn} ${active ? activeClass : ''}`}
         aria-pressed={active}
         onClick={() => onPress(toolId)}
       >
@@ -97,13 +73,13 @@ function SplitTool({
   label,
   active,
   onPress,
-  main,
+  iconId,
 }: {
   toolId: string
   label: string
   active: boolean
   onPress: (toolId: string) => void
-  main: ReactNode
+  iconId: ToolbarIconId
 }) {
   return (
     <div className={css.splitTool}>
@@ -114,10 +90,12 @@ function SplitTool({
           aria-pressed={active}
           onClick={() => onPress(toolId)}
         >
-          {main}
+          <G24>
+            <ToolbarIcon id={iconId} />
+          </G24>
         </button>
         <button type="button" className={css.splitDrop} aria-label={`${label} options`}>
-          <ChevSm />
+          <RibbonChevronSmIcon className={css.chevSvg} />
         </button>
       </div>
       <div className={css.toggleLabel}>
@@ -128,247 +106,208 @@ function SplitTool({
 }
 
 function SpinPair() {
+  const [moveSnapEnabled, setMoveSnapEnabled] = useState(true)
+  const [rotateSnapEnabled, setRotateSnapEnabled] = useState(true)
+  const [moveStuds, setMoveStuds] = useState(1)
+  const [rotateDegrees, setRotateDegrees] = useState(45)
+
   return (
     <div className={css.spinCol}>
       <div className={css.spinRow}>
-        <span className={css.checkFake} aria-hidden>
-          <svg width={11} height={11} viewBox="0 0 11 11" aria-hidden>
-            <path
-              d="M2 5.5 L4.2 8 L9 2.5"
-              stroke="#202227"
-              strokeWidth="1.8"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-        <div className={css.spinBox}>
-          <div className={css.spinBoxIcon}>
-            <Move size={14} strokeWidth={1.5} aria-hidden />
-          </div>
-          <span className={css.spinBoxInput}>1 stud</span>
-          <button type="button" className={css.spinBoxCtrl} aria-hidden tabIndex={-1}>
-            <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
-          </button>
-        </div>
+        <Checkbox
+          checked={moveSnapEnabled}
+          onCheckedChange={setMoveSnapEnabled}
+          aria-label="Move snap"
+        />
+        <NumberInput
+          aria-label="Move snap increment"
+          value={String(moveStuds)}
+          unit="stud"
+          leadingIcon={<SpinIcon kind="move" />}
+          decrementDisabled={moveStuds <= 1}
+          onDecrement={() => setMoveStuds((n) => Math.max(1, n - 1))}
+          onIncrement={() => setMoveStuds((n) => n + 1)}
+        />
       </div>
       <div className={css.spinRow}>
-        <span className={css.checkFake} aria-hidden>
-          <svg width={11} height={11} viewBox="0 0 11 11" aria-hidden>
-            <path
-              d="M2 5.5 L4.2 8 L9 2.5"
-              stroke="#202227"
-              strokeWidth="1.8"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-        <div className={css.spinBox}>
-          <div className={css.spinBoxIcon}>
-            <RotateCw size={14} strokeWidth={1.5} aria-hidden />
-          </div>
-          <span className={css.spinBoxInput}>45°</span>
-          <button type="button" className={css.spinBoxCtrl} aria-hidden tabIndex={-1}>
-            <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
-          </button>
-        </div>
+        <Checkbox
+          checked={rotateSnapEnabled}
+          onCheckedChange={setRotateSnapEnabled}
+          aria-label="Rotate snap"
+        />
+        <NumberInput
+          aria-label="Rotate snap increment"
+          value={String(rotateDegrees)}
+          unit="°"
+          leadingIcon={<SpinIcon kind="rotate" />}
+          decrementDisabled={rotateDegrees <= 1}
+          onDecrement={() => setRotateDegrees((n) => Math.max(1, n - 1))}
+          onIncrement={() => setRotateDegrees((n) => n + 1)}
+        />
       </div>
     </div>
   )
 }
 
-/** Lower ribbon row (Figma node 3841:115043). Icons use Lucide vectors (Figma MCP raster URLs expire). */
-export function RibbonToolbar() {
+/** Lower ribbon row — Figma Studio Starter Kit node 5814:42199. */
+export function RibbonToolbar({
+  panelToggles: panelTogglesProp,
+  onPanelToggle,
+}: RibbonToolbarProps = {}) {
   const [activeTool, setActiveTool] = useState<string>(DEFAULT_ACTIVE_RIBBON_TOOL)
+  const [internalPanelToggles, setInternalPanelToggles] = useState(DEFAULT_PANEL_TOGGLES)
+  const panelToggles = panelTogglesProp ?? internalPanelToggles
   const isActive = (toolId: string) => activeTool === toolId
   const pressTool = (toolId: string) => {
     setActiveTool((current) => (current === toolId ? '' : toolId))
   }
+  const isPanelOn = (toolId: PanelToggleId) => panelToggles[toolId]
+  const pressPanelToggle = (toolId: string) => {
+    if (!(PANEL_TOGGLE_IDS as readonly string[]).includes(toolId)) return
+    const panelId = toolId as PanelToggleId
+    const next = !panelToggles[panelId]
+    if (panelTogglesProp == null) {
+      setInternalPanelToggles((current) => ({
+        ...current,
+        [panelId]: next,
+      }))
+    }
+    onPanelToggle?.(panelId, next)
+  }
 
   return (
-    <div className={css.toolbar} data-node-id="3841:115043">
-      <div className={css.toolGroup} data-node-id="3841:115045">
+    <div className={css.toolbar} data-node-id="5814:42199">
+      <div className={css.toolGroup} data-node-id="5814:42199;3:240668">
         <ToggleTool toolId="select" label="Select" active={isActive('select')} onPress={pressTool}>
           <G24>
-            <MousePointer2 {...ic} aria-hidden />
+            <ToolbarIcon id="select" />
           </G24>
         </ToggleTool>
         <ToggleTool toolId="move" label="Move" active={isActive('move')} onPress={pressTool}>
           <G24>
-            <Move {...ic} aria-hidden />
+            <ToolbarIcon id="move" />
           </G24>
         </ToggleTool>
         <ToggleTool toolId="scale" label="Scale" active={isActive('scale')} onPress={pressTool}>
           <G24>
-            <Maximize2 {...ic} aria-hidden />
+            <ToolbarIcon id="scale" />
           </G24>
         </ToggleTool>
         <ToggleTool toolId="rotate" label="Rotate" active={isActive('rotate')} onPress={pressTool}>
           <G24>
-            <RotateCw {...ic} aria-hidden />
+            <ToolbarIcon id="rotate" />
           </G24>
         </ToggleTool>
         <ToggleTool toolId="transform" label="Transform" active={isActive('transform')} onPress={pressTool}>
           <G24>
-            <Layers2 {...ic} aria-hidden />
+            <ToolbarIcon id="transform" />
           </G24>
         </ToggleTool>
       </div>
 
       <VDiv />
 
-      <div className={css.toolGroup} data-node-id="3841:115052">
+      <div className={css.toolGroup} data-node-id="5814:42199;3:240675">
         <SplitTool
           toolId="geometric"
           label="Geometric"
+          iconId="geometric"
           active={isActive('geometric')}
           onPress={pressTool}
-          main={
-            <G24>
-              <Shapes {...ic} aria-hidden />
-            </G24>
-          }
         />
         <SpinPair />
       </div>
 
       <VDiv />
 
-      <div className={css.toolGroup} data-node-id="3841:115115">
-        <SplitTool
-          toolId="part"
-          label="Part"
-          active={isActive('part')}
-          onPress={pressTool}
-          main={
-            <G24>
-              <Box {...ic} aria-hidden />
-            </G24>
-          }
-        />
+      <div className={css.toolGroup} data-node-id="5814:42199;3:240738">
+        <SplitTool toolId="part" label="Part" iconId="part" active={isActive('part')} onPress={pressTool} />
         <ToggleTool toolId="terrain" label="Terrain" active={isActive('terrain')} onPress={pressTool}>
           <G24>
-            <Mountain {...ic} aria-hidden />
+            <ToolbarIcon id="terrain" />
           </G24>
         </ToggleTool>
         <SplitTool
           toolId="character"
           label="Character"
+          iconId="character"
           active={isActive('character')}
           onPress={pressTool}
-          main={
-            <G24>
-              <UserCircle2 {...ic} aria-hidden />
-            </G24>
-          }
         />
-        <SplitTool
-          toolId="gui"
-          label="GUI"
-          active={isActive('gui')}
-          onPress={pressTool}
-          main={
-            <G24>
-              <Monitor {...ic} aria-hidden />
-            </G24>
-          }
-        />
-        <SplitTool
-          toolId="script"
-          label="Script"
-          active={isActive('script')}
-          onPress={pressTool}
-          main={
-            <G24>
-              <FileCode2 {...ic} aria-hidden />
-            </G24>
-          }
-        />
+        <SplitTool toolId="gui" label="GUI" iconId="gui" active={isActive('gui')} onPress={pressTool} />
+        <SplitTool toolId="script" label="Script" iconId="script" active={isActive('script')} onPress={pressTool} />
         <ToggleTool toolId="import-3d" label="Import 3D" active={isActive('import-3d')} onPress={pressTool}>
           <G24>
-            <PackagePlus {...ic} aria-hidden />
+            <ToolbarIcon id="import-3d" />
           </G24>
         </ToggleTool>
       </div>
 
       <VDiv />
 
-      <div className={css.toolGroup} data-node-id="3841:115123">
+      <div className={css.toolGroup} data-node-id="5814:42199;3:240746">
         <SplitTool
           toolId="material"
           label="Material"
+          iconId="material"
           active={isActive('material')}
           onPress={pressTool}
-          main={
-            <G24>
-              <Paintbrush {...ic} aria-hidden />
-            </G24>
-          }
         />
-        <SplitTool
-          toolId="color"
-          label="Color"
-          active={isActive('color')}
-          onPress={pressTool}
-          main={
-            <G24>
-              <Palette {...ic} aria-hidden />
-            </G24>
-          }
-        />
+        <SplitTool toolId="color" label="Color" iconId="color" active={isActive('color')} onPress={pressTool} />
         <ToggleTool toolId="group" label="Group" active={isActive('group')} onPress={pressTool}>
           <G24>
-            <Group {...ic} aria-hidden />
+            <ToolbarIcon id="group" />
           </G24>
         </ToggleTool>
-        <SplitTool
-          toolId="lock"
-          label="Lock"
-          active={isActive('lock')}
-          onPress={pressTool}
-          main={
-            <G24>
-              <Lock {...ic} aria-hidden />
-            </G24>
-          }
-        />
-        <SplitTool
-          toolId="anchor"
-          label="Anchor"
-          active={isActive('anchor')}
-          onPress={pressTool}
-          main={
-            <G24>
-              <Anchor {...ic} aria-hidden />
-            </G24>
-          }
-        />
+        <SplitTool toolId="lock" label="Lock" iconId="lock" active={isActive('lock')} onPress={pressTool} />
+        <SplitTool toolId="anchor" label="Anchor" iconId="anchor" active={isActive('anchor')} onPress={pressTool} />
       </div>
 
       <VDiv />
 
-      <div className={css.toolGroup} data-node-id="3841:115131">
-        <ToggleTool toolId="toolbox" label="Toolbox" active={isActive('toolbox')} onPress={pressTool}>
+      <div className={`${css.toolGroup} ${css.panelToggleGroup}`} data-node-id="5814:42199;3:240754">
+        <ToggleTool
+          toolId="toolbox"
+          label="Toolbox"
+          active={isPanelOn('toolbox')}
+          onPress={pressPanelToggle}
+          variant="panel"
+        >
           <G24>
-            <Wrench {...ic} aria-hidden />
+            <ToolbarIcon id="toolbox" />
           </G24>
         </ToggleTool>
-        <ToggleTool toolId="explorer" label="Explorer" active={isActive('explorer')} onPress={pressTool}>
+        <ToggleTool
+          toolId="explorer"
+          label="Explorer"
+          active={isPanelOn('explorer')}
+          onPress={pressPanelToggle}
+          variant="panel"
+        >
           <G24>
-            <FolderTree {...ic} aria-hidden />
+            <ToolbarIcon id="explorer" />
           </G24>
         </ToggleTool>
-        <ToggleTool toolId="properties" label="Properties" active={isActive('properties')} onPress={pressTool}>
+        <ToggleTool
+          toolId="properties"
+          label="Properties"
+          active={isPanelOn('properties')}
+          onPress={pressPanelToggle}
+          variant="panel"
+        >
           <G24>
-            <SlidersHorizontal {...ic} aria-hidden />
+            <ToolbarIcon id="properties" />
           </G24>
         </ToggleTool>
-        <ToggleTool toolId="assets" label="Assets" active={isActive('assets')} onPress={pressTool}>
+        <ToggleTool
+          toolId="assets"
+          label="Assets"
+          active={isPanelOn('assets')}
+          onPress={pressPanelToggle}
+          variant="panel"
+        >
           <G24>
-            <Boxes {...ic} aria-hidden />
+            <ToolbarIcon id="assets" />
           </G24>
         </ToggleTool>
       </div>

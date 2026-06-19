@@ -1,23 +1,76 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { Check, ChevronRight } from 'lucide-react'
+import { Check, RefreshCw } from 'lucide-react'
 import css from './InteractionSettingsPanel.module.css'
+import Radio from './Radio'
 import {
+  applyGray150Preset,
+  applyGray350Preset,
+  applySurface0Preset,
   applySurfacePreset,
   bindThemeColorOperators,
+  HUE_OPERATOR_MAX,
+  HUE_OPERATOR_MIN,
+  HUE_OPERATOR_TICKS,
   resetThemeColorOperators,
   type SurfacePresetId,
   type ThemeSliderElements,
 } from './themeColorOperators'
 import type { StudioPhase } from '../../studioPhase'
 import { isColorPlayground, isPhase2 } from '../../studioPhase'
+import { UI_SCALE_OPTIONS, type UiScale } from './uiScale'
+import { RIBBON_ICON_SIZE_OPTIONS, type RibbonIconSize } from './ribbonIconSize'
+import {
+  TOOL_SELECTION_COLOR_LABELS,
+  TOOL_SELECTION_COLOR_OPTIONS,
+  type ToolSelectionColor,
+} from './toolSelectionColor'
+import { PROTOTYPE_SETTINGS_DEFAULTS } from './prototypeDefaults'
 
 const SURFACE_PRESET_BUTTONS: { id: SurfacePresetId; label: string }[] = [
-  { id: 150, label: 'Surface_150' },
   { id: 200, label: 'Surface_200' },
-  { id: 250, label: 'Surface_250' },
   { id: 300, label: 'Surface_300' },
-  { id: 350, label: 'Surface_350' },
 ]
+
+function PanelTogglesUseFillsRow({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange?: (value: boolean) => void
+}) {
+  return (
+    <div className={css.row}>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        aria-label="Panel toggles use fills"
+        className={`${css.checkboxBtn} ${checked ? css.checkboxBtnChecked : ''}`}
+        onClick={() => onChange?.(!checked)}
+      >
+        {checked ? (
+          <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+        ) : null}
+      </button>
+      <span className={css.label}>Panel toggles use fills</span>
+    </div>
+  )
+}
+
+function ChevDownSm() {
+  return (
+    <svg width={10} height={6} viewBox="0 0 10 6" aria-hidden>
+      <path
+        d="M1 1.2L5 4.8L9 1.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 export type InteractionSettingsPanelProps = {
   /** Play focus: brand-hue semantic stroke with color tinting (mutually exclusive with focus stroke). */
@@ -119,10 +172,37 @@ export type InteractionSettingsPanelProps = {
   onClientTabUsesPlaceNameChange?: (value: boolean) => void
   /** Phase 2 workspace experiments (hidden in Phase 1 baseline). */
   studioPhase?: StudioPhase
+  /** When on, Client / Server / Drone hues follow theme color operators. */
+  linkSemanticColors?: boolean
+  onLinkSemanticColorsChange?: (value: boolean) => void
+  /** When link is on, semantics follow hue only (not sat / lightness / contrast). */
+  linkSemanticHueOnly?: boolean
+  onLinkSemanticHueOnlyChange?: (value: boolean) => void
+  /** When semantic link is on, ribbon icon accent hues follow theme color operators. */
+  linkIconAccents?: boolean
+  onLinkIconAccentsChange?: (value: boolean) => void
+  /** Ribbon panel toggles — off icons use content-default only; on uses emphasis + muted-blue fill. */
+  panelTogglesUseFills?: boolean
+  onPanelTogglesUseFillsChange?: (value: boolean) => void
+  /** Toolbar icon size inside each ribbon tool button (px). */
+  ribbonIconSize?: RibbonIconSize
+  onRibbonIconSizeChange?: (value: RibbonIconSize) => void
+  /** Figma Studio Surface Colors — dark or light token bases. */
+  studioColorTheme?: 'dark' | 'light'
+  onStudioColorThemeChange?: (value: 'dark' | 'light') => void
+  /** App chrome scale — viewport game/sim media stays at 100%. */
+  uiScale?: UiScale
+  onUiScaleChange?: (value: UiScale) => void
+  /** Ribbon toolbar selected-tool background + accent treatment. */
+  toolSelectionColor?: ToolSelectionColor
+  onToolSelectionColorChange?: (value: ToolSelectionColor) => void
+  /** Blue highlight — treat neutral icon fills as accents on active ribbon tools. */
+  toolSelectionIncludeNeutrals?: boolean
+  onToolSelectionIncludeNeutralsChange?: (value: boolean) => void
 }
 
 const SLIDER_TICK_VALUES = {
-  hue: [-180, -108, -36, 36, 108, 180],
+  hue: HUE_OPERATOR_TICKS,
   sat: [0, 0.4, 0.8, 1.2, 1.6, 2],
   light: [-10, -6, -2, 2, 6, 10],
   contrast: [0.5, 0.7, 0.9, 1.1, 1.3, 1.5],
@@ -225,12 +305,33 @@ export default function InteractionSettingsPanel({
   clientTabUsesPlaceName = false,
   onClientTabUsesPlaceNameChange,
   studioPhase = 2,
+  linkSemanticColors = false,
+  onLinkSemanticColorsChange,
+  linkSemanticHueOnly = true,
+  onLinkSemanticHueOnlyChange,
+  linkIconAccents = false,
+  onLinkIconAccentsChange,
+  panelTogglesUseFills = false,
+  onPanelTogglesUseFillsChange,
+  ribbonIconSize = 24,
+  onRibbonIconSizeChange,
+  studioColorTheme = 'dark',
+  onStudioColorThemeChange,
+  uiScale = 100,
+  onUiScaleChange,
+  toolSelectionColor = 'shift_300',
+  onToolSelectionColorChange,
+  toolSelectionIncludeNeutrals = false,
+  onToolSelectionIncludeNeutralsChange,
 }: InteractionSettingsPanelProps) {
   const phase2 = isPhase2(studioPhase)
   const colorPlayground = isColorPlayground(studioPhase)
   const [gameEditorExperimentsOpen, setGameEditorExperimentsOpen] = useState(!colorPlayground)
   const [colorOperatorsOpen, setColorOperatorsOpen] = useState(colorPlayground)
-  const [miscOpen, setMiscOpen] = useState(true)
+  const [toolSelectionColorOpen, setToolSelectionColorOpen] = useState(colorPlayground)
+  const [uiScaleOpen, setUiScaleOpen] = useState(colorPlayground)
+  const [ribbonSettingsOpen, setRibbonSettingsOpen] = useState(colorPlayground)
+  const [miscOpen, setMiscOpen] = useState(!colorPlayground)
   const badgeOptionsDisabled = explorerNoBadge
 
   const hueSliderRef = useRef<HTMLInputElement>(null)
@@ -268,9 +369,26 @@ export default function InteractionSettingsPanel({
   }, [getSliderElements, colorOperatorsOpen])
 
   const handleResetTheme = useCallback(() => {
-    const elements = getSliderElements()
-    if (elements) resetThemeColorOperators(elements)
+    resetThemeColorOperators(getSliderElements())
   }, [getSliderElements])
+
+  const handleResetColorOperators = useCallback(() => {
+    resetThemeColorOperators(getSliderElements())
+  }, [getSliderElements])
+
+  const handleResetUiScale = useCallback(() => {
+    onUiScaleChange?.(PROTOTYPE_SETTINGS_DEFAULTS.uiScale)
+  }, [onUiScaleChange])
+
+  const handleResetRibbonSettings = useCallback(() => {
+    onPanelTogglesUseFillsChange?.(PROTOTYPE_SETTINGS_DEFAULTS.panelTogglesUseFills)
+    onRibbonIconSizeChange?.(PROTOTYPE_SETTINGS_DEFAULTS.ribbonIconSize)
+  }, [onPanelTogglesUseFillsChange, onRibbonIconSizeChange])
+
+  const handleResetToolSelectionColor = useCallback(() => {
+    onToolSelectionColorChange?.(PROTOTYPE_SETTINGS_DEFAULTS.toolSelectionColor)
+    onToolSelectionIncludeNeutralsChange?.(PROTOTYPE_SETTINGS_DEFAULTS.toolSelectionIncludeNeutrals)
+  }, [onToolSelectionColorChange, onToolSelectionIncludeNeutralsChange])
 
   const handleReset = useCallback(() => {
     const elements = getSliderElements()
@@ -286,12 +404,27 @@ export default function InteractionSettingsPanel({
     [getSliderElements],
   )
 
+  const handleSurface0Preset = useCallback(() => {
+    const elements = getSliderElements()
+    if (elements) applySurface0Preset(elements, studioColorTheme)
+  }, [getSliderElements, studioColorTheme])
+
+  const handleGray350Preset = useCallback(() => {
+    const elements = getSliderElements()
+    if (elements) applyGray350Preset(elements)
+  }, [getSliderElements])
+
+  const handleGray150Preset = useCallback(() => {
+    const elements = getSliderElements()
+    if (elements) applyGray150Preset(elements)
+  }, [getSliderElements])
+
   return (
     <div
       className={`${css.root} ${colorPlayground ? css.colorPlaygroundRoot : ''}`.trim()}
       data-name="ThemeSettings"
     >
-      {phase2 ? (
+      {phase2 && !colorPlayground ? (
         <section className={`${css.collapsible} ${css.gameEditorExperimentsSection}`}>
           <button
             type="button"
@@ -301,12 +434,11 @@ export default function InteractionSettingsPanel({
             id="prototype-game-editor-experiments-heading"
             onClick={() => setGameEditorExperimentsOpen((open) => !open)}
           >
-            <ChevronRight
-              size={12}
-              strokeWidth={2}
-              className={`${css.collapsibleChevron} ${gameEditorExperimentsOpen ? css.collapsibleChevronOpen : ''}`}
-              aria-hidden
-            />
+            <div
+              className={`${css.collapsibleChevron} ${gameEditorExperimentsOpen ? '' : css.collapsibleChevronClosed}`}
+            >
+              <ChevDownSm />
+            </div>
             <span className={css.collapsibleTitle}>Game editor experiments</span>
           </button>
           {gameEditorExperimentsOpen ? (
@@ -430,23 +562,91 @@ export default function InteractionSettingsPanel({
         </section>
       ) : null}
 
+      {phase2 ? (
+        <section className={`${css.collapsible} ${css.ribbonSettingsSection}`}>
+          <div className={css.collapsibleHeaderRow}>
+            <button
+              type="button"
+              className={css.collapsibleHeader}
+              aria-expanded={ribbonSettingsOpen}
+              aria-controls="theme-settings-ribbon"
+              id="theme-ribbon-heading"
+              onClick={() => setRibbonSettingsOpen((open) => !open)}
+            >
+              <div
+                className={`${css.collapsibleChevron} ${ribbonSettingsOpen ? '' : css.collapsibleChevronClosed}`}
+              >
+                <ChevDownSm />
+              </div>
+              <span className={css.collapsibleTitle}>Ribbon</span>
+            </button>
+            <button
+              type="button"
+              className={css.collapsibleHeaderAction}
+              aria-label="Reset ribbon settings"
+              onClick={handleResetRibbonSettings}
+            >
+              <RefreshCw size={14} strokeWidth={2} aria-hidden />
+            </button>
+          </div>
+          {ribbonSettingsOpen ? (
+            <div
+              id="theme-settings-ribbon"
+              className={css.collapsibleBody}
+              role="region"
+              aria-labelledby="theme-ribbon-heading"
+            >
+              <div className={css.options}>
+                <PanelTogglesUseFillsRow
+                  checked={panelTogglesUseFills}
+                  onChange={onPanelTogglesUseFillsChange}
+                />
+              </div>
+              <div
+                className={css.options}
+                role="radiogroup"
+                aria-label="Ribbon icon size"
+              >
+                {RIBBON_ICON_SIZE_OPTIONS.map((option) => (
+                  <Radio
+                    key={option}
+                    checked={ribbonIconSize === option}
+                    label={`${option}px`}
+                    onSelect={() => onRibbonIconSizeChange?.(option)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className={`${css.collapsible} ${css.colorOperatorsSection}`}>
-        <button
-          type="button"
-          className={css.collapsibleHeader}
-          aria-expanded={colorOperatorsOpen}
-          aria-controls="theme-settings-color-operators"
-          id="theme-color-operators-heading"
-          onClick={() => setColorOperatorsOpen((open) => !open)}
-        >
-          <ChevronRight
-            size={12}
-            strokeWidth={2}
-            className={`${css.collapsibleChevron} ${colorOperatorsOpen ? css.collapsibleChevronOpen : ''}`}
-            aria-hidden
-          />
-          <span className={css.collapsibleTitle}>Color operators</span>
-        </button>
+        <div className={css.collapsibleHeaderRow}>
+          <button
+            type="button"
+            className={css.collapsibleHeader}
+            aria-expanded={colorOperatorsOpen}
+            aria-controls="theme-settings-color-operators"
+            id="theme-color-operators-heading"
+            onClick={() => setColorOperatorsOpen((open) => !open)}
+          >
+            <div
+              className={`${css.collapsibleChevron} ${colorOperatorsOpen ? '' : css.collapsibleChevronClosed}`}
+            >
+              <ChevDownSm />
+            </div>
+            <span className={css.collapsibleTitle}>Color operators</span>
+          </button>
+          <button
+            type="button"
+            className={css.collapsibleHeaderAction}
+            aria-label="Reset color operators"
+            onClick={handleResetColorOperators}
+          >
+            <RefreshCw size={14} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
         {colorOperatorsOpen ? (
           <div
             id="theme-settings-color-operators"
@@ -454,6 +654,72 @@ export default function InteractionSettingsPanel({
             role="region"
             aria-labelledby="theme-color-operators-heading"
           >
+        <div className={css.options}>
+          <div className={css.row}>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={studioColorTheme === 'light'}
+              aria-label="Light theme"
+              className={`${css.checkboxBtn} ${studioColorTheme === 'light' ? css.checkboxBtnChecked : ''}`}
+              onClick={() => onStudioColorThemeChange?.(studioColorTheme === 'light' ? 'dark' : 'light')}
+            >
+              {studioColorTheme === 'light' ? (
+                <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+              ) : null}
+            </button>
+            <span className={css.label}>Light theme</span>
+          </div>
+          <div className={css.row}>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={linkSemanticColors}
+              aria-label="Link semantic colors"
+              className={`${css.checkboxBtn} ${linkSemanticColors ? css.checkboxBtnChecked : ''}`}
+              onClick={() => onLinkSemanticColorsChange?.(!linkSemanticColors)}
+            >
+              {linkSemanticColors ? (
+                <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+              ) : null}
+            </button>
+            <span className={css.label}>Link semantic colors</span>
+          </div>
+          {linkSemanticColors ? (
+            <>
+              <div className={`${css.row} ${css.rowNested}`}>
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={linkSemanticHueOnly}
+                  aria-label="Hue only"
+                  className={`${css.checkboxBtn} ${linkSemanticHueOnly ? css.checkboxBtnChecked : ''}`}
+                  onClick={() => onLinkSemanticHueOnlyChange?.(!linkSemanticHueOnly)}
+                >
+                  {linkSemanticHueOnly ? (
+                    <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                  ) : null}
+                </button>
+                <span className={css.label}>Hue only</span>
+              </div>
+              <div className={`${css.row} ${css.rowNested}`}>
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={linkIconAccents}
+                  aria-label="Link icon accents"
+                  className={`${css.checkboxBtn} ${linkIconAccents ? css.checkboxBtnChecked : ''}`}
+                  onClick={() => onLinkIconAccentsChange?.(!linkIconAccents)}
+                >
+                  {linkIconAccents ? (
+                    <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                  ) : null}
+                </button>
+                <span className={css.label}>Link icon accents</span>
+              </div>
+            </>
+          ) : null}
+        </div>
         <div className={css.sliders}>
           <div className={css.sliderRow}>
             <label className={css.sliderLabel} htmlFor="hueSlider">
@@ -465,18 +731,16 @@ export default function InteractionSettingsPanel({
                 type="range"
                 id="hueSlider"
                 className={css.slider}
-                list="hue-ticks"
-                min={-180}
-                max={180}
+                min={HUE_OPERATOR_MIN}
+                max={HUE_OPERATOR_MAX}
                 step={1}
                 defaultValue={0}
               />
-              <datalist id="hue-ticks">
-                {SLIDER_TICK_VALUES.hue.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
-              <SliderTickMarks values={SLIDER_TICK_VALUES.hue} sliderRef={hueSliderRef} getLabel={(v) => `${v}°`} />
+              <SliderTickMarks
+                values={SLIDER_TICK_VALUES.hue}
+                sliderRef={hueSliderRef}
+                getLabel={(v) => `${v > 0 ? '+' : ''}${v}°`}
+              />
             </div>
             <span ref={hueReadoutRef} id="hueReadout" className={css.sliderReadout}>
               0°
@@ -492,17 +756,11 @@ export default function InteractionSettingsPanel({
                 type="range"
                 id="satSlider"
                 className={css.slider}
-                list="sat-ticks"
                 min={0}
                 max={2}
                 step={0.1}
                 defaultValue={1}
               />
-              <datalist id="sat-ticks">
-                {SLIDER_TICK_VALUES.sat.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
               <SliderTickMarks values={SLIDER_TICK_VALUES.sat} sliderRef={satSliderRef} getLabel={(v) => `${v}x`} />
             </div>
             <span ref={satReadoutRef} id="satReadout" className={css.sliderReadout}>
@@ -519,17 +777,11 @@ export default function InteractionSettingsPanel({
                 type="range"
                 id="lightSlider"
                 className={css.slider}
-                list="light-ticks"
                 min={-10}
                 max={10}
                 step={1}
                 defaultValue={0}
               />
-              <datalist id="light-ticks">
-                {SLIDER_TICK_VALUES.light.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
               <SliderTickMarks
                 values={SLIDER_TICK_VALUES.light}
                 sliderRef={lightSliderRef}
@@ -550,17 +802,11 @@ export default function InteractionSettingsPanel({
                 type="range"
                 id="contrastSlider"
                 className={css.slider}
-                list="contrast-ticks"
                 min={0.5}
                 max={1.5}
                 step={0.01}
                 defaultValue={1}
               />
-              <datalist id="contrast-ticks">
-                {SLIDER_TICK_VALUES.contrast.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
               <SliderTickMarks values={SLIDER_TICK_VALUES.contrast} sliderRef={contrastSliderRef} getLabel={(v) => `${v}x`} />
             </div>
             <span ref={contrastReadoutRef} id="contrastReadout" className={css.sliderReadout}>
@@ -568,6 +814,15 @@ export default function InteractionSettingsPanel({
             </span>
           </div>
           <div className={css.presetRow}>
+            {studioColorTheme === 'dark' ? (
+              <button type="button" className={css.presetBtn} onClick={handleGray350Preset}>
+                Gray 350 (new)
+              </button>
+            ) : (
+              <button type="button" className={css.presetBtn} onClick={handleGray150Preset}>
+                Gray 150 (new)
+              </button>
+            )}
             {SURFACE_PRESET_BUTTONS.map(({ id, label }) => (
               <button
                 key={id}
@@ -579,7 +834,10 @@ export default function InteractionSettingsPanel({
               </button>
             ))}
             <button type="button" className={css.presetBtn} onClick={handleResetTheme}>
-              Default (Surface_100)
+              Surface 100
+            </button>
+            <button type="button" className={css.presetBtn} onClick={handleSurface0Preset}>
+              Surface 0
             </button>
             {onReset ? (
               <button type="button" className={css.presetBtn} onClick={handleReset}>
@@ -592,6 +850,126 @@ export default function InteractionSettingsPanel({
         ) : null}
       </section>
 
+      <section className={`${css.collapsible} ${css.toolSelectionColorSection}`}>
+        <div className={css.collapsibleHeaderRow}>
+          <button
+            type="button"
+            className={css.collapsibleHeader}
+            aria-expanded={toolSelectionColorOpen}
+            aria-controls="theme-settings-tool-selection-color"
+            id="theme-tool-selection-color-heading"
+            onClick={() => setToolSelectionColorOpen((open) => !open)}
+          >
+            <div
+              className={`${css.collapsibleChevron} ${toolSelectionColorOpen ? '' : css.collapsibleChevronClosed}`}
+            >
+              <ChevDownSm />
+            </div>
+            <span className={css.collapsibleTitle}>Tool selection color</span>
+          </button>
+          <button
+            type="button"
+            className={css.collapsibleHeaderAction}
+            aria-label="Reset tool selection color"
+            onClick={handleResetToolSelectionColor}
+          >
+            <RefreshCw size={14} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
+        {toolSelectionColorOpen ? (
+          <div
+            id="theme-settings-tool-selection-color"
+            className={css.collapsibleBody}
+            role="region"
+            aria-labelledby="theme-tool-selection-color-heading"
+          >
+            <div
+              className={css.options}
+              role="radiogroup"
+              aria-labelledby="theme-tool-selection-color-heading"
+            >
+              {TOOL_SELECTION_COLOR_OPTIONS.map((option) => (
+                <Radio
+                  key={option}
+                  checked={toolSelectionColor === option}
+                  label={TOOL_SELECTION_COLOR_LABELS[option]}
+                  onSelect={() => onToolSelectionColorChange?.(option)}
+                />
+              ))}
+              {toolSelectionColor === 'blue_highlight' ? (
+                <div className={`${css.row} ${css.rowNested}`}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={toolSelectionIncludeNeutrals}
+                    aria-label="Include neutrals"
+                    className={`${css.checkboxBtn} ${
+                      toolSelectionIncludeNeutrals ? css.checkboxBtnChecked : ''
+                    }`}
+                    onClick={() =>
+                      onToolSelectionIncludeNeutralsChange?.(!toolSelectionIncludeNeutrals)
+                    }
+                  >
+                    {toolSelectionIncludeNeutrals ? (
+                      <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+                    ) : null}
+                  </button>
+                  <span className={css.label}>Include neutrals</span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      <section className={`${css.collapsible} ${css.uiScaleSection}`}>
+        <div className={css.collapsibleHeaderRow}>
+          <button
+            type="button"
+            className={css.collapsibleHeader}
+            aria-expanded={uiScaleOpen}
+            aria-controls="theme-settings-ui-scale"
+            id="theme-ui-scale-heading"
+            onClick={() => setUiScaleOpen((open) => !open)}
+          >
+            <div
+              className={`${css.collapsibleChevron} ${uiScaleOpen ? '' : css.collapsibleChevronClosed}`}
+            >
+              <ChevDownSm />
+            </div>
+            <span className={css.collapsibleTitle}>UI scale</span>
+          </button>
+          <button
+            type="button"
+            className={css.collapsibleHeaderAction}
+            aria-label="Reset UI scale"
+            onClick={handleResetUiScale}
+          >
+            <RefreshCw size={14} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
+        {uiScaleOpen ? (
+          <div
+            id="theme-settings-ui-scale"
+            className={css.collapsibleBody}
+            role="region"
+            aria-labelledby="theme-ui-scale-heading"
+          >
+            <div className={css.options} role="radiogroup" aria-labelledby="theme-ui-scale-heading">
+              {UI_SCALE_OPTIONS.map((option) => (
+                <Radio
+                  key={option}
+                  checked={uiScale === option}
+                  label={`${option}%`}
+                  onSelect={() => onUiScaleChange?.(option)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      {!colorPlayground ? (
       <section className={`${css.collapsible} ${css.focusSettingsSection}`}>
         <button
           type="button"
@@ -601,12 +979,11 @@ export default function InteractionSettingsPanel({
           id="theme-settings-misc-heading"
           onClick={() => setMiscOpen((open) => !open)}
         >
-          <ChevronRight
-            size={12}
-            strokeWidth={2}
-            className={`${css.collapsibleChevron} ${miscOpen ? css.collapsibleChevronOpen : ''}`}
-            aria-hidden
-          />
+          <div
+            className={`${css.collapsibleChevron} ${miscOpen ? '' : css.collapsibleChevronClosed}`}
+          >
+            <ChevDownSm />
+          </div>
           <span className={css.collapsibleTitle}>Focus interaction settings</span>
         </button>
         {miscOpen ? (
@@ -744,42 +1121,22 @@ export default function InteractionSettingsPanel({
                 role="radiogroup"
                 aria-labelledby="interaction-testing-ui-heading"
               >
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={hasStroke && !hasFocusStroke}
-                    aria-label="Has semantic stroke"
-                    className={`${css.radioBtn} ${
-                      hasStroke && !hasFocusStroke ? css.radioBtnChecked : ''
-                    }`}
-                    onClick={() => {
-                      onHasStrokeChange(true)
-                      onHasFocusStrokeChange(false)
-                    }}
-                  >
-                    <span className={css.radioMark} aria-hidden />
-                  </button>
-                  <span className={css.label}>Has semantic stroke</span>
-                </div>
-                <div className={css.row}>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={hasFocusStroke && !hasStroke}
-                    aria-label="Has focus stroke"
-                    className={`${css.radioBtn} ${
-                      hasFocusStroke && !hasStroke ? css.radioBtnChecked : ''
-                    }`}
-                    onClick={() => {
-                      onHasStrokeChange(false)
-                      onHasFocusStrokeChange(true)
-                    }}
-                  >
-                    <span className={css.radioMark} aria-hidden />
-                  </button>
-                  <span className={css.label}>Has focus stroke</span>
-                </div>
+                <Radio
+                  checked={hasStroke && !hasFocusStroke}
+                  label="Has semantic stroke"
+                  onSelect={() => {
+                    onHasStrokeChange(true)
+                    onHasFocusStrokeChange(false)
+                  }}
+                />
+                <Radio
+                  checked={hasFocusStroke && !hasStroke}
+                  label="Has focus stroke"
+                  onSelect={() => {
+                    onHasStrokeChange(false)
+                    onHasFocusStrokeChange(true)
+                  }}
+                />
                 <div className={css.row}>
                   <button
                     type="button"
@@ -980,46 +1337,22 @@ export default function InteractionSettingsPanel({
                   role="radiogroup"
                   aria-labelledby="interaction-breadcrumb-heading"
                 >
-                  <div className={css.row}>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={explorerShowBreadcrumb && !showFullBreadcrumbWhenDetached}
-                      aria-label="Show full breadcrumb"
-                      className={`${css.radioBtn} ${
-                        explorerShowBreadcrumb && !showFullBreadcrumbWhenDetached
-                          ? css.radioBtnChecked
-                          : ''
-                      }`}
-                      onClick={() => {
-                        onExplorerShowBreadcrumbChange(true)
-                        onShowFullBreadcrumbWhenDetachedChange(false)
-                      }}
-                    >
-                      <span className={css.radioMark} aria-hidden />
-                    </button>
-                    <span className={css.label}>Show full breadcrumb</span>
-                  </div>
-                  <div className={css.row}>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={explorerShowBreadcrumb && showFullBreadcrumbWhenDetached}
-                      aria-label="Show full breadcrumb when detached"
-                      className={`${css.radioBtn} ${
-                        explorerShowBreadcrumb && showFullBreadcrumbWhenDetached
-                          ? css.radioBtnChecked
-                          : ''
-                      }`}
-                      onClick={() => {
-                        onExplorerShowBreadcrumbChange(true)
-                        onShowFullBreadcrumbWhenDetachedChange(true)
-                      }}
-                    >
-                      <span className={css.radioMark} aria-hidden />
-                    </button>
-                    <span className={css.label}>Show full breadcrumb when detached</span>
-                  </div>
+                  <Radio
+                    checked={explorerShowBreadcrumb && !showFullBreadcrumbWhenDetached}
+                    label="Show full breadcrumb"
+                    onSelect={() => {
+                      onExplorerShowBreadcrumbChange(true)
+                      onShowFullBreadcrumbWhenDetachedChange(false)
+                    }}
+                  />
+                  <Radio
+                    checked={explorerShowBreadcrumb && showFullBreadcrumbWhenDetached}
+                    label="Show full breadcrumb when detached"
+                    onSelect={() => {
+                      onExplorerShowBreadcrumbChange(true)
+                      onShowFullBreadcrumbWhenDetachedChange(true)
+                    }}
+                  />
                 </div>
               </section>
               <section className={css.subgroup} aria-labelledby="interaction-badge-heading">
@@ -1167,6 +1500,7 @@ export default function InteractionSettingsPanel({
           </div>
         ) : null}
       </section>
+      ) : null}
     </div>
   )
 }

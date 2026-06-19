@@ -1,6 +1,5 @@
-import type { HTMLAttributes, MouseEvent } from 'react'
-import { publicAssetUrl } from '../../publicAssetUrl'
-import { TabPlaceWorkspaceIcon, TabServerSimDocumentIcon } from './documentTabIcons'
+import type { HTMLAttributes } from 'react'
+import { TabPlaceWorkspaceIcon, TabServerSimDocumentIcon, TabCloseButton, TabCloseIcon } from './documentTabIcons'
 import TabWithPathTooltip from './TabWithPathTooltip'
 import styles from './StudioWindowsOS.module.css'
 
@@ -15,26 +14,6 @@ export type DocumentPlaceTabProps = {
   dragTabIndex?: number
   dragClassName?: string
   dragTabProps?: React.HTMLAttributes<HTMLElement>
-}
-
-function TabCloseButton({ onClose }: { onClose: (e: MouseEvent) => void }) {
-  return (
-    <button
-      type="button"
-      className={styles.tabClose}
-      aria-label="Close tab"
-      onPointerDown={(e) => {
-        e.stopPropagation()
-        onClose(e)
-      }}
-      onClick={(e) => {
-        e.stopPropagation()
-        onClose(e)
-      }}
-    >
-      <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
-    </button>
-  )
 }
 
 export default function DocumentPlaceTab({
@@ -79,7 +58,7 @@ export default function DocumentPlaceTab({
         />
       ) : (
         <button type="button" className={styles.tabClose} aria-label="Close tab">
-          <img src={publicAssetUrl('assets/tab-close.svg')} alt="" />
+          <TabCloseIcon />
         </button>
       )}
     </TabWithPathTooltip>

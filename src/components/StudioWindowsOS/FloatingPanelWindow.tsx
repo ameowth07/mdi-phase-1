@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { publicAssetUrl } from '../../publicAssetUrl'
 import {
   FLOATING_SIDE_PANEL_LABELS,
   reorderFloatingSidePanelTabs,
@@ -133,9 +132,7 @@ export default function FloatingPanelWindow({
                 </button>
               )
             })}
-            <div className={styles.tabRowUnderline} aria-hidden>
-              <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-            </div>
+            <div className={styles.tabRowUnderline} aria-hidden />
           </div>
         ) : null}
       </div>

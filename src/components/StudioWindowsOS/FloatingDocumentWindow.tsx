@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode, RefObject } from 'react'
-import { publicAssetUrl } from '../../publicAssetUrl'
+import { TabCloseIcon } from './documentTabIcons'
 import type { FloatingDocumentPosition } from './floatingDocument'
 import { useFloatingDocumentDrag } from './useFloatingDocumentDrag'
 import styles from './StudioWindowsOS.module.css'
@@ -59,7 +59,7 @@ export default function FloatingDocumentWindow({
                   aria-label="Close panel"
                   onClick={onClose}
                 >
-                  <img src={publicAssetUrl('assets/panel-close-x-2.svg')} alt="" />
+                  <TabCloseIcon />
                 </button>
               </div>
             ) : null}

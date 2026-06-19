@@ -1,0 +1,61 @@
+/**
+ * Radio — Figma Studio App Framework 2026 (6406:46080), XSmall / Start placement.
+ * Unchecked: stroke/contrast ring · Checked: system-contrast fill + inverse knob
+ */
+
+.root {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 18px;
+  margin: 0;
+  cursor: default;
+  user-select: none;
+}
+
+.control {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--stroke-contrast);
+  border-radius: 9999px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.controlChecked {
+  background: var(--system-contrast);
+  border-color: var(--system-contrast);
+}
+
+.control:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.knob {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background: var(--inverse-content-emphasis);
+}
+
+.label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--content-emphasis);
+}
+
+.labelMuted {
+  color: var(--content-muted);
+}

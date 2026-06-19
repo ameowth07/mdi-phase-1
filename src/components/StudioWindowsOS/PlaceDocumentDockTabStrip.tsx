@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { publicAssetUrl } from '../../publicAssetUrl'
 import type { DocumentDockPanelId } from './documentDockPanels'
 import { useTabRowDragReorder, type TabRowDragBindings } from './useTabRowDragReorder'
 import { isTriZoneTabDrag, type TriZoneTabDragBindings } from './useTriZoneTabDrag'
@@ -60,9 +59,7 @@ export default function PlaceDocumentDockTabStrip({
           onActivate: () => onActivate(panelId),
         }),
       )}
-      <div className={styles.tabRowUnderline} aria-hidden>
-        <img src={publicAssetUrl('assets/tab-underline.svg')} alt="" />
-      </div>
+      <div className={styles.tabRowUnderline} aria-hidden />
     </div>
   )
 }

@@ -1,21 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import {
-  Bell,
-  ChevronDown,
-  ChevronUp,
-  CircleUser,
-  LogOut,
-  Monitor,
-  Play,
-  Plus,
-  Server,
-  Share2,
-  Sparkles,
-  Square,
-  Users,
-} from 'lucide-react'
+import { ChevronDown, ChevronUp, CircleUser, LogOut, Server, Users } from 'lucide-react'
 import css from './ribbon.module.css'
-import { RibbonToolbar } from './RibbonToolbar'
+import { RibbonToolbar, type RibbonPanelToggles, type RibbonToolbarProps } from './RibbonToolbar'
+import MezzanineTabs from './MezzanineTabs'
+import {
+  MezzanineIcon,
+  RibbonChevronSmIcon,
+} from './icons/mezzanineIcons'
 
 export type TestRunMode = 'test' | 'serverAndClients'
 export type SimViewportFocus = 'client' | 'server'
@@ -27,8 +18,6 @@ const TEST_RUN_OPTIONS: { id: TestRunMode; label: string }[] = [
 
 const MIN_CLIENT_SPAWN_COUNT = 1
 const MAX_CLIENT_SPAWN_COUNT = 99
-
-const RIBBON_TABS = ['Home', 'Model', 'Avatar', 'UI', 'Script'] as const
 
 function clampClientSpawnCount(value: number): number {
   if (!Number.isFinite(value)) return MIN_CLIENT_SPAWN_COUNT
@@ -105,68 +94,11 @@ function PauseIcon() {
 }
 
 function ChevSmSplit() {
-  return (
-    <svg
-      className={css.pauseChevron}
-      width={10}
-      height={10}
-      viewBox="0 0 10 10"
-      aria-hidden
-    >
-      <path
-        d="M2 3L5 6.2L8 3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.35}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+  return <RibbonChevronSmIcon className={css.pauseChevron} />
 }
 
-/** Same stroke chevron as toolbar split drops (RibbonToolbar ChevSm) — avoids Unicode ▾ emoji substitution. */
 function TestDropdownChevron() {
-  return (
-    <svg
-      className={css.testDropdownChevIcon}
-      width={10}
-      height={10}
-      viewBox="0 0 10 10"
-      aria-hidden
-    >
-      <path
-        d="M2 3L5 6.2L8 3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/** Mezzanine cloud — vector (MCP raster 404); matches common “cloud” glyph, not user-in-frame. */
-function CloudIcon() {
-  return (
-    <svg
-      className={css.cloudIcon}
-      width={16}
-      height={16}
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M1 12.5A4.5 4.5 0 005.5 17H15a4 4 0 001.866-7.539 3.504 3.504 0 00-4.504-4.272A4.5 4.5 0 001 12.5z"
-      />
-    </svg>
-  )
+  return <RibbonChevronSmIcon className={css.testDropdownChevIcon} />
 }
 
 export type LegacyRibbonProps = {
@@ -180,14 +112,12 @@ export type LegacyRibbonProps = {
   onStop?: () => void
   /** Asset-only frame (e.g. Bunny) — Test menu and playback controls are inert. */
   testPlaybackDisabled?: boolean
+  /** Panel visibility toggles on the toolbar (Explorer, Properties, etc.). */
+  panelToggles?: RibbonPanelToggles
+  onPanelToggle?: RibbonToolbarProps['onPanelToggle']
 }
 
-/** Assistant / Copilot — Lucide glyph; custom scaled paths were sub-pixel at 16×16. */
-function AssistantIcon() {
-  return <Sparkles className={css.assistantIcon} size={16} strokeWidth={1.5} aria-hidden />
-}
-
-/** Figma node 3841:115005 — [Legacy] Ribbon */
+/** Figma Studio Starter Kit — Ribbon node 5814:42199 */
 export default function LegacyRibbon({
   simulating,
   simViewportFocus = 'client',
@@ -195,11 +125,14 @@ export default function LegacyRibbon({
   onPlay,
   onStop,
   testPlaybackDisabled,
+  panelToggles,
+  onPanelToggle,
 }: LegacyRibbonProps) {
   const testMenuId = useId()
   const testDropdownRef = useRef<HTMLDivElement>(null)
   const [testRunMode, setTestRunMode] = useState<TestRunMode>('test')
   const [testMenuOpen, setTestMenuOpen] = useState(false)
+  const [tabOverflowMenuOpen, setTabOverflowMenuOpen] = useState(false)
   const [clientSpawnCount, setClientSpawnCount] = useState(MIN_CLIENT_SPAWN_COUNT)
   const [sessionPaused, setSessionPaused] = useState(false)
 
@@ -256,8 +189,10 @@ export default function LegacyRibbon({
 
   return (
     <div
-      className={`${css.ribbonRoot} ${testMenuOpen ? css.ribbonRootDropdownOpen : ''}`}
-      data-node-id="3841:115005"
+      className={`${css.ribbonRoot} ${
+        testMenuOpen || tabOverflowMenuOpen ? css.ribbonRootDropdownOpen : ''
+      }`}
+      data-node-id="5814:42199"
     >
       <div className={css.mezzanine} data-node-id="3841:115007">
         <div className={simulating ? `${css.mezzLeft} ${css.mezzLeftSim}` : css.mezzLeft}>
@@ -316,12 +251,7 @@ export default function LegacyRibbon({
                   disabled={playbackLocked || (simulating && !sessionPaused)}
                   onClick={handlePlay}
                 >
-                  <Play
-                    size={14}
-                    strokeWidth={1.75}
-                    fill="currentColor"
-                    aria-hidden
-                  />
+                  <MezzanineIcon id="play" />
                 </button>
                 <button
                   type="button"
@@ -360,12 +290,7 @@ export default function LegacyRibbon({
                   disabled={playbackLocked}
                   onClick={handlePlay}
                 >
-                  <Play
-                    size={14}
-                    strokeWidth={1.75}
-                    fill="currentColor"
-                    aria-hidden
-                  />
+                  <MezzanineIcon id="play" />
                 </button>
                 <div
                   className={simulating ? `${css.splitMuted} ${css.splitMutedSim}` : css.splitMuted}
@@ -397,12 +322,7 @@ export default function LegacyRibbon({
                   disabled={playbackLocked}
                   onClick={handleExit}
                 >
-                  <Square
-                    size={11}
-                    strokeWidth={2}
-                    fill="currentColor"
-                    aria-hidden
-                  />
+                  <MezzanineIcon id="stop" />
                 </button>
                 <button
                   type="button"
@@ -419,12 +339,7 @@ export default function LegacyRibbon({
                       aria-hidden
                     />
                   ) : (
-                    <Monitor
-                      size={16}
-                      strokeWidth={1.5}
-                      className={css.viewFocusIconClient}
-                      aria-hidden
-                    />
+                    <MezzanineIcon id="client" />
                   )}
                 </button>
               </>
@@ -432,36 +347,23 @@ export default function LegacyRibbon({
           </div>
         </div>
 
-        <div className={css.centerTabs} data-node-id="3841:115017">
-          {RIBBON_TABS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`${css.ribbonTab} ${t === 'Home' ? css.ribbonTabActive : ''}`}
-            >
-              {t}
-            </button>
-          ))}
-          <button type="button" className={css.tabPlusBtn} aria-label="Add tab">
-            <Plus size={12} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
+        <MezzanineTabs onMenuOpenChange={setTabOverflowMenuOpen} />
 
         <div className={css.mezzRight} data-node-id="3841:115018">
           <div className={css.userCluster}>
             <button type="button" className={css.iconBtnSm} aria-label="Share">
-              <Share2 size={16} strokeWidth={1.5} aria-hidden />
+              <MezzanineIcon id="share" />
             </button>
             <div className={css.dividerV} />
             <button type="button" className={css.iconBtnSm} aria-label="Assistant">
-              <AssistantIcon />
+              <MezzanineIcon id="assistant" />
             </button>
             <button type="button" className={css.iconBtnSm} aria-label="Cloud">
-              <CloudIcon />
+              <MezzanineIcon id="cloud" />
             </button>
             <div className={css.dividerV} />
             <button type="button" className={css.iconBtnSm} aria-label="Notifications">
-              <Bell size={16} strokeWidth={1.5} aria-hidden />
+              <MezzanineIcon id="notification" />
             </button>
             <button type="button" className={css.avatar} aria-label="Account">
               <CircleUser size={22} strokeWidth={1.5} aria-hidden />
@@ -472,7 +374,7 @@ export default function LegacyRibbon({
 
       <div className={css.ribbonRule} data-node-id="3841:115042" />
 
-      <RibbonToolbar />
+      <RibbonToolbar panelToggles={panelToggles} onPanelToggle={onPanelToggle} />
     </div>
   )
 }

@@ -1,12 +1,33 @@
-/* Legacy ribbon — mezzanine + toolbar (Figma 3841:115005) */
+/* Legacy ribbon — Figma Studio Starter Kit node 5814:42199 */
 
 .ribbonRoot {
   position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  background: var(--surface-100, #191a1f);
-  color: var(--content-default, #d5d7dd);
+  background: var(--surface-100);
+  color: var(--content-default);
+  font-family: var(--font-sans, 'Builder Sans', system-ui, sans-serif);
+  font-size: var(--font-size-sans, 12px);
+  line-height: var(--line-height-sans, 1.4);
+
+  /* Light-theme Figma icon neutrals (IconDefault, content, Accent/Muted/Blue/200). */
+  --ribbon-icon-default: #1f2024;
+  --ribbon-icon-emphasis: #202227;
+  --ribbon-icon-muted: #6a6f81;
+  --ribbon-icon-muted-blue: #7a88b8;
+  --ribbon-icon-generic: #7986a5;
+  --ribbon-icon-inverse: #f7f7f8;
+}
+
+html:not([data-theme='light']) .ribbonRoot,
+[data-theme='dark'] .ribbonRoot {
+  --ribbon-icon-default: var(--content-default, #d5d7dd);
+  --ribbon-icon-emphasis: var(--content-emphasis, #f7f7f8);
+  --ribbon-icon-muted: var(--content-muted, #bcbec8);
+  --ribbon-icon-muted-blue: var(--accent-muted-blue-200, #7986a5);
+  --ribbon-icon-generic: var(--content-muted, #bcbec8);
+  --ribbon-icon-inverse: var(--inverse-content-emphasis, #202227);
 }
 
 /** Dropdown extends below mezzanine — lift entire mezzanine above toolbar/rule siblings. */
@@ -19,19 +40,25 @@
   overflow: visible;
 }
 
-/* Mezzanine */
+.ribbonRootDropdownOpen .mezzCenter {
+  overflow: visible;
+}
+
+/* Mezzanine — blur + surface-100 (Figma Mezzanine) */
 .mezzanine {
   position: relative;
   height: 36px;
   flex-shrink: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   backdrop-filter: blur(50px);
-  background: var(--overmedia-100, hsla(230, 11%, 11%, 0.92));
+  -webkit-backdrop-filter: blur(50px);
+  background: var(--surface-100);
 }
 
 .mezzLeft {
-  position: absolute;
-  left: 0;
-  top: 4px;
+  flex: 0 0 auto;
   height: 28px;
   padding-left: 8px;
   display: flex;
@@ -52,25 +79,25 @@
   height: 24px;
   width: 100%;
   min-width: 0;
-  padding: 0 6px;
+  padding: 0 4px;
   border-radius: 4px;
-  background: rgba(208, 217, 251, 0.12);
+  background: var(--shift-200);
   border: none;
   cursor: default;
   font: inherit;
   font-size: 12px;
-  color: var(--content-emphasis, #f7f7f8);
+  color: var(--content-default);
 }
 
 .testDropdownOpen {
-  background: rgba(208, 217, 251, 0.18);
+  background: var(--stroke-emphasis);
 }
 
 .testDropdown:disabled {
   opacity: 0.42;
   cursor: not-allowed;
-  background: rgba(208, 217, 251, 0.06);
-  color: var(--content-muted, #bcbec8);
+  background: var(--stroke-muted);
+  color: var(--content-muted);
 }
 
 .testDropdownLabel {
@@ -102,8 +129,8 @@
   isolation: isolate;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  background-color: #191a1f;
-  border: 1px solid rgba(208, 217, 251, 0.12);
+  background-color: var(--surface-100);
+  border: 1px solid var(--stroke-default);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
@@ -125,11 +152,11 @@
 }
 
 .testDropdownOption:hover {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+  background: var(--shift-200, var(--shift-200));
 }
 
 .testDropdownOptionSelected {
-  background: var(--shift-200, rgba(208, 217, 251, 0.12));
+  background: var(--shift-200, var(--shift-300));
 }
 
 .playback {
@@ -147,7 +174,7 @@
 }
 
 .pauseControlBtnActive {
-  background: rgba(208, 217, 251, 0.12);
+  background: var(--shift-300);
 }
 
 .exitControlBtn {
@@ -164,13 +191,13 @@
   height: 24px;
   width: 72px;
   border-radius: 4px;
-  background: rgba(208, 217, 251, 0.08);
+  background: var(--shift-200);
   overflow: hidden;
 }
 
 .clientSpawnSpinbox:focus-within:not(.clientSpawnSpinboxDisabled) {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
-  box-shadow: inset 0 0 0 1px #657bf4;
+  background: var(--shift-200, var(--shift-200));
+  box-shadow: inset 0 0 0 1px var(--stroke-emphasis);
 }
 
 .clientSpawnSpinboxDisabled {
@@ -215,7 +242,7 @@
 }
 
 .clientSpawnSpinboxInput:disabled {
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
   cursor: not-allowed;
 }
 
@@ -224,7 +251,7 @@
   flex-direction: column;
   flex-shrink: 0;
   width: 16px;
-  border-left: 1px solid rgba(208, 217, 251, 0.08);
+  border-left: 1px solid var(--stroke-muted);
 }
 
 .clientSpawnSpinboxStep {
@@ -237,11 +264,11 @@
   align-items: center;
   justify-content: center;
   cursor: default;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
 }
 
 .clientSpawnSpinboxStep:hover:not(:disabled) {
-  background: rgba(208, 217, 251, 0.08);
+  background: var(--shift-200);
   color: var(--content-emphasis, #f7f7f8);
 }
 
@@ -261,8 +288,6 @@
   align-items: center;
   justify-content: center;
   cursor: default;
-  /* UA `button` uses `color: ButtonText` (often black); Lucide uses `currentColor` for stroke/fill. */
-  color: var(--content-emphasis, #f7f7f8);
 }
 
 .iconBtnSm > img {
@@ -281,7 +306,7 @@
 .splitMutedPart:disabled {
   opacity: 0.38;
   cursor: not-allowed;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
 }
 
 .playback:has(.iconBtnSm:disabled) .splitMuted {
@@ -314,11 +339,11 @@
 }
 
 .viewFocusIconClient {
-  color: #4ec8e9;
+  color: var(--semantic-client-stroke, #4ec8e9);
 }
 
 .viewFocusIconServer {
-  color: #47b84f;
+  color: var(--semantic-server-stroke, #47b84f);
 }
 
 .mezzLeftSim .playControlBtn img {
@@ -359,19 +384,44 @@
   color: inherit;
 }
 
-.centerTabs {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(calc(-50% + 10.25px), -50%);
+.mezzCenter {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.centerTabsScroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.centerTabsScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.centerTabsInner {
   display: flex;
   align-items: flex-start;
   gap: 4px;
+  width: max-content;
+  margin-inline: auto;
 }
 
 .ribbonTab {
+  flex: 0 0 auto;
   min-width: 80px;
   width: 80px;
+  min-height: 24px;
+  box-sizing: border-box;
   padding: 6px 8px;
   border-radius: 4px;
   border: none;
@@ -380,7 +430,7 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
   cursor: default;
   white-space: nowrap;
   overflow: hidden;
@@ -388,13 +438,44 @@
 }
 
 .ribbonTabActive {
-  background: var(--shift-300, rgba(208, 217, 251, 0.12));
-  color: var(--content-emphasis, #f7f7f8);
+  background: var(--shift-300);
+  color: var(--content-emphasis);
 }
 
-.tabPlusBtn {
-  min-width: 44px;
-  padding: 4px 12px;
+.ribbonTabAdd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--content-emphasis);
+}
+
+.ribbonTabAdd .iconStack16 {
+  width: 8px;
+  height: 8px;
+}
+
+.ribbonTabAdd svg {
+  width: 8px;
+  height: 8px;
+  display: block;
+}
+
+.tabOverflowWrap {
+  flex: 0 0 auto;
+}
+
+.tabOverflowAnchor {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.tabOverflowBtn {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
   border-radius: 4px;
   border: none;
   background: transparent;
@@ -402,27 +483,50 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--content-emphasis, #f7f7f8);
+  color: var(--content-muted);
 }
 
-.tabPlusBtn img {
-  width: 12px;
-  height: 12px;
-  display: block;
+.tabOverflowBtnOpen {
+  background: var(--shift-200);
+  color: var(--content-emphasis);
 }
 
-.tabPlusBtn svg {
-  width: 12px;
-  height: 12px;
+.tabOverflowMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: auto;
+  z-index: 300;
+  width: max-content;
+  min-width: 100%;
+  padding: 4px;
+  border-radius: 6px;
+  isolation: isolate;
+  background-color: var(--surface-100);
+  border: 1px solid var(--stroke-default);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.tabOverflowMenu .ribbonTab {
+  width: auto;
+  min-width: 100%;
+  flex: none;
+}
+
+.ribbonTabOverflowOption {
   display: block;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.ribbonTabOverflowOption.ribbonTabActive {
+  background: var(--shift-300, rgba(208, 217, 251, 0.12));
 }
 
 .mezzRight {
-  position: absolute;
-  right: -0.5px;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 0 12px;
+  flex: 0 0 auto;
+  padding: 0 12px 0 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -455,7 +559,7 @@
 .dividerV {
   align-self: stretch;
   width: 1px;
-  background: rgba(208, 217, 251, 0.12);
+  background: var(--stroke-default);
   flex-shrink: 0;
 }
 
@@ -486,15 +590,16 @@
 
 .ribbonRule {
   height: 1px;
-  background: rgba(208, 217, 251, 0.12);
+  background: var(--stroke-default);
   flex-shrink: 0;
 }
 
-/* Toolbar row */
+/* Toolbar row — Figma RibbonTabs body */
 .toolbar {
   flex: 0 0 64px;
   min-height: 64px;
-  border-bottom: 1px solid rgba(208, 217, 251, 0.12);
+  background: var(--surface-100);
+  border-bottom: 1px solid var(--stroke-default);
   padding: 0 8px;
   display: flex;
   align-items: center;
@@ -526,7 +631,7 @@
 }
 
 .toggleCol {
-  width: 58px;
+  width: 48px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -535,7 +640,24 @@
 }
 
 .toggleColActive .toggleBtn {
-  background: var(--shift-300, rgba(208, 217, 251, 0.12));
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
+}
+
+.panelToggleColActive .toggleBtn {
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
+}
+
+.panelToggleActive,
+.panelToggleColActive .toggleBtn,
+.toggleBtn.panelToggleActive,
+.toggleBtn.panelToggleActive[aria-pressed='true'] {
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
+}
+
+.panelToggleActive:hover,
+.panelToggleColActive .toggleBtn:hover,
+.toggleBtn.panelToggleActive:hover {
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
 }
 
 .toggleBtn {
@@ -553,29 +675,95 @@
 
 .toggleBtn:hover,
 .splitMain:hover,
-.splitDrop:hover,
-.spinBoxCtrl:hover {
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
+.splitDrop:hover {
+  background: var(--shift-200, var(--shift-200));
 }
 
 .toggleBtn:active,
 .splitMain:active,
 .splitDrop:active,
-.spinBoxCtrl:active,
 .toggleBtn.ribbonToolActive,
 .splitMain.ribbonToolActive,
 .toggleBtn[aria-pressed='true'],
 .splitMain[aria-pressed='true'] {
-  background: var(--shift-300, rgba(208, 217, 251, 0.12));
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
 }
 
 .toggleBtn[aria-pressed='true']:hover,
 .splitMain[aria-pressed='true']:hover {
-  background: var(--shift-300, rgba(208, 217, 251, 0.12));
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
+}
+
+.toggleBtn.panelToggleActive,
+.toggleBtn.panelToggleActive:active,
+.toggleBtn.panelToggleActive[aria-pressed='true'],
+.toggleBtn.panelToggleActive[aria-pressed='true']:hover {
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
 }
 
 .ribbonToolActive {
-  background: var(--shift-300, rgba(208, 217, 251, 0.12));
+  background: var(--ribbon-tool-selection-bg, var(--shift-300));
+}
+
+:global([data-tool-selection-color='blue_highlight']) :is(
+  .ribbonToolActive,
+  .toggleBtn[aria-pressed='true'],
+  .splitMain[aria-pressed='true'],
+  .toggleColActive .toggleBtn,
+  .panelToggleActive,
+  .panelToggleColActive .toggleBtn,
+  .toggleBtn.panelToggleActive,
+  .toggleBtn.panelToggleActive[aria-pressed='true']
+) {
+  --ribbon-accent-violet: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-green: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-magenta: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-blue-deep: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-blue: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-blue-ui: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-yellow: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-orange: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-character: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-cyan: var(--ribbon-tool-selection-accent, #447ffd);
+  --ribbon-accent-pink: var(--ribbon-tool-selection-accent, #447ffd);
+}
+
+/** Color wheel — keep distinct segment hues when Blue highlight remaps tool accents. */
+.ribbonIconPreserveAccents {
+  --ribbon-accent-violet: #7644fd;
+  --ribbon-accent-green: #0fb369;
+  --ribbon-accent-magenta: #e26cf4;
+  --ribbon-accent-blue-deep: #284de2;
+  --ribbon-accent-blue: #5581fc;
+  --ribbon-accent-blue-ui: #3c64fa;
+  --ribbon-accent-yellow: #f5c73d;
+  --ribbon-accent-orange: #f87935;
+  --ribbon-accent-character: #e1621e;
+  --ribbon-accent-cyan: #0cc3e4;
+  --ribbon-accent-pink: #e8457e;
+}
+
+:global([data-tool-selection-color='blue_highlight'][data-tool-selection-include-neutrals])
+  .ribbonIconPreserveAccents {
+  --ribbon-icon-default: var(--content-default, #d5d7dd);
+  --ribbon-icon-emphasis: var(--content-emphasis, #f7f7f8);
+  --ribbon-icon-muted: var(--content-muted, #bcbec8);
+  --ribbon-icon-muted-blue: var(--accent-muted-blue-200, #7986a5);
+  --ribbon-icon-generic: var(--content-muted, #bcbec8);
+  --ribbon-icon-inverse: var(--inverse-content-emphasis, #202227);
+}
+
+:global([data-tool-selection-color='blue_highlight'][data-tool-selection-include-neutrals]) :is(
+  .ribbonToolActive,
+  .toggleBtn[aria-pressed='true'],
+  .splitMain[aria-pressed='true'],
+  .toggleColActive .toggleBtn,
+  .panelToggleActive,
+  .panelToggleColActive .toggleBtn,
+  .toggleBtn.panelToggleActive,
+  .toggleBtn.panelToggleActive[aria-pressed='true']
+) {
+  --ribbon-icon-muted-blue: var(--ribbon-tool-selection-accent, #447ffd);
 }
 
 .toggleLabel {
@@ -589,10 +777,10 @@
 
 .toggleLabel span {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.4;
-  color: var(--content-default, #d5d7dd);
-  max-width: 100%;
+  color: var(--content-default);
+  max-width: 56px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -607,24 +795,99 @@
   flex-shrink: 0;
 }
 
-.glyphCenter {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--content-default, #d5d7dd);
+.iconStack16,
+.iconStack24 {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
-.glyphCenter svg {
-  flex-shrink: 0;
+.iconStack16 {
+  width: 16px;
+  height: 16px;
+}
+
+.iconStack24 {
+  width: 24px;
+  height: 24px;
+}
+
+:global([data-ribbon-icon-size='20']) .b24,
+:global([data-ribbon-icon-size='20']) .iconStack24 {
+  width: 20px;
+  height: 20px;
+}
+
+.iconLayer {
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.iconLayer > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.guiAccentSwatch {
+  background: var(--ribbon-accent-magenta, #d540f5);
+}
+
+.explorerAccentSwatch {
+  background: var(--ribbon-icon-muted-blue);
+}
+
+/**
+ * Panel toggles use fills — off: content-default only; on: content-emphasis + muted-blue.
+ * Enabled via `data-panel-toggles-use-fills` on `.frame`.
+ */
+:global([data-panel-toggles-use-fills]) .panelToggleCol:not(.panelToggleColActive) :is(.iconStack, .iconStack16, .iconStack24) {
+  --ribbon-icon-default: var(--content-default);
+  --ribbon-icon-emphasis: var(--content-default);
+  --ribbon-icon-muted: var(--content-default);
+  --ribbon-icon-muted-blue: transparent;
+  --ribbon-icon-generic: var(--content-default);
+  --ribbon-icon-inverse: var(--content-default);
+}
+
+:global([data-panel-toggles-use-fills]) .panelToggleCol:not(.panelToggleColActive) .explorerAccentSwatch {
+  opacity: 0;
+}
+
+:global([data-panel-toggles-use-fills]) .panelToggleColActive :is(.iconStack, .iconStack16, .iconStack24) {
+  --ribbon-icon-default: var(--content-emphasis);
+  --ribbon-icon-emphasis: var(--content-emphasis);
+  --ribbon-icon-muted: var(--content-emphasis);
+  --ribbon-icon-muted-blue: var(--accent-muted-blue-200, #7a88b8);
+  --ribbon-icon-generic: var(--content-emphasis);
+  --ribbon-icon-inverse: var(--content-emphasis);
+}
+
+/* Fills mode — on/off is icon color only; no shift/selection button background. */
+:global([data-panel-toggles-use-fills]) .panelToggleCol :is(.toggleBtn, .toggleBtn:hover, .toggleBtn:active),
+:global([data-panel-toggles-use-fills])
+  .panelToggleCol
+  :is(.toggleBtn.panelToggleActive, .toggleBtn.panelToggleActive:hover, .toggleBtn.panelToggleActive:active),
+:global([data-panel-toggles-use-fills])
+  .panelToggleCol
+  :is(
+    .toggleBtn.panelToggleActive[aria-pressed='true'],
+    .toggleBtn.panelToggleActive[aria-pressed='true']:hover
+  ),
+:global([data-panel-toggles-use-fills]) .panelToggleColActive :is(.toggleBtn, .toggleBtn:hover) {
+  background: transparent;
 }
 
 .vDivider {
-  align-self: stretch;
+  align-self: center;
   width: 1px;
+  height: calc(100% - 16px);
   flex-shrink: 0;
-  background: rgba(208, 217, 251, 0.12);
+  background: var(--stroke-default);
 }
 
 .layer {
@@ -677,7 +940,7 @@
   align-items: center;
   justify-content: center;
   cursor: default;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-emphasis);
 }
 
 .spinCol {
@@ -691,73 +954,6 @@
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.checkFake {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: #d5d7dd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.spinBox {
-  display: flex;
-  align-items: center;
-  height: 20px;
-  width: 85px;
-  border-radius: 4px;
-  background: rgba(208, 217, 251, 0.08);
-  overflow: hidden;
-}
-
-.spinBoxIcon {
-  width: 20px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.spinBoxIcon img,
-.spinBoxIcon svg {
-  width: 16px;
-  height: 16px;
-  display: block;
-}
-
-.spinBoxInput {
-  flex: 1;
-  min-width: 0;
-  padding: 0 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--content-muted, #bcbec8);
-  white-space: nowrap;
-}
-
-.spinBoxCtrl {
-  width: 16px;
-  height: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: default;
-  color: var(--content-muted, #bcbec8);
-}
-
-.spinBoxCtrl img,
-.spinBoxCtrl svg {
-  width: 16px;
-  height: 16px;
-  display: block;
 }
 
 .explorerDot {

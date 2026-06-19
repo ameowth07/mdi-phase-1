@@ -3,7 +3,7 @@
   margin: 0 auto;
   padding: 24px 20px 48px;
   color: #e8e8ea;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
 }
 
 .header {
@@ -50,7 +50,7 @@
   height: 420px;
   padding: 10px;
   background: #141416;
-  border: 1px solid #2a2a30;
+  border: 1px solid var(--stroke-muted);
   border-radius: 8px;
 }
 
@@ -72,14 +72,14 @@
 }
 
 .mapCell:hover {
-  border-color: #4a6cf7;
+  border-color: var(--stroke-emphasis);
   background: #222228;
 }
 
 .mapCellActive {
-  border-color: #6b8cff;
+  border-color: var(--stroke-emphasis);
   background: #26262e;
-  box-shadow: inset 0 0 0 1px #4a6cf7;
+  box-shadow: inset 0 0 0 1px var(--stroke-emphasis);
 }
 
 .mapAppBar {
@@ -89,7 +89,7 @@
 
 .mapRibbon {
   grid-column: 1 / -1;
-  background: #2a2a30;
+  background: var(--stroke-muted);
 }
 
 .mapWorkspace {
@@ -130,7 +130,7 @@
 }
 
 .mapRightPanel:hover {
-  border-color: #4a6cf7;
+  border-color: var(--stroke-emphasis);
   background: #222228;
 }
 
@@ -164,14 +164,14 @@
   flex-direction: column;
   min-width: 0;
   background: #141416;
-  border: 1px solid #2a2a30;
+  border: 1px solid var(--stroke-muted);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .cardHeader {
   padding: 12px 14px;
-  border-bottom: 1px solid #2a2a30;
+  border-bottom: 1px solid var(--stroke-muted);
 }
 
 .cardTitle {

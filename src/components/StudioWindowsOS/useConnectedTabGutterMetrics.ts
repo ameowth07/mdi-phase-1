@@ -24,9 +24,13 @@ function strokeColorForTab(
   tab: HTMLElement,
   classNames: ConnectedTabGutterClassNames,
 ): string {
-  if (tab.classList.contains(classNames.tabActiveTopStrokeClient)) return '#4ec8e9'
-  if (tab.classList.contains(classNames.tabActiveTopStrokeServer)) return '#47b84f'
-  return 'rgba(255, 255, 255, 0.5)'
+  if (tab.classList.contains(classNames.tabActiveTopStrokeClient)) {
+    return 'var(--semantic-client-stroke)'
+  }
+  if (tab.classList.contains(classNames.tabActiveTopStrokeServer)) {
+    return 'var(--semantic-server-stroke)'
+  }
+  return 'var(--semantic-drone-stroke)'
 }
 
 function clearGutterVars(el: HTMLElement) {
@@ -101,6 +105,22 @@ export function useConnectedTabGutterMetrics(
         }
 
         nextTracked.add(row)
+        const isoRowClass = classNames.assetIsolationTabRow
+        const isoPanelClass = classNames.assetIsolationPanel
+        const isIsolationRow =
+          isoRowClass != null && isoPanelClass != null && row.classList.contains(isoRowClass)
+        const isoPanel = isIsolationRow
+          ? panel.querySelector<HTMLElement>(`.${isoPanelClass}`)
+          : null
+        const isolationColumnFocused = isoPanel?.hasAttribute('data-isolation-column-focused') ?? false
+
+        if (isIsolationRow && !isolationColumnFocused) {
+          clearGutterVars(row)
+          clearIsolationPanelStroke(isoPanel)
+          lastVarsByRowRef.current.delete(row)
+          return
+        }
+
         const next = measureRowGutter(row, tab, classNames)
         if (!next) {
           clearGutterVars(row)
@@ -114,11 +134,8 @@ export function useConnectedTabGutterMetrics(
         lastVarsByRowRef.current.set(row, next)
         applyGutterVars(row, next)
 
-        const isoRowClass = classNames.assetIsolationTabRow
-        const isoPanelClass = classNames.assetIsolationPanel
-        if (isoRowClass && isoPanelClass && row.classList.contains(isoRowClass)) {
-          const isoPanel = panel.querySelector<HTMLElement>(`.${isoPanelClass}`)
-          if (isoPanel) isoPanel.style.setProperty('--tab-connected-stroke-color', next.color)
+        if (isIsolationRow && isoPanel != null && isolationColumnFocused) {
+          isoPanel.style.setProperty('--tab-connected-stroke-color', next.color)
         }
       })
 
@@ -141,14 +158,20 @@ export function useConnectedTabGutterMetrics(
     ro.observe(panel)
 
     const mo = new MutationObserver((records) => {
-      if (records.some((record) => record.attributeName === 'aria-selected')) {
+      if (
+        records.some(
+          (record) =>
+            record.attributeName === 'aria-selected' ||
+            record.attributeName === 'data-isolation-column-focused',
+        )
+      ) {
         update()
       }
     })
     mo.observe(panel, {
       subtree: true,
       attributes: true,
-      attributeFilter: ['aria-selected'],
+      attributeFilter: ['aria-selected', 'data-isolation-column-focused'],
     })
 
     window.addEventListener('resize', update)

@@ -5,8 +5,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface-100, #191a1f);
-  border: 1px solid var(--surface-100, #191a1f);
+  background: var(--surface-100);
+  border: 1px solid var(--stroke-muted);
   overflow: hidden;
 }
 
@@ -17,7 +17,7 @@
 .header {
   flex: 0 0 24px;
   position: relative;
-  background: var(--shift-100, rgba(208, 217, 251, 0.04));
+  background: var(--shift-100, var(--shift-100));
 }
 
 .headerDraggable {
@@ -38,7 +38,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
-  color: var(--panel-chrome-title, #bcbec8);
+  color: var(--panel-chrome-title);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -127,11 +127,11 @@
   padding: 0 4px;
   border: none;
   border-radius: 4px;
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
-  color: var(--content-default, #d5d7dd);
+  background: var(--shift-200, var(--shift-200));
+  color: var(--content-default);
   font: inherit;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: var(--font-size-sans);
+  line-height: var(--line-height-mono);
   cursor: default;
 }
 
@@ -156,14 +156,14 @@
   gap: 4px;
   padding: 0 4px;
   border-radius: 4px;
-  background: var(--shift-200, rgba(208, 217, 251, 0.08));
-  color: var(--content-muted, #bcbec8);
+  background: var(--shift-200, var(--shift-200));
+  color: var(--content-muted);
 }
 
 .searchPlaceholder {
   font-size: 12px;
   line-height: 18px;
-  color: var(--content-default, #d5d7dd);
+  color: var(--content-default);
 }
 
 .iconBtn {
@@ -204,11 +204,11 @@
 }
 
 .logRowError:hover {
-  background: var(--shift-100, rgba(208, 217, 251, 0.04));
+  background: var(--shift-100, var(--shift-100));
 }
 
 .logRowError:focus-visible {
-  outline: 1px solid var(--content-muted, #bcbec8);
+  outline: 1px solid var(--stroke-default);
   outline-offset: -1px;
 }
 
@@ -224,10 +224,10 @@
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  font-family: 'Builder Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sans);
   line-height: 1.4;
-  color: var(--content-default, #d5d7dd);
+  color: var(--content-default);
   white-space: pre-wrap;
   word-break: break-word;
 }

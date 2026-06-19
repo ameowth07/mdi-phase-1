@@ -2,12 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 4px 12px 10px;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--content-default, #d5d7dd);
-  background: var(--surface-100, #191a1f);
+  color: var(--content-default);
+  background: var(--surface-100);
 }
 
 .collapsible {
@@ -27,24 +28,50 @@
   order: 1;
 }
 
+.toolSelectionColorSection {
+  order: 2;
+}
+
+.uiScaleSection {
+  order: 3;
+}
+
+.ribbonSettingsSection {
+  order: 4;
+}
+
 .colorPlaygroundRoot .colorOperatorsSection {
+  order: -4;
+}
+
+.colorPlaygroundRoot .toolSelectionColorSection {
   order: -3;
 }
 
-.colorPlaygroundRoot .gameEditorExperimentsSection {
+.colorPlaygroundRoot .uiScaleSection {
   order: -2;
 }
 
-.colorPlaygroundRoot .focusSettingsSection {
+.colorPlaygroundRoot .ribbonSettingsSection {
   order: -1;
+}
+
+.collapsibleHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% + 24px);
+  margin: 0 -12px;
+  padding: 0 12px;
+  min-height: 24px;
+  box-sizing: border-box;
 }
 
 .collapsibleHeader {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 28px;
+  gap: 8px;
+  min-height: 24px;
   margin: 0;
   padding: 0;
   border: none;
@@ -52,23 +79,77 @@
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1;
   color: var(--content-emphasis, #f7f7f8);
   text-align: left;
   cursor: pointer;
 }
 
-.collapsibleChevron {
+.collapsible > .collapsibleHeader {
+  width: calc(100% + 24px);
+  margin: 0 -12px;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.collapsibleHeaderRow .collapsibleHeader {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.collapsibleHeaderAction {
+  display: flex;
   flex-shrink: 0;
-  color: var(--content-muted, #bcbec8);
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--content-muted);
+  cursor: pointer;
+}
+
+.collapsibleHeaderAction:hover {
+  color: var(--content-default);
+  background: var(--shift-200, var(--shift-200));
+}
+
+.collapsibleHeaderAction:active {
+  background: var(--shift-300, var(--shift-300));
+}
+
+.collapsibleChevron {
+  width: 12px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--content-emphasis);
   transition: transform 0.15s ease;
 }
 
-.collapsibleChevronOpen {
-  transform: rotate(90deg);
+.collapsibleChevron svg {
+  display: block;
+  opacity: 0.95;
+}
+
+.collapsibleChevronClosed {
+  transform: rotate(-90deg);
 }
 
 .collapsibleTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
   user-select: none;
 }
 
@@ -96,7 +177,7 @@
 .sliderLabel {
   font-size: 12px;
   font-weight: 400;
-  color: var(--content-default, #d5d7dd);
+  color: var(--content-default);
 }
 
 .sliderControl {
@@ -111,7 +192,7 @@
   justify-content: space-between;
   align-items: flex-end;
   height: 16px;
-  margin-top: 0;
+  margin-top: 2px;
   padding: 0 4px;
 }
 
@@ -135,7 +216,7 @@
   height: 5px;
   border-radius: 1px;
   transform: translateX(-50%);
-  background: var(--content-muted, #bcbec8);
+  background: var(--content-muted);
   opacity: 0.7;
 }
 
@@ -150,7 +231,7 @@
 }
 
 .sliderTick:focus-visible::after {
-  box-shadow: 0 0 0 1px var(--content-emphasis, #f7f7f8);
+  box-shadow: 0 0 0 1px var(--stroke-emphasis);
 }
 
 .slider {
@@ -170,7 +251,7 @@
   font-size: 11px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
   text-align: right;
   white-space: nowrap;
 }
@@ -233,7 +314,7 @@
 .options {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
 }
 
 .row {
@@ -248,31 +329,15 @@
 }
 
 .checkboxBtn {
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: default;
-  background: rgba(208, 217, 251, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(208, 217, 251, 0.2);
+  composes: control from './Checkbox.module.css';
 }
 
 .checkboxBtnChecked {
-  background: #f7f7f8;
-  box-shadow: none;
-}
-
-.checkboxBtn svg {
-  flex-shrink: 0;
+  composes: controlChecked from './Checkbox.module.css';
 }
 
 .checkboxMark {
-  color: #202227;
+  composes: mark from './Checkbox.module.css';
 }
 
 .label {
@@ -283,39 +348,12 @@
 }
 
 .labelMuted {
-  color: var(--content-muted, #bcbec8);
+  color: var(--content-muted);
 }
 
 .checkboxBtn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
-}
-
-.radioBtn {
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: default;
-  background: transparent;
-}
-
-.radioMark {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: inset 0 0 0 1px rgba(208, 217, 251, 0.35);
-}
-
-.radioBtnChecked .radioMark {
-  background: #f7f7f8;
-  box-shadow: none;
 }
 
 .layoutActions {
@@ -333,16 +371,16 @@
   font-weight: 500;
   color: var(--content-emphasis, #f7f7f8);
   cursor: pointer;
-  background: rgba(208, 217, 251, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(208, 217, 251, 0.22);
+  background: var(--shift-300);
+  box-shadow: inset 0 0 0 1px var(--stroke-default);
 }
 
 .openAssetBtn:hover {
-  background: rgba(208, 217, 251, 0.2);
+  background: var(--shift-400);
 }
 
 .openAssetBtn:active {
-  background: rgba(208, 217, 251, 0.1);
+  background: var(--shift-200);
 }
 
 .openAssetBtn:disabled {
@@ -352,7 +390,7 @@
 
 .openAssetBtn:disabled:hover,
 .openAssetBtn:disabled:active {
-  background: rgba(208, 217, 251, 0.14);
+  background: var(--shift-300);
 }
 
 .scriptTabActions {
@@ -361,5 +399,5 @@
   gap: 8px;
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid var(--stroke-muted, rgba(208, 217, 251, 0.08));
+  border-top: 1px solid var(--stroke-muted);
 }

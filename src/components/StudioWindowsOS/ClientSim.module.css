@@ -39,8 +39,8 @@
 .spinner {
   width: 28px;
   height: 28px;
-  border: 2px solid rgb(255 255 255 / 18%);
-  border-top-color: #3ee7a8;
+  border: 2px solid var(--stroke-emphasis);
+  border-top-color: var(--semantic-server-stroke);
   border-radius: 50%;
   animation: clientSimSpin 0.85s linear infinite;
 }

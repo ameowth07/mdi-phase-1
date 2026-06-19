@@ -38,35 +38,34 @@ export function clientInstanceIndexFromStripTab(
 export type SimClientExplorerRow = {
   id: string
   label: string
-  icon: string
-  iconColor?: string
+  className?: string
 }
 
 /** Distinct flat Explorer trees per client instance (cycles when n > variants). */
 const CLIENT_EXPLORER_TREE_VARIANTS: readonly (readonly SimClientExplorerRow[])[] = [
   [
-    { id: 'workspace', label: 'Workspace', icon: '●', iconColor: '#4a9eff' },
-    { id: 'players', label: 'Players', icon: '☺', iconColor: '#e8944a' },
-    { id: 'lighting', label: 'Lighting', icon: '💡' },
-    { id: 'materialservice', label: 'MaterialService', icon: '⌗' },
+    { id: 'workspace', label: 'Workspace', className: 'Model' },
+    { id: 'players', label: 'Players', className: 'Players' },
+    { id: 'lighting', label: 'Lighting', className: 'Model' },
+    { id: 'materialservice', label: 'MaterialService', className: 'Model' },
   ],
   [
-    { id: 'c2-replicated', label: 'ReplicatedStorage', icon: '◆', iconColor: '#4a9eff' },
-    { id: 'c2-starter', label: 'StarterPlayer', icon: '☺', iconColor: '#c084fc' },
-    { id: 'c2-startergui', label: 'StarterGui', icon: '▣', iconColor: '#f472b6' },
-    { id: 'c2-sound', label: 'SoundService', icon: '♪' },
+    { id: 'c2-replicated', label: 'ReplicatedStorage', className: 'Folder' },
+    { id: 'c2-starter', label: 'StarterPlayer', className: 'StarterPlayer' },
+    { id: 'c2-startergui', label: 'StarterGui', className: 'StarterGui' },
+    { id: 'c2-sound', label: 'SoundService', className: 'SoundService' },
   ],
   [
-    { id: 'c3-workspace', label: 'Workspace', icon: '●', iconColor: '#38bdf8' },
-    { id: 'c3-characters', label: 'Characters', icon: '◎', iconColor: '#fbbf24' },
-    { id: 'c3-replicatedfirst', label: 'ReplicatedFirst', icon: '◇', iconColor: '#a78bfa' },
-    { id: 'c3-text', label: 'TextChatService', icon: '💬' },
+    { id: 'c3-workspace', label: 'Workspace', className: 'Model' },
+    { id: 'c3-characters', label: 'Characters', className: 'Folder' },
+    { id: 'c3-replicatedfirst', label: 'ReplicatedFirst', className: 'ReplicatedFirst' },
+    { id: 'c3-text', label: 'TextChatService', className: 'TextChatService' },
   ],
   [
-    { id: 'c4-workspace', label: 'Workspace', icon: '●', iconColor: '#22d3ee' },
-    { id: 'c4-players', label: 'Players', icon: '☺', iconColor: '#fb923c' },
-    { id: 'c4-pathfinding', label: 'PathfindingService', icon: '⬡' },
-    { id: 'c4-localization', label: 'LocalizationService', icon: 'Aa' },
+    { id: 'c4-workspace', label: 'Workspace', className: 'Model' },
+    { id: 'c4-players', label: 'Players', className: 'Players' },
+    { id: 'c4-pathfinding', label: 'PathfindingService', className: 'PathfindingService' },
+    { id: 'c4-localization', label: 'LocalizationService', className: 'LocalizationService' },
   ],
 ] as const
 

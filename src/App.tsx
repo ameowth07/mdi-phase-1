@@ -4,6 +4,10 @@ import DesktopEnvironment from './components/DesktopEnvironment/DesktopEnvironme
 import PhaseEntryScreen from './components/PhaseEntryScreen/PhaseEntryScreen'
 import StudioWindowsOS from './components/StudioWindowsOS/StudioWindowsOS'
 import type { StudioPhase } from './studioPhase'
+import {
+  parseStudioPhaseFromUrl,
+  syncStudioPhaseUrl,
+} from './studioPhase'
 import styles from './App.module.css'
 
 const MAIN_SLOT = 'main' as const
@@ -15,7 +19,14 @@ type WindowOffset = {
 }
 
 export default function App() {
-  const [studioLaunch, setStudioLaunch] = useState<StudioPhase | null>(null)
+  const [studioLaunch, setStudioLaunch] = useState<StudioPhase | null>(() =>
+    parseStudioPhaseFromUrl(),
+  )
+
+  const launchStudioPhase = useCallback((phase: StudioPhase) => {
+    setStudioLaunch(phase)
+    syncStudioPhaseUrl(phase)
+  }, [])
   const [assetWindowIds, setAssetWindowIds] = useState<string[]>([])
   const [foregroundKey, setForegroundKey] = useState<typeof MAIN_SLOT | string>(MAIN_SLOT)
   const [windowOffsets, setWindowOffsets] = useState<Record<string, WindowOffset>>({
@@ -100,6 +111,7 @@ export default function App() {
 
   const openDocumentsLauncher = useCallback(() => {
     setStudioLaunch(null)
+    syncStudioPhaseUrl(null)
     setForegroundKey(MAIN_SLOT)
   }, [])
 
@@ -110,7 +122,7 @@ export default function App() {
     >
       <div className={styles.appShell}>
         {showPhaseEntry ? (
-          <PhaseEntryScreen onSelect={setStudioLaunch} />
+          <PhaseEntryScreen onSelect={launchStudioPhase} />
         ) : (
           <div className={styles.windowLayer}>
           <div

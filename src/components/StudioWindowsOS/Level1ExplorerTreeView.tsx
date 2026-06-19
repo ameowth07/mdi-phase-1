@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import type { StudioColorTheme } from './themeColorOperators'
 import type { Level1ExplorerTreeData } from './level1ExplorerData'
 import styles from './StudioWindowsOS.module.css'
+import ExplorerTreeIcon from './ExplorerTreeIcon'
 
 function TreeChevron({ mode }: { mode: 'open' | 'closed' | 'spacer' }) {
   return (
@@ -33,6 +35,7 @@ export type Level1ExplorerTreeProps = {
   selectedRowId: string | null
   onSelectRow: (rowId: string) => void
   selectionTintActive: boolean
+  colorTheme?: StudioColorTheme
 }
 
 export default function Level1ExplorerTree({
@@ -40,6 +43,7 @@ export default function Level1ExplorerTree({
   selectedRowId,
   onSelectRow,
   selectionTintActive,
+  colorTheme = 'dark',
 }: Level1ExplorerTreeProps) {
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
 
@@ -78,12 +82,12 @@ export default function Level1ExplorerTree({
           onClick={() => onSelectRow(node.id)}
         >
           <TreeChevron mode={node.chevron} />
-          <span
-            className={styles.treeIcon}
-            style={node.iconColor ? { color: node.iconColor } : undefined}
-          >
-            {node.iconGlyph}
-          </span>
+          <ExplorerTreeIcon
+            rowId={node.id}
+            label={node.label}
+            className={node.className}
+            theme={colorTheme}
+          />
           <span className={styles.treeLabel}>{node.label}</span>
         </div>
       ))}
