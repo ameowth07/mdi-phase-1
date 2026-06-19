@@ -212,6 +212,7 @@ import styles from './StudioWindowsOS.module.css'
 import type { StudioPhase } from '../../studioPhase'
 import {
   initialOpenPlaceDockPlaceIds,
+  isColorPlayground,
   isPhase2,
   PHASE_1_APP_BAR_TITLE,
   PHASE_1_MAIN_PLACE_TAB_LABEL,
@@ -5290,7 +5291,9 @@ export default function StudioWindowsOS({
   const [explorerPanelOpen, setExplorerPanelOpen] = useState(true)
   const [propertiesPanelOpen, setPropertiesPanelOpen] = useState(true)
   const [prototypeSettingsPanelOpen, setPrototypeSettingsPanelOpen] = useState(true)
-  const [studioSettingsOpen, setStudioSettingsOpen] = useState(false)
+  const [studioSettingsOpen, setStudioSettingsOpen] = useState(() =>
+    isColorPlayground(studioPhase),
+  )
   const [studioSettingsPosition, setStudioSettingsPosition] =
     useState<FloatingDocumentPosition | null>(null)
   const [studioSettingsSize, setStudioSettingsSize] =
