@@ -1,13 +1,20 @@
-import { useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import ColorOperatorSliders, { type ColorOperatorSlidersHandle } from './ColorOperatorSliders'
 import ThemePresetDropdown from './ThemePresetDropdown'
 import css from './StudioSettingsPanel.module.css'
 import {
   applyStudioThemePreset,
+  matchThemePresetFromSurfaceTarget,
   type StudioThemePresetId,
 } from './studioThemePresets'
 import type { StudioColorTheme } from './themeColorOperators'
+import {
+  isThemeSpectrumMode,
+  matchThemePresetFromSpectrum,
+  themeSpectrumContrastRange,
+  themeSpectrumSatRange,
+} from './themeOperatorMapping'
 
 const NAV_ITEMS = [
   'Studio',
@@ -53,7 +60,20 @@ export default function StudioSettingsPanel({
   const [selectedNav, setSelectedNav] = useState<NavItem>('Studio')
   const [searchQuery, setSearchQuery] = useState('')
   const [colorOpen, setColorOpen] = useState(true)
+  const [themeModified, setThemeModified] = useState(false)
   const slidersRef = useRef<ColorOperatorSlidersHandle>(null)
+  const themePresetRef = useRef(themePreset)
+  themePresetRef.current = themePreset
+
+  const spectrumMode = isThemeSpectrumMode()
+  const satRange = useMemo(
+    () => (spectrumMode ? themeSpectrumSatRange() : { min: 0, max: 2 }),
+    [spectrumMode],
+  )
+  const contrastRange = useMemo(
+    () => (spectrumMode ? themeSpectrumContrastRange() : { min: 0.75, max: 1.25 }),
+    [spectrumMode],
+  )
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const navItems = NAV_ITEMS.filter((item) =>
@@ -73,8 +93,52 @@ export default function StudioSettingsPanel({
     const elements = slidersRef.current?.getElements() ?? null
     const theme = applyStudioThemePreset(presetId, elements)
     onThemePresetChange(presetId)
+    setThemeModified(false)
     if (theme !== studioColorTheme) onStudioColorThemeChange(theme)
   }
+
+  useLayoutEffect(() => {
+    if (!colorOpen) return
+    const elements = slidersRef.current?.getElements() ?? null
+    if (elements == null) return
+    applyStudioThemePreset(themePreset, elements)
+    setThemeModified(false)
+  }, [themePreset, colorOpen])
+
+  useEffect(() => {
+    if (!colorOpen) return undefined
+    const elements = slidersRef.current?.getElements()
+    if (elements == null) return undefined
+
+    const onOperatorInput = () => {
+      const hue = Number(elements.hueSlider.value)
+      const sat = Number(elements.satSlider.value)
+      const light = Number(elements.lightSlider.value)
+      const contrast = Number(elements.contrastSlider.value)
+      const matched = spectrumMode
+        ? matchThemePresetFromSpectrum(sat, contrast, studioColorTheme)
+        : matchThemePresetFromSurfaceTarget(hue, sat, light, contrast, studioColorTheme)
+
+      if (matched == null) {
+        setThemeModified(true)
+        return
+      }
+
+      setThemeModified(false)
+      if (matched !== themePresetRef.current) onThemePresetChange(matched)
+    }
+
+    elements.hueSlider.addEventListener('input', onOperatorInput)
+    elements.satSlider.addEventListener('input', onOperatorInput)
+    elements.lightSlider.addEventListener('input', onOperatorInput)
+    elements.contrastSlider.addEventListener('input', onOperatorInput)
+    return () => {
+      elements.hueSlider.removeEventListener('input', onOperatorInput)
+      elements.satSlider.removeEventListener('input', onOperatorInput)
+      elements.lightSlider.removeEventListener('input', onOperatorInput)
+      elements.contrastSlider.removeEventListener('input', onOperatorInput)
+    }
+  }, [spectrumMode, studioColorTheme, onThemePresetChange, colorOpen])
 
   return (
     <div className={css.root} data-name="Studio Settings Panel">
@@ -132,6 +196,7 @@ export default function StudioSettingsPanel({
                       <div className={css.settingControl}>
                         <ThemePresetDropdown
                           value={themePreset}
+                          modified={themeModified}
                           onChange={handleThemePresetChange}
                         />
                       </div>
@@ -140,9 +205,11 @@ export default function StudioSettingsPanel({
                       <ColorOperatorSliders
                         ref={slidersRef}
                         idPrefix="studio-settings"
-                        visibleOperators={['saturation', 'contrast']}
-                        contrastMin={0.75}
-                        contrastMax={1.25}
+                        visibleOperators={['hue', 'saturation', 'lightness', 'contrast']}
+                        satMin={satRange.min}
+                        satMax={satRange.max}
+                        contrastMin={contrastRange.min}
+                        contrastMax={contrastRange.max}
                       />
                     </div>
                   </div>

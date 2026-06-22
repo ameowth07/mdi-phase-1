@@ -188,6 +188,17 @@ function updateContrastReadout(el: HTMLElement | null, value: string | number): 
   setReadoutValue(el, el instanceof HTMLInputElement ? formatContrastNumeric(value) : formatContrastReadout(value))
 }
 
+function notifyThemeSliderInputs(elements: ThemeSliderElements): void {
+  for (const slider of [
+    elements.hueSlider,
+    elements.satSlider,
+    elements.lightSlider,
+    elements.contrastSlider,
+  ]) {
+    slider.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+}
+
 /** Push slider values to `:root` CSS variables and readouts. */
 export function syncThemeColorOperators(elements: ThemeSliderElements): void {
   const { hueSlider, satSlider, lightSlider, contrastSlider, hueReadout, satReadout, lightReadout, contrastReadout } =
@@ -206,7 +217,7 @@ export function syncThemeColorOperators(elements: ThemeSliderElements): void {
   updateContrastReadout(contrastReadout, contrastSlider.value)
 }
 
-function applyThemeOperatorPreset(elements: ThemeSliderElements | null, preset: ThemeOperatorPreset): void {
+export function applyThemeOperatorPreset(elements: ThemeSliderElements | null, preset: ThemeOperatorPreset): void {
   const root = document.documentElement
   const hue = clampHue(preset.hue)
 
@@ -226,6 +237,7 @@ function applyThemeOperatorPreset(elements: ThemeSliderElements | null, preset: 
   updateSatReadout(elements.satReadout, preset.sat)
   updateLightReadout(elements.lightReadout, preset.light)
   updateContrastReadout(elements.contrastReadout, preset.contrast)
+  notifyThemeSliderInputs(elements)
 }
 
 /** Reset sliders to Surface_100 baseline (`--surface-100` → hsl(230, 11%, 11%)). */
@@ -278,6 +290,7 @@ export function applyThemeOperatorsToSliders(
   updateSatReadout(elements.satReadout, preset.sat)
   updateLightReadout(elements.lightReadout, preset.light)
   updateContrastReadout(elements.contrastReadout, preset.contrast)
+  notifyThemeSliderInputs(elements)
 }
 
 /** Bind sliders to global CSS operators on `:root`. */

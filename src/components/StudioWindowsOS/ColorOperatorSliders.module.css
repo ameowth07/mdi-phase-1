@@ -119,6 +119,11 @@
   background: var(--shift-100);
 }
 
+.stepperBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .hiddenOperator {
   position: absolute;
   width: 1px;

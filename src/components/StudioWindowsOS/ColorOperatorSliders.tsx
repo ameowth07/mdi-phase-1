@@ -5,6 +5,7 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useRef,
+  useState,
   type RefObject,
 } from 'react'
 import css from './ColorOperatorSliders.module.css'
@@ -44,6 +45,21 @@ function OperatorNumberInput({
   step,
   ariaLabel,
 }: OperatorNumberInputProps) {
+  const [sliderValue, setSliderValue] = useState(min)
+
+  useEffect(() => {
+    const slider = sliderRef.current
+    if (slider == null) return undefined
+    const onSliderInput = () => setSliderValue(Number(slider.value))
+    onSliderInput()
+    slider.addEventListener('input', onSliderInput)
+    return () => slider.removeEventListener('input', onSliderInput)
+  }, [sliderRef])
+
+  const steppedValue = roundToStep(sliderValue, step)
+  const decreaseDisabled = steppedValue <= min
+  const increaseDisabled = steppedValue >= max
+
   const commitValue = () => {
     const slider = sliderRef.current
     const input = inputRef.current
@@ -63,6 +79,8 @@ function OperatorNumberInput({
   const nudge = (direction: -1 | 1) => {
     const slider = sliderRef.current
     if (!slider) return
+    if (direction === -1 && decreaseDisabled) return
+    if (direction === 1 && increaseDisabled) return
     const next = roundToStep(Number(slider.value) + direction * step, step)
     const clamped = Math.min(max, Math.max(min, next))
     if (clamped === Number(slider.value)) return
@@ -97,6 +115,7 @@ function OperatorNumberInput({
           type="button"
           className={css.stepperBtn}
           aria-label={`Decrease ${ariaLabel}`}
+          disabled={decreaseDisabled}
           onClick={() => nudge(-1)}
         >
           −
@@ -105,6 +124,7 @@ function OperatorNumberInput({
           type="button"
           className={css.stepperBtn}
           aria-label={`Increase ${ariaLabel}`}
+          disabled={increaseDisabled}
           onClick={() => nudge(1)}
         >
           +
@@ -127,11 +147,17 @@ export type ColorOperatorSlidersHandle = {
   getElements: () => ThemeSliderElements | null
 }
 
+const DEFAULT_SAT_MIN = 0
+const DEFAULT_SAT_MAX = 2
+
 export type ColorOperatorSlidersProps = {
   idPrefix?: string
   className?: string
   /** Hidden operators still sync to `:root` for theme presets. Defaults to all four. */
   visibleOperators?: readonly ColorOperatorId[]
+  /** Saturation multiplier bounds. Default 0–2; theme spectrum uses a tighter theme-derived range. */
+  satMin?: number
+  satMax?: number
   /** Contrast multiplier bounds. Default 0.5–1.5 (prototype); Studio Settings uses a tighter range. */
   contrastMin?: number
   contrastMax?: number
@@ -146,6 +172,8 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
       idPrefix = 'color-operators',
       className,
       visibleOperators = ALL_OPERATORS,
+      satMin = DEFAULT_SAT_MIN,
+      satMax = DEFAULT_SAT_MAX,
       contrastMin = DEFAULT_CONTRAST_MIN,
       contrastMax = DEFAULT_CONTRAST_MAX,
     },
@@ -271,9 +299,9 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
                   type="range"
                   id={satId}
                   className={css.slider}
-                  min={0}
-                  max={2}
-                  step={0.1}
+                  min={satMin}
+                  max={satMax}
+                  step={0.01}
                   defaultValue={1}
                 />
               </div>
@@ -281,9 +309,9 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
                 inputRef={satReadoutRef}
                 sliderRef={satSliderRef}
                 unit="x"
-                min={0}
-                max={2}
-                step={0.1}
+                min={satMin}
+                max={satMax}
+                step={0.01}
                 ariaLabel="Saturation"
               />
             </div>
@@ -294,9 +322,9 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
             type="range"
             id={satId}
             className={css.hiddenOperator}
-            min={0}
-            max={2}
-            step={0.1}
+            min={satMin}
+            max={satMax}
+            step={0.01}
             defaultValue={1}
             tabIndex={-1}
             aria-hidden

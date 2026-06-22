@@ -5290,7 +5290,7 @@ export default function StudioWindowsOS({
   const floatingPropertiesOpen = floatingWindows.some((w) => w.tabs.includes('properties'))
   const [explorerPanelOpen, setExplorerPanelOpen] = useState(true)
   const [propertiesPanelOpen, setPropertiesPanelOpen] = useState(true)
-  const [prototypeSettingsPanelOpen, setPrototypeSettingsPanelOpen] = useState(true)
+  const [prototypeSettingsPanelOpen, setPrototypeSettingsPanelOpen] = useState(false)
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(() =>
     isColorPlayground(studioPhase),
   )

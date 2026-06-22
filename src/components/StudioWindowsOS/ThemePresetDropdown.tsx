@@ -23,13 +23,20 @@ function ChevDownSm() {
 
 export type ThemePresetDropdownProps = {
   value: StudioThemePresetId
+  /** Sliders no longer match the selected preset's operator values. */
+  modified?: boolean
   onChange: (presetId: StudioThemePresetId) => void
 }
 
-export default function ThemePresetDropdown({ value, onChange }: ThemePresetDropdownProps) {
+export default function ThemePresetDropdown({
+  value,
+  modified = false,
+  onChange,
+}: ThemePresetDropdownProps) {
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
+  const displayLabel = `${studioThemePresetLabel(value)}${modified ? '*' : ''}`
 
   useEffect(() => {
     if (!open) return
@@ -57,7 +64,7 @@ export default function ThemePresetDropdown({ value, onChange }: ThemePresetDrop
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className={css.themeSelectLabel}>{studioThemePresetLabel(value)}</span>
+        <span className={css.themeSelectLabel}>{displayLabel}</span>
         <span className={css.themeSelectChevron} aria-hidden>
           <ChevDownSm />
         </span>
