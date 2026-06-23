@@ -92,7 +92,7 @@ button.desktopIcon:hover .iconGlyph {
 }
 
 button.desktopIcon:focus-visible {
-  outline: 2px solid var(--stroke-emphasis);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: 4px;
 }

@@ -1,20 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useState } from 'react'
 import { Check, RefreshCw } from 'lucide-react'
 import css from './InteractionSettingsPanel.module.css'
 import Radio from './Radio'
-import {
-  applyGray150Preset,
-  applyGray350Preset,
-  applySurface0Preset,
-  applySurfacePreset,
-  bindThemeColorOperators,
-  HUE_OPERATOR_MAX,
-  HUE_OPERATOR_MIN,
-  HUE_OPERATOR_TICKS,
-  resetThemeColorOperators,
-  type SurfacePresetId,
-  type ThemeSliderElements,
-} from './themeColorOperators'
 import type { StudioPhase } from '../../studioPhase'
 import { isColorPlayground, isPhase2 } from '../../studioPhase'
 import { UI_SCALE_OPTIONS, type UiScale } from './uiScale'
@@ -25,11 +12,6 @@ import {
   type ToolSelectionColor,
 } from './toolSelectionColor'
 import { PROTOTYPE_SETTINGS_DEFAULTS } from './prototypeDefaults'
-
-const SURFACE_PRESET_BUTTONS: { id: SurfacePresetId; label: string }[] = [
-  { id: 200, label: 'Surface_200' },
-  { id: 300, label: 'Surface_300' },
-]
 
 function PanelTogglesUseFillsRow({
   checked,
@@ -156,8 +138,6 @@ export type InteractionSettingsPanelProps = {
   testingMode?: boolean
   /** Bunny asset window — hide isolation toggle (layout is fixed). */
   bunnyAssetWindow?: boolean
-  /** Restore prototype settings and color operators to current defaults. */
-  onReset?: () => void
   /** When on, place servers joined in test stay open as edit place documents after stop. */
   serversPersistIntoEdit?: boolean
   onServersPersistIntoEditChange?: (value: boolean) => void
@@ -181,15 +161,15 @@ export type InteractionSettingsPanelProps = {
   /** When semantic link is on, ribbon icon accent hues follow theme color operators. */
   linkIconAccents?: boolean
   onLinkIconAccentsChange?: (value: boolean) => void
+  /** When on, row-selection highlight washes follow theme color operators. */
+  linkSelectionHighlight?: boolean
+  onLinkSelectionHighlightChange?: (value: boolean) => void
   /** Ribbon panel toggles — off icons use content-default only; on uses emphasis + muted-blue fill. */
   panelTogglesUseFills?: boolean
   onPanelTogglesUseFillsChange?: (value: boolean) => void
   /** Toolbar icon size inside each ribbon tool button (px). */
   ribbonIconSize?: RibbonIconSize
   onRibbonIconSizeChange?: (value: RibbonIconSize) => void
-  /** Figma Studio Surface Colors — dark or light token bases. */
-  studioColorTheme?: 'dark' | 'light'
-  onStudioColorThemeChange?: (value: 'dark' | 'light') => void
   /** App chrome scale — viewport game/sim media stays at 100%. */
   uiScale?: UiScale
   onUiScaleChange?: (value: UiScale) => void
@@ -199,47 +179,6 @@ export type InteractionSettingsPanelProps = {
   /** Blue highlight — treat neutral icon fills as accents on active ribbon tools. */
   toolSelectionIncludeNeutrals?: boolean
   onToolSelectionIncludeNeutralsChange?: (value: boolean) => void
-}
-
-const SLIDER_TICK_VALUES = {
-  hue: HUE_OPERATOR_TICKS,
-  sat: [0, 0.4, 0.8, 1.2, 1.6, 2],
-  light: [-10, -6, -2, 2, 6, 10],
-  contrast: [0.5, 0.7, 0.9, 1.1, 1.3, 1.5],
-} as const
-
-function SliderTickMarks({
-  values,
-  sliderRef,
-  getLabel,
-}: {
-  values: readonly number[]
-  sliderRef: RefObject<HTMLInputElement | null>
-  getLabel?: (value: number) => string
-}) {
-  const setSliderValue = (value: number) => {
-    const slider = sliderRef.current
-    if (!slider) return
-    slider.value = String(value)
-    slider.dispatchEvent(new Event('input', { bubbles: true }))
-  }
-
-  return (
-    <div className={css.sliderTicks} role="group">
-      {values.map((value) => {
-        const label = getLabel?.(value) ?? String(value)
-        return (
-          <button
-            key={value}
-            type="button"
-            className={css.sliderTick}
-            aria-label={label}
-            onClick={() => setSliderValue(value)}
-          />
-        )
-      })}
-    </div>
-  )
 }
 
 export default function InteractionSettingsPanel({
@@ -295,7 +234,6 @@ export default function InteractionSettingsPanel({
   onThrowError,
   testingMode = false,
   bunnyAssetWindow,
-  onReset,
   serversPersistIntoEdit = true,
   onServersPersistIntoEditChange,
   openAssetAsDockedDocument = true,
@@ -311,12 +249,12 @@ export default function InteractionSettingsPanel({
   onLinkSemanticHueOnlyChange,
   linkIconAccents = false,
   onLinkIconAccentsChange,
+  linkSelectionHighlight = false,
+  onLinkSelectionHighlightChange,
   panelTogglesUseFills = false,
   onPanelTogglesUseFillsChange,
   ribbonIconSize = 24,
   onRibbonIconSizeChange,
-  studioColorTheme = 'dark',
-  onStudioColorThemeChange,
   uiScale = 100,
   onUiScaleChange,
   toolSelectionColor = 'shift_300',
@@ -334,48 +272,6 @@ export default function InteractionSettingsPanel({
   const [miscOpen, setMiscOpen] = useState(!colorPlayground)
   const badgeOptionsDisabled = explorerNoBadge
 
-  const hueSliderRef = useRef<HTMLInputElement>(null)
-  const satSliderRef = useRef<HTMLInputElement>(null)
-  const lightSliderRef = useRef<HTMLInputElement>(null)
-  const contrastSliderRef = useRef<HTMLInputElement>(null)
-  const hueReadoutRef = useRef<HTMLSpanElement>(null)
-  const satReadoutRef = useRef<HTMLSpanElement>(null)
-  const lightReadoutRef = useRef<HTMLSpanElement>(null)
-  const contrastReadoutRef = useRef<HTMLSpanElement>(null)
-
-  const getSliderElements = useCallback((): ThemeSliderElements | null => {
-    const hueSlider = hueSliderRef.current
-    const satSlider = satSliderRef.current
-    const lightSlider = lightSliderRef.current
-    const contrastSlider = contrastSliderRef.current
-    if (!hueSlider || !satSlider || !lightSlider || !contrastSlider) return null
-    return {
-      hueSlider,
-      satSlider,
-      lightSlider,
-      contrastSlider,
-      hueReadout: hueReadoutRef.current,
-      satReadout: satReadoutRef.current,
-      lightReadout: lightReadoutRef.current,
-      contrastReadout: contrastReadoutRef.current,
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!colorOperatorsOpen) return undefined
-    const elements = getSliderElements()
-    if (!elements) return undefined
-    return bindThemeColorOperators(elements)
-  }, [getSliderElements, colorOperatorsOpen])
-
-  const handleResetTheme = useCallback(() => {
-    resetThemeColorOperators(getSliderElements())
-  }, [getSliderElements])
-
-  const handleResetColorOperators = useCallback(() => {
-    resetThemeColorOperators(getSliderElements())
-  }, [getSliderElements])
-
   const handleResetUiScale = useCallback(() => {
     onUiScaleChange?.(PROTOTYPE_SETTINGS_DEFAULTS.uiScale)
   }, [onUiScaleChange])
@@ -389,35 +285,6 @@ export default function InteractionSettingsPanel({
     onToolSelectionColorChange?.(PROTOTYPE_SETTINGS_DEFAULTS.toolSelectionColor)
     onToolSelectionIncludeNeutralsChange?.(PROTOTYPE_SETTINGS_DEFAULTS.toolSelectionIncludeNeutrals)
   }, [onToolSelectionColorChange, onToolSelectionIncludeNeutralsChange])
-
-  const handleReset = useCallback(() => {
-    const elements = getSliderElements()
-    if (elements) resetThemeColorOperators(elements)
-    onReset?.()
-  }, [getSliderElements, onReset])
-
-  const handleSurfacePreset = useCallback(
-    (id: SurfacePresetId) => {
-      const elements = getSliderElements()
-      if (elements) applySurfacePreset(elements, id)
-    },
-    [getSliderElements],
-  )
-
-  const handleSurface0Preset = useCallback(() => {
-    const elements = getSliderElements()
-    if (elements) applySurface0Preset(elements, studioColorTheme)
-  }, [getSliderElements, studioColorTheme])
-
-  const handleGray350Preset = useCallback(() => {
-    const elements = getSliderElements()
-    if (elements) applyGray350Preset(elements)
-  }, [getSliderElements])
-
-  const handleGray150Preset = useCallback(() => {
-    const elements = getSliderElements()
-    if (elements) applyGray150Preset(elements)
-  }, [getSliderElements])
 
   return (
     <div
@@ -622,31 +489,21 @@ export default function InteractionSettingsPanel({
       ) : null}
 
       <section className={`${css.collapsible} ${css.colorOperatorsSection}`}>
-        <div className={css.collapsibleHeaderRow}>
-          <button
-            type="button"
-            className={css.collapsibleHeader}
-            aria-expanded={colorOperatorsOpen}
-            aria-controls="theme-settings-color-operators"
-            id="theme-color-operators-heading"
-            onClick={() => setColorOperatorsOpen((open) => !open)}
+        <button
+          type="button"
+          className={css.collapsibleHeader}
+          aria-expanded={colorOperatorsOpen}
+          aria-controls="theme-settings-color-operators"
+          id="theme-color-operators-heading"
+          onClick={() => setColorOperatorsOpen((open) => !open)}
+        >
+          <div
+            className={`${css.collapsibleChevron} ${colorOperatorsOpen ? '' : css.collapsibleChevronClosed}`}
           >
-            <div
-              className={`${css.collapsibleChevron} ${colorOperatorsOpen ? '' : css.collapsibleChevronClosed}`}
-            >
-              <ChevDownSm />
-            </div>
-            <span className={css.collapsibleTitle}>Color operators</span>
-          </button>
-          <button
-            type="button"
-            className={css.collapsibleHeaderAction}
-            aria-label="Reset color operators"
-            onClick={handleResetColorOperators}
-          >
-            <RefreshCw size={14} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
+            <ChevDownSm />
+          </div>
+          <span className={css.collapsibleTitle}>Color operators</span>
+        </button>
         {colorOperatorsOpen ? (
           <div
             id="theme-settings-color-operators"
@@ -659,16 +516,16 @@ export default function InteractionSettingsPanel({
             <button
               type="button"
               role="checkbox"
-              aria-checked={studioColorTheme === 'light'}
-              aria-label="Light theme"
-              className={`${css.checkboxBtn} ${studioColorTheme === 'light' ? css.checkboxBtnChecked : ''}`}
-              onClick={() => onStudioColorThemeChange?.(studioColorTheme === 'light' ? 'dark' : 'light')}
+              aria-checked={linkSelectionHighlight}
+              aria-label="Link selection highlight"
+              className={`${css.checkboxBtn} ${linkSelectionHighlight ? css.checkboxBtnChecked : ''}`}
+              onClick={() => onLinkSelectionHighlightChange?.(!linkSelectionHighlight)}
             >
-              {studioColorTheme === 'light' ? (
+              {linkSelectionHighlight ? (
                 <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
               ) : null}
             </button>
-            <span className={css.label}>Light theme</span>
+            <span className={css.label}>Link selection highlight</span>
           </div>
           <div className={css.row}>
             <button
@@ -719,132 +576,6 @@ export default function InteractionSettingsPanel({
               </div>
             </>
           ) : null}
-        </div>
-        <div className={css.sliders}>
-          <div className={css.sliderRow}>
-            <label className={css.sliderLabel} htmlFor="hueSlider">
-              Hue
-            </label>
-            <div className={css.sliderControl}>
-              <input
-                ref={hueSliderRef}
-                type="range"
-                id="hueSlider"
-                className={css.slider}
-                min={HUE_OPERATOR_MIN}
-                max={HUE_OPERATOR_MAX}
-                step={1}
-                defaultValue={0}
-              />
-              <SliderTickMarks
-                values={SLIDER_TICK_VALUES.hue}
-                sliderRef={hueSliderRef}
-                getLabel={(v) => `${v > 0 ? '+' : ''}${v}°`}
-              />
-            </div>
-            <span ref={hueReadoutRef} id="hueReadout" className={css.sliderReadout}>
-              0°
-            </span>
-          </div>
-          <div className={css.sliderRow}>
-            <label className={css.sliderLabel} htmlFor="satSlider">
-              Saturation
-            </label>
-            <div className={css.sliderControl}>
-              <input
-                ref={satSliderRef}
-                type="range"
-                id="satSlider"
-                className={css.slider}
-                min={0}
-                max={2}
-                step={0.1}
-                defaultValue={1}
-              />
-              <SliderTickMarks values={SLIDER_TICK_VALUES.sat} sliderRef={satSliderRef} getLabel={(v) => `${v}x`} />
-            </div>
-            <span ref={satReadoutRef} id="satReadout" className={css.sliderReadout}>
-              1x
-            </span>
-          </div>
-          <div className={css.sliderRow}>
-            <label className={css.sliderLabel} htmlFor="lightSlider">
-              Lightness
-            </label>
-            <div className={css.sliderControl}>
-              <input
-                ref={lightSliderRef}
-                type="range"
-                id="lightSlider"
-                className={css.slider}
-                min={-10}
-                max={10}
-                step={1}
-                defaultValue={0}
-              />
-              <SliderTickMarks
-                values={SLIDER_TICK_VALUES.light}
-                sliderRef={lightSliderRef}
-                getLabel={(v) => `${v > 0 ? '+' : ''}${v}%`}
-              />
-            </div>
-            <span ref={lightReadoutRef} id="lightReadout" className={css.sliderReadout}>
-              0%
-            </span>
-          </div>
-          <div className={css.sliderRow}>
-            <label className={css.sliderLabel} htmlFor="contrastSlider">
-              Contrast
-            </label>
-            <div className={css.sliderControl}>
-              <input
-                ref={contrastSliderRef}
-                type="range"
-                id="contrastSlider"
-                className={css.slider}
-                min={0.5}
-                max={1.5}
-                step={0.01}
-                defaultValue={1}
-              />
-              <SliderTickMarks values={SLIDER_TICK_VALUES.contrast} sliderRef={contrastSliderRef} getLabel={(v) => `${v}x`} />
-            </div>
-            <span ref={contrastReadoutRef} id="contrastReadout" className={css.sliderReadout}>
-              1x
-            </span>
-          </div>
-          <div className={css.presetRow}>
-            {studioColorTheme === 'dark' ? (
-              <button type="button" className={css.presetBtn} onClick={handleGray350Preset}>
-                Gray 350 (new)
-              </button>
-            ) : (
-              <button type="button" className={css.presetBtn} onClick={handleGray150Preset}>
-                Gray 150 (new)
-              </button>
-            )}
-            {SURFACE_PRESET_BUTTONS.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                className={css.presetBtn}
-                onClick={() => handleSurfacePreset(id)}
-              >
-                {label}
-              </button>
-            ))}
-            <button type="button" className={css.presetBtn} onClick={handleResetTheme}>
-              Surface 100
-            </button>
-            <button type="button" className={css.presetBtn} onClick={handleSurface0Preset}>
-              Surface 0
-            </button>
-            {onReset ? (
-              <button type="button" className={css.presetBtn} onClick={handleReset}>
-                Reset
-              </button>
-            ) : null}
-          </div>
         </div>
           </div>
         ) : null}

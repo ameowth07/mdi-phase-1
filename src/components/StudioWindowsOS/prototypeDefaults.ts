@@ -74,6 +74,10 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   linkSemanticHueOnly: true,
   /** When semantic link is on, ribbon icon accent hues follow theme color operators. */
   linkIconAccents: false,
+  /** Asset Manager panel visible in the left rail on launch. */
+  assetManagerPanelOpen: true,
+  /** When on, row-selection highlight washes follow theme color operators. */
+  linkSelectionHighlight: false,
   /** Ribbon panel toggles — off icons use content-default only; on uses emphasis + muted-blue fill. */
   panelTogglesUseFills: false,
   /** Toolbar icon stack size inside each ribbon tool button (px). */

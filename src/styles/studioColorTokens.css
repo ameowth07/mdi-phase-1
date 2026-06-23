@@ -55,6 +55,14 @@
   --token-stroke-muted-a: 0.08;
   --token-stroke-contrast-a: 0.4;
 
+  /* Highlight / keyboard focus — #657BF4 (231 87% 68%) */
+  --token-highlight-h: 231;
+  --token-highlight-s: 87%;
+  --token-highlight-l: 68%;
+  --token-highlight-200-a: 0.2;
+  --token-highlight-300-a: 0.32;
+  --token-highlight-400-a: 0.4;
+
   /* System — Figma bg/system-contrast (1195:630) */
   --system-contrast: #f7f7f8;
   /* Checkmark on system-contrast fill — Inverse/Content/Emphasis */
@@ -107,6 +115,14 @@
   --system-contrast: #202227;
   --inverse-content-emphasis: #f7f7f8;
   --token-stroke-contrast-a: 0.5;
+
+  /* Highlight / keyboard focus — #657BF4 (231 87% 68%) */
+  --token-highlight-h: 231;
+  --token-highlight-s: 87%;
+  --token-highlight-l: 68%;
+  --token-highlight-200-a: 0.2;
+  --token-highlight-300-a: 0.32;
+  --token-highlight-400-a: 0.4;
 
   /* Chip — Figma 1203:3257 */
   --chip-active-background: #121215;

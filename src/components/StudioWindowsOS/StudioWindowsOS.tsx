@@ -5245,6 +5245,9 @@ export default function StudioWindowsOS({
   const [linkIconAccents, setLinkIconAccents] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.linkIconAccents,
   )
+  const [linkSelectionHighlight, setLinkSelectionHighlight] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.linkSelectionHighlight,
+  )
   const [panelTogglesUseFills, setPanelTogglesUseFills] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.panelTogglesUseFills,
   )
@@ -5762,7 +5765,9 @@ export default function StudioWindowsOS({
   ])
 
   const [outputPanelOpen, setOutputPanelOpen] = useState(false)
-  const [assetManagerPanelOpen, setAssetManagerPanelOpen] = useState(false)
+  const [assetManagerPanelOpen, setAssetManagerPanelOpen] = useState<boolean>(
+    phaseDefaults.assetManagerPanelOpen,
+  )
   const [toolboxPanelOpen, setToolboxPanelOpen] = useState(false)
   const [serversPersistIntoEdit, setServersPersistIntoEdit] = useState<boolean>(
     phaseDefaults.serversPersistIntoEdit,
@@ -6052,7 +6057,7 @@ export default function StudioWindowsOS({
       outputPanelOpen: false,
       openPlaceDockPlaceIds: initialOpenPlaceDockPlaceIds(studioPhase),
       serverPlaceOrder: ['level-1'],
-      assetManagerPanelOpen: false,
+      assetManagerPanelOpen: phaseDefaults.assetManagerPanelOpen,
       hideExplorer: false,
       hideProperties: false,
     }),
@@ -6284,6 +6289,14 @@ export default function StudioWindowsOS({
         setStudioSettingsOpen((open) => !open)
         return
       }
+      if (panelId === 'explorer') {
+        handleRibbonPanelToggle('explorer', !explorerPanelOpen)
+        return
+      }
+      if (panelId === 'properties') {
+        handleRibbonPanelToggle('properties', !propertiesPanelOpen)
+        return
+      }
       if (panelId === 'assetManager') {
         setAssetManagerPanelOpen((open) => !open)
         return
@@ -6301,7 +6314,7 @@ export default function StudioWindowsOS({
         setPrototypeSettingsPanelOpen((open) => !open)
       }
     },
-    [openPlaceDockPlaceIds, setPlaceDockOpen],
+    [openPlaceDockPlaceIds, setPlaceDockOpen, handleRibbonPanelToggle, explorerPanelOpen, propertiesPanelOpen],
   )
 
   const hiddenDockPanels = useMemo((): DockPanelId[] => {
@@ -6405,6 +6418,7 @@ export default function StudioWindowsOS({
     setLinkSemanticColors(d.linkSemanticColors)
     setLinkSemanticHueOnly(d.linkSemanticHueOnly)
     setLinkIconAccents(d.linkIconAccents)
+    setLinkSelectionHighlight(d.linkSelectionHighlight)
     setPanelTogglesUseFills(d.panelTogglesUseFills)
     setRibbonIconSize(d.ribbonIconSize)
     setStudioColorTheme(d.studioColorTheme)
@@ -6462,7 +6476,7 @@ export default function StudioWindowsOS({
         outputPanelOpen: false,
         openPlaceDockPlaceIds: initialOpenPlaceDockPlaceIds(studioPhase),
         serverPlaceOrder: serverPlaceOrderIds,
-        assetManagerPanelOpen: false,
+        assetManagerPanelOpen: d.assetManagerPanelOpen,
         hideExplorer: d.floatingExplorerOpen,
         hideProperties: d.floatingPropertiesOpen,
       }),
@@ -6478,7 +6492,7 @@ export default function StudioWindowsOS({
     setExperienceAssetOnlyMode(false)
     setClientScriptDocument(DEFAULT_CLIENT_SCRIPT_DOCUMENT)
     setOutputPanelOpen(false)
-    setAssetManagerPanelOpen(false)
+    setAssetManagerPanelOpen(d.assetManagerPanelOpen)
     setToolboxPanelOpen(false)
     setOutputLogEntries(INITIAL_OUTPUT_LOG)
     setSimExplorerSelectedRowClient(null)
@@ -6813,6 +6827,7 @@ export default function StudioWindowsOS({
                 title={explorerPanelTitleDocked}
                 assetVariant="explorer"
                 titleAlign={panelChromeTitleAlign}
+                onClose={() => handleRibbonPanelToggle('explorer', false)}
                 explorerFocusBadgeTarget={
                   explorerNoBadge
                     ? null
@@ -6866,6 +6881,7 @@ export default function StudioWindowsOS({
                 title={propertiesPanelTitleDocked}
                 assetVariant="properties"
                 titleAlign={panelChromeTitleAlign}
+                onClose={() => handleRibbonPanelToggle('properties', false)}
               />
               <div className={styles.panelBody} data-node-id="3841:115198">
                 <PropertiesPanel
@@ -6947,7 +6963,6 @@ export default function StudioWindowsOS({
                 onOpenServerScript={bunnyAssetWindow ? undefined : openServerScriptTab}
                 onThrowError={bunnyAssetWindow ? undefined : handleThrowError}
                 testingMode={clientSimActive}
-                onReset={bunnyAssetWindow ? undefined : handlePrototypeReset}
                 serversPersistIntoEdit={serversPersistIntoEdit}
                 onServersPersistIntoEditChange={setServersPersistIntoEdit}
                 openAssetAsDockedDocument={openAssetAsDockedDocument}
@@ -6962,12 +6977,12 @@ export default function StudioWindowsOS({
                 onLinkSemanticHueOnlyChange={setLinkSemanticHueOnly}
                 linkIconAccents={linkIconAccents}
                 onLinkIconAccentsChange={setLinkIconAccents}
+                linkSelectionHighlight={linkSelectionHighlight}
+                onLinkSelectionHighlightChange={setLinkSelectionHighlight}
                 panelTogglesUseFills={panelTogglesUseFills}
                 onPanelTogglesUseFillsChange={setPanelTogglesUseFills}
                 ribbonIconSize={ribbonIconSize}
                 onRibbonIconSizeChange={setRibbonIconSize}
-                studioColorTheme={studioColorTheme}
-                onStudioColorThemeChange={setStudioColorTheme}
                 uiScale={uiScale}
                 onUiScaleChange={setUiScale}
                 toolSelectionColor={toolSelectionColor}
@@ -7146,6 +7161,7 @@ export default function StudioWindowsOS({
       clientViewPlaceId,
       level1ExplorerTree,
       renderPlaceDocumentTab,
+      handleRibbonPanelToggle,
     ],
   )
 
@@ -7367,6 +7383,7 @@ export default function StudioWindowsOS({
       {...(linkSemanticColors && linkIconAccents
         ? { 'data-link-icon-accents': '' as const }
         : {})}
+      {...(linkSelectionHighlight ? { 'data-link-selection-highlight': '' as const } : {})}
       {...(panelTogglesUseFills ? { 'data-panel-toggles-use-fills': '' as const } : {})}
       data-ribbon-icon-size={ribbonIconSize}
     >
@@ -7410,6 +7427,8 @@ export default function StudioWindowsOS({
                   disabled={bunnyAssetWindow}
                   showPlaceDockPanels={phase2}
                   assetManagerOpen={assetManagerPanelOpen}
+                  explorerOpen={explorerPanelOpen}
+                  propertiesOpen={propertiesPanelOpen}
                   studioSettingsOpen={studioSettingsOpen}
                   prototypeSettingsOpen={prototypeSettingsPanelOpen}
                   placeLevel1Open={isPlaceDockOpen('level-1')}

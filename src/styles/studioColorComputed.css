@@ -116,7 +116,14 @@
   --action-standard-background: var(--shift-300);
   --beta-stroke: var(--stroke-emphasis);
 
-  /** Selection highlight — not part of surface/content/stroke/shift ramp */
+  /** Keyboard focus ring — operator-driven from highlight base (Figma #657BF4). */
+  --focus-ring: hsl(
+    calc(var(--token-highlight-h) + var(--delta-hue)),
+    calc(var(--token-highlight-s) * var(--sat-multiplier)),
+    calc((var(--token-highlight-l) + var(--lightness-offset)) * var(--content-contrast-factor))
+  );
+
+  /** Row-selection highlights — fixed Figma blue unless Link selection highlight is on. */
   --highlight-400: rgba(101, 123, 244, 0.4);
   --highlight-300: rgba(101, 123, 244, 0.32);
   --highlight-200: rgba(101, 123, 244, 0.2);
@@ -132,4 +139,26 @@
 [data-theme='light'] {
   --surface-contrast-factor: var(--contrast-scale);
   --content-contrast-factor: calc(2 - var(--contrast-scale));
+}
+
+/** Row-selection highlight washes — operator-linked when prototype setting is on. */
+[data-link-selection-highlight] {
+  --highlight-400: hsla(
+    calc(var(--token-highlight-h) + var(--delta-hue)),
+    calc(var(--token-highlight-s) * var(--sat-multiplier)),
+    calc((var(--token-highlight-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
+    var(--token-highlight-400-a)
+  );
+  --highlight-300: hsla(
+    calc(var(--token-highlight-h) + var(--delta-hue)),
+    calc(var(--token-highlight-s) * var(--sat-multiplier)),
+    calc((var(--token-highlight-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
+    var(--token-highlight-300-a)
+  );
+  --highlight-200: hsla(
+    calc(var(--token-highlight-h) + var(--delta-hue)),
+    calc(var(--token-highlight-s) * var(--sat-multiplier)),
+    calc((var(--token-highlight-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
+    var(--token-highlight-200-a)
+  );
 }

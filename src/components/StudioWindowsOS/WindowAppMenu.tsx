@@ -6,6 +6,8 @@ import css from './TestAppMenu.module.css'
 
 const WINDOW_PANEL_TOGGLES = [
   'studioSettings',
+  'explorer',
+  'properties',
   'prototypeSettings',
   placeDockPanelId('level-1'),
   'assetManager',
@@ -25,6 +27,8 @@ export type WindowAppMenuProps = {
   /** Phase 2 — bottom-dock place documents in the Window menu. */
   showPlaceDockPanels?: boolean
   assetManagerOpen: boolean
+  explorerOpen: boolean
+  propertiesOpen: boolean
   studioSettingsOpen: boolean
   prototypeSettingsOpen: boolean
   placeLevel1Open: boolean
@@ -37,6 +41,8 @@ export default function WindowAppMenu({
   disabled = false,
   showPlaceDockPanels = true,
   assetManagerOpen,
+  explorerOpen,
+  propertiesOpen,
   studioSettingsOpen,
   prototypeSettingsOpen,
   placeLevel1Open,
@@ -53,6 +59,8 @@ export default function WindowAppMenu({
     : WINDOW_PANEL_TOGGLES.filter((id) => !isPlaceDockPanelId(id))
   const panelOpen: Record<WindowPanelToggleId, boolean> = {
     studioSettings: studioSettingsOpen,
+    explorer: explorerOpen,
+    properties: propertiesOpen,
     prototypeSettings: prototypeSettingsOpen,
     [level1DockPanel]: placeLevel1Open,
     assetManager: assetManagerOpen,
@@ -107,9 +115,9 @@ export default function WindowAppMenu({
                 role="menuitemcheckbox"
                 className={css.item}
                 aria-checked={checked}
-                onClick={(e) => {
-                  e.stopPropagation()
+                onClick={() => {
                   onTogglePanel(panelId)
+                  setOpen(false)
                 }}
               >
                 <span className={css.itemCheckGutter} aria-hidden>

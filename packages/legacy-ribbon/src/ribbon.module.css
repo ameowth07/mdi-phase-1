@@ -197,7 +197,7 @@ html:not([data-theme='light']) .ribbonRoot,
 
 .clientSpawnSpinbox:focus-within:not(.clientSpawnSpinboxDisabled) {
   background: var(--shift-200, var(--shift-200));
-  box-shadow: inset 0 0 0 1px var(--stroke-emphasis);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
 }
 
 .clientSpawnSpinboxDisabled {

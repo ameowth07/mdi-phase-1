@@ -256,35 +256,6 @@
   white-space: nowrap;
 }
 
-.presetRow {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.presetBtn {
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 6px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--content-emphasis, #f7f7f8);
-  cursor: pointer;
-  background: var(--action-standard-background, hsla(227, 84%, 90%, 0.12));
-  box-shadow: none;
-}
-
-.presetBtn:hover {
-  filter: brightness(1.15);
-}
-
-.presetBtn:active {
-  filter: brightness(0.9);
-}
-
 .groupLabel {
   margin: 0 0 8px;
   padding: 0;

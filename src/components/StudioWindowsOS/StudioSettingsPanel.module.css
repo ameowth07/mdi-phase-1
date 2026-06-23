@@ -24,7 +24,7 @@
 }
 
 .searchInput:focus-within {
-  border-color: var(--stroke-default);
+  border-color: var(--focus-ring);
 }
 
 .searchIcon {
