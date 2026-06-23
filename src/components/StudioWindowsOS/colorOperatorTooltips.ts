@@ -4,24 +4,24 @@ export type ColorOperatorTooltipCopy = {
 }
 
 export const COLOR_OPERATOR_TOOLTIPS = {
+  theme: {
+    title: 'Theme',
+    description: 'Pick a starting color style, an asterisk means you changed it',
+  },
   hue: {
     title: 'Hue',
-    description:
-      'Rotates every theme token by the same number of degrees — surfaces, text, borders, and shift/stroke overlays.',
+    description: 'Shift the overall color warmer or cooler',
   },
   saturation: {
     title: 'Saturation',
-    description:
-      'Multiplies chroma on surfaces, content, borders, and hover overlays. Lower values neutralize color; higher values intensify it.',
+    description: 'Make colors more vivid or more gray',
   },
   lightness: {
     title: 'Lightness',
-    description:
-      'Adds the same lightness offset to all tokens before contrast runs — brightens or darkens the entire ramp together.',
+    description: 'Brighten or darken the whole interface together',
   },
   contrast: {
     title: 'Contrast',
-    description:
-      'Adjusts separation between panel backgrounds and text (0.75× flatter, 1.25× stronger). Surfaces and labels move in opposite directions.',
+    description: 'Make text stand out more or less from backgrounds',
   },
 } as const satisfies Record<string, ColorOperatorTooltipCopy>

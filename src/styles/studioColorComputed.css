@@ -1,109 +1,115 @@
 /**
  * Operator-driven tokens — formulas use studioColorTokens.css bases.
  * Defined on :root so the full app (including panels outside .frame) can consume them.
+ *
+ * Contrast factors are theme-aware: on dark themes surfaces darken and content brightens
+ * as contrast rises; on light themes surfaces lighten and content darkens.
  */
 
 :root {
+  --surface-contrast-factor: calc(2 - var(--contrast-scale));
+  --content-contrast-factor: var(--contrast-scale);
+
   --surface-0: hsl(
     calc(var(--token-surface-0-h) + var(--delta-hue)),
     calc(var(--token-surface-0-s) * var(--sat-multiplier)),
-    calc((var(--token-surface-0-l) + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+    calc((var(--token-surface-0-l) + var(--lightness-offset)) * var(--surface-contrast-factor))
   );
   --surface-100: hsl(
     calc(var(--token-surface-100-h) + var(--delta-hue)),
     calc(var(--token-surface-100-s) * var(--sat-multiplier)),
-    calc((var(--token-surface-100-l) + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+    calc((var(--token-surface-100-l) + var(--lightness-offset)) * var(--surface-contrast-factor))
   );
   --surface-200: hsl(
     calc(var(--token-surface-200-h) + var(--delta-hue)),
     calc(var(--token-surface-200-s) * var(--sat-multiplier)),
-    calc((var(--token-surface-200-l) + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+    calc((var(--token-surface-200-l) + var(--lightness-offset)) * var(--surface-contrast-factor))
   );
   --surface-250: hsl(
     calc(var(--token-surface-250-h) + var(--delta-hue)),
     calc(var(--token-surface-250-s) * var(--sat-multiplier)),
-    calc((var(--token-surface-250-l) + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+    calc((var(--token-surface-250-l) + var(--lightness-offset)) * var(--surface-contrast-factor))
   );
   --surface-300: hsl(
     calc(var(--token-surface-300-h) + var(--delta-hue)),
     calc(var(--token-surface-300-s) * var(--sat-multiplier)),
-    calc((var(--token-surface-300-l) + var(--lightness-offset)) * (2 - var(--contrast-scale)))
+    calc((var(--token-surface-300-l) + var(--lightness-offset)) * var(--surface-contrast-factor))
   );
 
   --content-default: hsl(
     calc(var(--token-content-default-h) + var(--delta-hue)),
     calc(var(--token-content-default-s) * var(--sat-multiplier)),
-    calc((var(--token-content-default-l) + var(--lightness-offset)) * var(--contrast-scale))
+    calc((var(--token-content-default-l) + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --content-muted: hsl(
     calc(var(--token-content-muted-h) + var(--delta-hue)),
     calc(var(--token-content-muted-s) * var(--sat-multiplier)),
-    calc((var(--token-content-muted-l) + var(--lightness-offset)) * var(--contrast-scale))
+    calc((var(--token-content-muted-l) + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --content-emphasis: hsl(
     calc(var(--token-content-emphasis-h) + var(--delta-hue)),
     calc(var(--token-content-emphasis-s) * var(--sat-multiplier)),
-    calc((var(--token-content-emphasis-l) + var(--lightness-offset)) * var(--contrast-scale))
+    calc((var(--token-content-emphasis-l) + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --panel-chrome-title: hsl(
     calc(var(--token-content-muted-h) + var(--delta-hue)),
     calc(var(--token-content-muted-s) * var(--sat-multiplier)),
-    calc((var(--token-content-muted-l) + var(--lightness-offset)) * var(--contrast-scale))
+    calc((var(--token-content-muted-l) + var(--lightness-offset)) * var(--content-contrast-factor))
   );
 
   --stroke-emphasis: hsla(
     calc(var(--token-stroke-h) + var(--delta-hue)),
     calc(var(--token-stroke-s) * var(--sat-multiplier)),
-    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-stroke-emphasis-a)
   );
   --stroke-default: hsla(
     calc(var(--token-stroke-h) + var(--delta-hue)),
     calc(var(--token-stroke-s) * var(--sat-multiplier)),
-    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-stroke-default-a)
   );
   --stroke-muted: hsla(
     calc(var(--token-stroke-h) + var(--delta-hue)),
     calc(var(--token-stroke-s) * var(--sat-multiplier)),
-    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-stroke-muted-a)
   );
   --stroke-contrast: hsla(
     calc(var(--token-stroke-h) + var(--delta-hue)),
     calc(var(--token-stroke-s) * var(--sat-multiplier)),
-    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-stroke-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-stroke-contrast-a)
   );
 
   --shift-100: hsla(
     calc(var(--token-shift-h) + var(--delta-hue)),
     calc(var(--token-shift-s) * var(--sat-multiplier)),
-    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-shift-100-a)
   );
   --shift-200: hsla(
     calc(var(--token-shift-h) + var(--delta-hue)),
     calc(var(--token-shift-s) * var(--sat-multiplier)),
-    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-shift-200-a)
   );
   --shift-300: hsla(
     calc(var(--token-shift-h) + var(--delta-hue)),
     calc(var(--token-shift-s) * var(--sat-multiplier)),
-    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-shift-300-a)
   );
   --shift-400: hsla(
     calc(var(--token-shift-h) + var(--delta-hue)),
     calc(var(--token-shift-s) * var(--sat-multiplier)),
-    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-shift-400-a)
   );
   --shift-500: hsla(
     calc(var(--token-shift-h) + var(--delta-hue)),
     calc(var(--token-shift-s) * var(--sat-multiplier)),
-    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((var(--token-shift-l) + var(--lightness-offset)) * var(--content-contrast-factor)),
     var(--token-shift-500-a)
   );
 
@@ -118,7 +124,12 @@
   --overmedia-100: hsla(
     calc(var(--token-surface-100-h) + var(--delta-hue)),
     calc(var(--token-surface-100-s) * var(--sat-multiplier)),
-    calc((var(--token-surface-100-l) + var(--lightness-offset)) * (2 - var(--contrast-scale))),
+    calc((var(--token-surface-100-l) + var(--lightness-offset)) * var(--surface-contrast-factor)),
     0.92
   );
+}
+
+[data-theme='light'] {
+  --surface-contrast-factor: var(--contrast-scale);
+  --content-contrast-factor: calc(2 - var(--contrast-scale));
 }

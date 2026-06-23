@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Search } from 'lucide-react'
+import { RefreshCw, Search } from 'lucide-react'
 import ColorOperatorSliders, { type ColorOperatorSlidersHandle } from './ColorOperatorSliders'
 import ThemePresetDropdown from './ThemePresetDropdown'
+import StudioTooltip from './StudioTooltip'
 import css from './StudioSettingsPanel.module.css'
+import { COLOR_OPERATOR_TOOLTIPS } from './colorOperatorTooltips'
 import {
   applyStudioThemePreset,
   matchThemePresetFromSurfaceTarget,
@@ -93,6 +95,13 @@ export default function StudioSettingsPanel({
     const elements = slidersRef.current?.getElements() ?? null
     const theme = applyStudioThemePreset(presetId, elements)
     onThemePresetChange(presetId)
+    setThemeModified(false)
+    if (theme !== studioColorTheme) onStudioColorThemeChange(theme)
+  }
+
+  const handleResetTheme = () => {
+    const elements = slidersRef.current?.getElements() ?? null
+    const theme = applyStudioThemePreset(themePreset, elements)
     setThemeModified(false)
     if (theme !== studioColorTheme) onStudioColorThemeChange(theme)
   }
@@ -192,13 +201,38 @@ export default function StudioSettingsPanel({
                 {colorOpen ? (
                   <div className={css.accordionBody}>
                     <div className={css.settingRow}>
-                      <div className={css.settingLabel}>Theme</div>
+                      <StudioTooltip
+                        title={COLOR_OPERATOR_TOOLTIPS.theme.title}
+                        description={COLOR_OPERATOR_TOOLTIPS.theme.description}
+                        className={css.settingLabelTooltipHost}
+                      >
+                        <div className={css.settingLabel}>Theme</div>
+                      </StudioTooltip>
                       <div className={css.settingControl}>
-                        <ThemePresetDropdown
-                          value={themePreset}
-                          modified={themeModified}
-                          onChange={handleThemePresetChange}
-                        />
+                        <div className={css.themeControlRow}>
+                          <ThemePresetDropdown
+                            value={themePreset}
+                            modified={themeModified}
+                            onChange={handleThemePresetChange}
+                          />
+                          <StudioTooltip
+                            title="Reset"
+                            description="Restore the selected theme preset and undo slider changes"
+                            align="center"
+                            position="bottom"
+                            className={css.themeResetTooltipHost}
+                          >
+                            <button
+                              type="button"
+                              className={css.themeResetBtn}
+                              aria-label="Reset theme to preset"
+                              disabled={!themeModified}
+                              onClick={handleResetTheme}
+                            >
+                              <RefreshCw size={14} strokeWidth={2} aria-hidden />
+                            </button>
+                          </StudioTooltip>
+                        </div>
                       </div>
                     </div>
                     <div className={css.colorOperatorSlidersWrap}>

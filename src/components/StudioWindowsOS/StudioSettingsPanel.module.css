@@ -167,10 +167,59 @@
   font-size: 12px;
   line-height: 1.4;
   color: var(--content-default);
+  cursor: default;
+}
+
+.settingLabelTooltipHost {
+  justify-self: start;
+  align-self: center;
+  display: inline-flex;
+  max-width: 100%;
 }
 
 .settingControl {
   min-width: 0;
+}
+
+.themeControlRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.themeControlRow .themeMenuRoot {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.themeResetTooltipHost {
+  flex: 0 0 auto;
+}
+
+.themeResetBtn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--stroke-default);
+  border-radius: 8px;
+  background: var(--shift-200);
+  color: var(--content-muted);
+  cursor: pointer;
+}
+
+.themeResetBtn:hover:not(:disabled) {
+  color: var(--content-emphasis);
+  background: var(--shift-300, var(--shift-200));
+}
+
+.themeResetBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .themeMenuRoot {

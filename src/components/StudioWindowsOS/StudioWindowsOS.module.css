@@ -9,7 +9,7 @@
   --edit-workspace-focus-ring: hsla(
     calc(0 + var(--delta-hue)),
     calc(0% * var(--sat-multiplier)),
-    calc((100% + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((100% + var(--lightness-offset)) * var(--content-contrast-factor)),
     0.5
   );
 
@@ -115,17 +115,17 @@
   --semantic-client-stroke: hsl(
     calc(193 + var(--delta-hue)),
     calc(76% * var(--sat-multiplier)),
-    calc((61% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((61% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --semantic-server-stroke: hsl(
     calc(125 + var(--delta-hue)),
     calc(44% * var(--sat-multiplier)),
-    calc((50% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((50% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --semantic-drone-stroke: hsla(
     calc(0 + var(--delta-hue)),
     calc(0% * var(--sat-multiplier)),
-    calc((100% + var(--lightness-offset)) * var(--contrast-scale)),
+    calc((100% + var(--lightness-offset)) * var(--content-contrast-factor)),
     0.5
   );
   --semantic-client-tab-tint: hsl(
@@ -227,57 +227,57 @@
   --ribbon-accent-violet: hsl(
     calc(262 + var(--delta-hue)),
     calc(98% * var(--sat-multiplier)),
-    calc((63% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((63% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-green: hsl(
     calc(152 + var(--delta-hue)),
     calc(86% * var(--sat-multiplier)),
-    calc((38% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((38% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-magenta: hsl(
     calc(292 + var(--delta-hue)),
     calc(84% * var(--sat-multiplier)),
-    calc((68% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((68% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-blue-deep: hsl(
     calc(228 + var(--delta-hue)),
     calc(76% * var(--sat-multiplier)),
-    calc((52% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((52% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-blue: hsl(
     calc(227 + var(--delta-hue)),
     calc(96% * var(--sat-multiplier)),
-    calc((66% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((66% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-blue-ui: hsl(
     calc(228 + var(--delta-hue)),
     calc(95% * var(--sat-multiplier)),
-    calc((61% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((61% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-yellow: hsl(
     calc(45 + var(--delta-hue)),
     calc(90% * var(--sat-multiplier)),
-    calc((60% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((60% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-orange: hsl(
     calc(21 + var(--delta-hue)),
     calc(93% * var(--sat-multiplier)),
-    calc((59% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((59% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-character: hsl(
     calc(21 + var(--delta-hue)),
     calc(75% * var(--sat-multiplier)),
-    calc((50% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((50% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-cyan: hsl(
     calc(189 + var(--delta-hue)),
     calc(90% * var(--sat-multiplier)),
-    calc((47% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((47% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
   --ribbon-accent-pink: hsl(
     calc(340 + var(--delta-hue)),
     calc(76% * var(--sat-multiplier)),
-    calc((59% + var(--lightness-offset)) * var(--contrast-scale))
+    calc((59% + var(--lightness-offset)) * var(--content-contrast-factor))
   );
 }
 
