@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Search, SquareArrowOutUpRight } from 'lucide-react'
-import { publicAssetUrl } from '../../publicAssetUrl'
 import amCss from './AssetManagerPanel.module.css'
+import { PanelCloseIcon } from './documentTabIcons'
 import { TOOLBOX_CATEGORIES, type ToolboxItem } from './toolboxCatalog'
 import css from './ToolboxPanel.module.css'
 
@@ -81,7 +81,7 @@ export default function ToolboxPanel({
               aria-label="Close panel"
               onClick={onClose}
             >
-              <img src={publicAssetUrl('assets/panel-close.svg')} alt="" />
+              <PanelCloseIcon />
             </button>
           </div>
         </header>

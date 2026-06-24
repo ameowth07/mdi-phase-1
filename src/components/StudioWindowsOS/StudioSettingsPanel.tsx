@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { RefreshCw, Search } from 'lucide-react'
 import ColorOperatorSliders, { type ColorOperatorSlidersHandle } from './ColorOperatorSliders'
 import ThemePresetDropdown from './ThemePresetDropdown'
@@ -6,14 +6,16 @@ import StudioTooltip from './StudioTooltip'
 import css from './StudioSettingsPanel.module.css'
 import { COLOR_OPERATOR_TOOLTIPS } from './colorOperatorTooltips'
 import {
+  applyThemePresetOperators,
   applyStudioThemePreset,
-  matchThemePresetFromSurfaceTarget,
+  isThemeModifiedFromPreset,
   type StudioThemePresetId,
+  type ThemePresetOperatorOverrides,
 } from './studioThemePresets'
-import type { StudioColorTheme } from './themeColorOperators'
+import type { StudioColorTheme, ThemeOperatorPreset } from './themeColorOperators'
+import { readThemeOperatorsFromDocument } from './themeColorOperators'
 import {
   isThemeSpectrumMode,
-  matchThemePresetFromSpectrum,
   themeSpectrumContrastRange,
   themeSpectrumSatRange,
 } from './themeOperatorMapping'
@@ -36,6 +38,11 @@ export type StudioSettingsPanelProps = {
   onStudioColorThemeChange: (value: StudioColorTheme) => void
   themePreset: StudioThemePresetId
   onThemePresetChange: (value: StudioThemePresetId) => void
+  themeModified: boolean
+  onThemeModifiedChange: (value: boolean) => void
+  themePresetOverrides: ThemePresetOperatorOverrides
+  onThemePresetOverridesChange: (value: ThemePresetOperatorOverrides) => void
+  themeSliderStopTicks?: boolean
 }
 
 function ChevDownSm() {
@@ -58,14 +65,33 @@ export default function StudioSettingsPanel({
   onStudioColorThemeChange,
   themePreset,
   onThemePresetChange,
+  themeModified,
+  onThemeModifiedChange,
+  themePresetOverrides,
+  onThemePresetOverridesChange,
+  themeSliderStopTicks = false,
 }: StudioSettingsPanelProps) {
   const [selectedNav, setSelectedNav] = useState<NavItem>('Studio')
   const [searchQuery, setSearchQuery] = useState('')
   const [colorOpen, setColorOpen] = useState(true)
-  const [themeModified, setThemeModified] = useState(false)
   const slidersRef = useRef<ColorOperatorSlidersHandle>(null)
   const themePresetRef = useRef(themePreset)
+  const themePresetOverridesRef = useRef(themePresetOverrides)
   themePresetRef.current = themePreset
+  themePresetOverridesRef.current = themePresetOverrides
+
+  const persistPresetOverride = (
+    presetId: StudioThemePresetId,
+    operators: ThemeOperatorPreset,
+    overrides: ThemePresetOperatorOverrides,
+  ): ThemePresetOperatorOverrides => {
+    if (isThemeModifiedFromPreset(operators, presetId)) {
+      return { ...overrides, [presetId]: operators }
+    }
+    const next = { ...overrides }
+    delete next[presetId]
+    return next
+  }
 
   const spectrumMode = isThemeSpectrumMode()
   const satRange = useMemo(
@@ -92,27 +118,34 @@ export default function StudioSettingsPanel({
       ))
 
   const handleThemePresetChange = (presetId: StudioThemePresetId) => {
+    if (presetId === themePreset) return
     const elements = slidersRef.current?.getElements() ?? null
-    const theme = applyStudioThemePreset(presetId, elements)
+    const leavingPreset = themePreset
+    const currentOperators = readThemeOperatorsFromDocument()
+    const nextOverrides = persistPresetOverride(
+      leavingPreset,
+      currentOperators,
+      themePresetOverrides,
+    )
+    const savedOverride = nextOverrides[presetId]
+    const theme = applyThemePresetOperators(presetId, elements, savedOverride)
+    onThemePresetOverridesChange(nextOverrides)
     onThemePresetChange(presetId)
-    setThemeModified(false)
+    onThemeModifiedChange(
+      savedOverride != null && isThemeModifiedFromPreset(savedOverride, presetId),
+    )
     if (theme !== studioColorTheme) onStudioColorThemeChange(theme)
   }
 
   const handleResetTheme = () => {
     const elements = slidersRef.current?.getElements() ?? null
+    const nextOverrides = { ...themePresetOverrides }
+    delete nextOverrides[themePreset]
     const theme = applyStudioThemePreset(themePreset, elements)
-    setThemeModified(false)
+    onThemePresetOverridesChange(nextOverrides)
+    onThemeModifiedChange(false)
     if (theme !== studioColorTheme) onStudioColorThemeChange(theme)
   }
-
-  useLayoutEffect(() => {
-    if (!colorOpen) return
-    const elements = slidersRef.current?.getElements() ?? null
-    if (elements == null) return
-    applyStudioThemePreset(themePreset, elements)
-    setThemeModified(false)
-  }, [themePreset, colorOpen])
 
   useEffect(() => {
     if (!colorOpen) return undefined
@@ -120,21 +153,13 @@ export default function StudioSettingsPanel({
     if (elements == null) return undefined
 
     const onOperatorInput = () => {
-      const hue = Number(elements.hueSlider.value)
-      const sat = Number(elements.satSlider.value)
-      const light = Number(elements.lightSlider.value)
-      const contrast = Number(elements.contrastSlider.value)
-      const matched = spectrumMode
-        ? matchThemePresetFromSpectrum(sat, contrast, studioColorTheme)
-        : matchThemePresetFromSurfaceTarget(hue, sat, light, contrast, studioColorTheme)
-
-      if (matched == null) {
-        setThemeModified(true)
-        return
-      }
-
-      setThemeModified(false)
-      if (matched !== themePresetRef.current) onThemePresetChange(matched)
+      const presetId = themePresetRef.current
+      const current = readThemeOperatorsFromDocument()
+      const modified = isThemeModifiedFromPreset(current, presetId)
+      onThemeModifiedChange(modified)
+      onThemePresetOverridesChange(
+        persistPresetOverride(presetId, current, themePresetOverridesRef.current),
+      )
     }
 
     elements.hueSlider.addEventListener('input', onOperatorInput)
@@ -147,7 +172,7 @@ export default function StudioSettingsPanel({
       elements.lightSlider.removeEventListener('input', onOperatorInput)
       elements.contrastSlider.removeEventListener('input', onOperatorInput)
     }
-  }, [spectrumMode, studioColorTheme, onThemePresetChange, colorOpen])
+  }, [themePreset, onThemeModifiedChange, colorOpen])
 
   return (
     <div className={css.root} data-name="Studio Settings Panel">
@@ -212,7 +237,7 @@ export default function StudioSettingsPanel({
                         <div className={css.themeControlRow}>
                           <ThemePresetDropdown
                             value={themePreset}
-                            modified={themeModified}
+                            presetOverrides={themePresetOverrides}
                             onChange={handleThemePresetChange}
                           />
                           <StudioTooltip
@@ -244,6 +269,7 @@ export default function StudioSettingsPanel({
                         satMax={satRange.max}
                         contrastMin={contrastRange.min}
                         contrastMax={contrastRange.max}
+                        showStopTicks={themeSliderStopTicks}
                       />
                     </div>
                   </div>

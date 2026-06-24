@@ -12,7 +12,19 @@ import type { StudioColorTheme } from './themeColorOperators'
  */
 export type ThemeOperatorMappingMode = 'theme-spectrum' | 'surface-target'
 
+/** Default mapping when theme spectrum sliders prototype setting is off. */
 export const THEME_OPERATOR_MAPPING_MODE: ThemeOperatorMappingMode = 'surface-target'
+
+let themeSpectrumSlidersEnabled = false
+
+/** Synced from prototype setting — toggles theme-spectrum sat/contrast stops vs surface-target. */
+export function setThemeSpectrumSlidersEnabled(enabled: boolean): void {
+  themeSpectrumSlidersEnabled = enabled
+}
+
+export function isThemeSpectrumMode(): boolean {
+  return themeSpectrumSlidersEnabled
+}
 
 export type ThemeSpectrumOperators = {
   sat: number
@@ -117,8 +129,4 @@ export function matchThemePresetFromSpectrum(
 export function sliderStopPercent(value: number, min: number, max: number): number {
   if (max <= min) return 0
   return ((value - min) / (max - min)) * 100
-}
-
-export function isThemeSpectrumMode(): boolean {
-  return THEME_OPERATOR_MAPPING_MODE === 'theme-spectrum'
 }

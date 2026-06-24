@@ -71,6 +71,21 @@ export function TabCloseIcon() {
   )
 }
 
+/** Panel chrome close glyph — inherits header button `color` (theme-aware). */
+export function PanelCloseIcon() {
+  const url = publicAssetUrl('assets/panel-close.svg')
+  return (
+    <span
+      className={styles.tabCloseIconMask}
+      style={{
+        maskImage: `url("${url}")`,
+        WebkitMaskImage: `url("${url}")`,
+      }}
+      aria-hidden
+    />
+  )
+}
+
 export function TabCloseButton({ onClose }: { onClose: (e: MouseEvent) => void }) {
   return (
     <button

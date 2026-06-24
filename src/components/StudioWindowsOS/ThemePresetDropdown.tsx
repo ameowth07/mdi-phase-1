@@ -4,7 +4,15 @@ import {
   STUDIO_THEME_PRESET_OPTIONS,
   studioThemePresetLabel,
   type StudioThemePresetId,
+  type ThemePresetOperatorOverrides,
 } from './studioThemePresets'
+
+function themePresetDisplayLabel(
+  presetId: StudioThemePresetId,
+  presetOverrides: ThemePresetOperatorOverrides,
+): string {
+  return `${studioThemePresetLabel(presetId)}${presetOverrides[presetId] ? '*' : ''}`
+}
 
 function ChevDownSm() {
   return (
@@ -23,20 +31,20 @@ function ChevDownSm() {
 
 export type ThemePresetDropdownProps = {
   value: StudioThemePresetId
-  /** Sliders no longer match the selected preset's operator values. */
-  modified?: boolean
+  /** Per-preset saved operator overrides — drives asterisk on trigger and menu items. */
+  presetOverrides?: ThemePresetOperatorOverrides
   onChange: (presetId: StudioThemePresetId) => void
 }
 
 export default function ThemePresetDropdown({
   value,
-  modified = false,
+  presetOverrides = {},
   onChange,
 }: ThemePresetDropdownProps) {
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
-  const displayLabel = `${studioThemePresetLabel(value)}${modified ? '*' : ''}`
+  const displayLabel = themePresetDisplayLabel(value, presetOverrides)
 
   useEffect(() => {
     if (!open) return
@@ -92,7 +100,7 @@ export default function ThemePresetDropdown({
                     setOpen(false)
                   }}
                 >
-                  {option.label}
+                  {themePresetDisplayLabel(option.id, presetOverrides)}
                 </button>
               </li>
             )

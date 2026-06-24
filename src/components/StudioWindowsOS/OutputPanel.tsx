@@ -1,5 +1,5 @@
 import { ChevronDown, Search, SquareArrowOutUpRight } from 'lucide-react'
-import { publicAssetUrl } from '../../publicAssetUrl'
+import { PanelCloseIcon } from './documentTabIcons'
 import css from './OutputPanel.module.css'
 
 export type OutputLogVariant = 'default' | 'error'
@@ -64,7 +64,7 @@ export default function OutputPanel({
             aria-label="Close panel"
             onClick={onClose}
           >
-            <img src={publicAssetUrl('assets/panel-close.svg')} alt="" />
+            <PanelCloseIcon />
           </button>
         </div>
       </header>

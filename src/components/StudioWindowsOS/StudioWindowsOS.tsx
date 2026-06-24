@@ -18,7 +18,13 @@ import {
   STUDIO_SETTINGS_DEFAULT_SIZE,
   type FloatingWindowSize,
 } from './useFloatingWindowResize'
-import type { StudioThemePresetId } from './studioThemePresets'
+import type { StudioThemePresetId, ThemePresetOperatorOverrides } from './studioThemePresets'
+import {
+  applyStudioThemePreset,
+  isThemeModifiedFromPreset,
+} from './studioThemePresets'
+import { applyThemeOperatorPreset } from './themeColorOperators'
+import { setThemeSpectrumSlidersEnabled } from './themeOperatorMapping'
 import ServerSim from './ServerSim'
 import AssetManagerPanel from './AssetManagerPanel'
 import ToolboxPanel from './ToolboxPanel'
@@ -5248,6 +5254,12 @@ export default function StudioWindowsOS({
   const [linkSelectionHighlight, setLinkSelectionHighlight] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.linkSelectionHighlight,
   )
+  const [themeSpectrumSliders, setThemeSpectrumSliders] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.themeSpectrumSliders,
+  )
+  const [themeSliderStopTicks, setThemeSliderStopTicks] = useState<boolean>(
+    PROTOTYPE_SETTINGS_DEFAULTS.themeSliderStopTicks,
+  )
   const [panelTogglesUseFills, setPanelTogglesUseFills] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.panelTogglesUseFills,
   )
@@ -5303,6 +5315,9 @@ export default function StudioWindowsOS({
     useState<FloatingWindowSize>(STUDIO_SETTINGS_DEFAULT_SIZE)
   const [studioThemePreset, setStudioThemePreset] =
     useState<StudioThemePresetId>('contrast-dark')
+  const [studioThemeModified, setStudioThemeModified] = useState(false)
+  const [studioThemePresetOverrides, setStudioThemePresetOverrides] =
+    useState<ThemePresetOperatorOverrides>({})
   const [documentUndocked, setDocumentUndocked] = useState<boolean>(
     PROTOTYPE_SETTINGS_DEFAULTS.floatingDocumentOpen,
   )
@@ -6419,6 +6434,8 @@ export default function StudioWindowsOS({
     setLinkSemanticHueOnly(d.linkSemanticHueOnly)
     setLinkIconAccents(d.linkIconAccents)
     setLinkSelectionHighlight(d.linkSelectionHighlight)
+    setThemeSpectrumSliders(d.themeSpectrumSliders)
+    setThemeSliderStopTicks(d.themeSliderStopTicks)
     setPanelTogglesUseFills(d.panelTogglesUseFills)
     setRibbonIconSize(d.ribbonIconSize)
     setStudioColorTheme(d.studioColorTheme)
@@ -6979,6 +6996,10 @@ export default function StudioWindowsOS({
                 onLinkIconAccentsChange={setLinkIconAccents}
                 linkSelectionHighlight={linkSelectionHighlight}
                 onLinkSelectionHighlightChange={setLinkSelectionHighlight}
+                themeSpectrumSliders={themeSpectrumSliders}
+                onThemeSpectrumSlidersChange={setThemeSpectrumSliders}
+                themeSliderStopTicks={themeSliderStopTicks}
+                onThemeSliderStopTicksChange={setThemeSliderStopTicks}
                 panelTogglesUseFills={panelTogglesUseFills}
                 onPanelTogglesUseFillsChange={setPanelTogglesUseFills}
                 ribbonIconSize={ribbonIconSize}
@@ -7356,6 +7377,24 @@ export default function StudioWindowsOS({
   useEffect(() => {
     document.documentElement.dataset.theme = studioColorTheme
   }, [studioColorTheme])
+
+  useEffect(() => {
+    setThemeSpectrumSlidersEnabled(themeSpectrumSliders)
+  }, [themeSpectrumSliders])
+
+  const prevThemeSpectrumSlidersRef = useRef(themeSpectrumSliders)
+  useEffect(() => {
+    if (prevThemeSpectrumSlidersRef.current === themeSpectrumSliders) return
+    prevThemeSpectrumSlidersRef.current = themeSpectrumSliders
+    const override = studioThemePresetOverrides[studioThemePreset]
+    if (override) {
+      applyThemeOperatorPreset(null, override)
+      setStudioThemeModified(isThemeModifiedFromPreset(override, studioThemePreset))
+      return
+    }
+    applyStudioThemePreset(studioThemePreset, null)
+    setStudioThemeModified(false)
+  }, [themeSpectrumSliders, studioThemePreset, studioThemePresetOverrides])
 
   return (
     <div
@@ -8032,6 +8071,11 @@ export default function StudioWindowsOS({
           onStudioColorThemeChange={setStudioColorTheme}
           themePreset={studioThemePreset}
           onThemePresetChange={setStudioThemePreset}
+          themeModified={studioThemeModified}
+          onThemeModifiedChange={setStudioThemeModified}
+          themePresetOverrides={studioThemePresetOverrides}
+          onThemePresetOverridesChange={setStudioThemePresetOverrides}
+          themeSliderStopTicks={themeSliderStopTicks}
         />
       ) : null}
 

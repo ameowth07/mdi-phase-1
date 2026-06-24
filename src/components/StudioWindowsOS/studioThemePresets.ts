@@ -14,7 +14,7 @@ import {
 } from './themeColorOperators'
 import {
   spectrumOperatorsForPreset,
-  THEME_OPERATOR_MAPPING_MODE,
+  isThemeSpectrumMode,
 } from './themeOperatorMapping'
 
 export type StudioThemePresetId =
@@ -47,6 +47,37 @@ export function studioThemePresetLabel(id: StudioThemePresetId): string {
 export type ThemePresetOperatorKey = 'hue' | 'sat' | 'light' | 'contrast'
 
 const OPERATOR_MATCH_EPSILON = 0.02
+
+function operatorsEqual(a: ThemeOperatorPreset, b: ThemeOperatorPreset): boolean {
+  return (
+    Math.abs(Number(a.hue) - Number(b.hue)) <= OPERATOR_MATCH_EPSILON &&
+    Math.abs(Number(a.sat) - Number(b.sat)) <= OPERATOR_MATCH_EPSILON &&
+    Math.abs(Number(a.light) - Number(b.light)) <= OPERATOR_MATCH_EPSILON &&
+    Math.abs(Number(a.contrast) - Number(b.contrast)) <= OPERATOR_MATCH_EPSILON
+  )
+}
+
+/** Operator values for a theme preset (surface-target or spectrum mapping). */
+export function presetOperatorValues(presetId: StudioThemePresetId): ThemeOperatorPreset {
+  if (!isThemeSpectrumMode()) {
+    return surfaceTargetOperatorPreset(presetId)
+  }
+  const surfacePreset = surfaceTargetOperatorPreset(presetId)
+  const spectrum = spectrumOperatorsForPreset(presetId)
+  return {
+    ...surfacePreset,
+    sat: String(spectrum.sat),
+    contrast: String(spectrum.contrast),
+  }
+}
+
+/** True when live operators differ from the selected preset baseline. */
+export function isThemeModifiedFromPreset(
+  current: ThemeOperatorPreset,
+  presetId: StudioThemePresetId,
+): boolean {
+  return !operatorsEqual(current, presetOperatorValues(presetId))
+}
 
 function presetIdsForTheme(theme: StudioColorTheme): StudioThemePresetId[] {
   return STUDIO_THEME_PRESET_OPTIONS.filter((option) => option.theme === theme).map(
@@ -151,11 +182,33 @@ export function applyStudioThemePresetSpectrum(
   return theme
 }
 
+export type ThemePresetOperatorOverrides = Partial<
+  Record<StudioThemePresetId, ThemeOperatorPreset>
+>
+
+export function studioThemeForPreset(presetId: StudioThemePresetId): StudioColorTheme {
+  return STUDIO_THEME_PRESET_OPTIONS.find((option) => option.id === presetId)?.theme ?? 'dark'
+}
+
+/** Apply preset baseline or a saved operator override. */
+export function applyThemePresetOperators(
+  presetId: StudioThemePresetId,
+  elements: ThemeSliderElements | null,
+  override?: ThemeOperatorPreset,
+): StudioColorTheme {
+  const theme = studioThemeForPreset(presetId)
+  if (override) {
+    applyThemeOperatorPreset(elements, override)
+    return theme
+  }
+  return applyStudioThemePreset(presetId, elements)
+}
+
 export function applyStudioThemePreset(
   presetId: StudioThemePresetId,
   elements: ThemeSliderElements | null,
 ): StudioColorTheme {
-  if (THEME_OPERATOR_MAPPING_MODE === 'surface-target') {
+  if (!isThemeSpectrumMode()) {
     return applyStudioThemePresetSurfaceTarget(presetId, elements)
   }
   return applyStudioThemePresetSpectrum(presetId, elements)

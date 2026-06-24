@@ -164,6 +164,12 @@ export type InteractionSettingsPanelProps = {
   /** When on, row-selection highlight washes follow theme color operators. */
   linkSelectionHighlight?: boolean
   onLinkSelectionHighlightChange?: (value: boolean) => void
+  /** Theme spectrum sliders — sat/contrast use named theme stops and tighter ranges. */
+  themeSpectrumSliders?: boolean
+  onThemeSpectrumSlidersChange?: (value: boolean) => void
+  /** Tick marks on Studio Settings color sliders at each step (whole number or tenth). */
+  themeSliderStopTicks?: boolean
+  onThemeSliderStopTicksChange?: (value: boolean) => void
   /** Ribbon panel toggles — off icons use content-default only; on uses emphasis + muted-blue fill. */
   panelTogglesUseFills?: boolean
   onPanelTogglesUseFillsChange?: (value: boolean) => void
@@ -251,6 +257,10 @@ export default function InteractionSettingsPanel({
   onLinkIconAccentsChange,
   linkSelectionHighlight = false,
   onLinkSelectionHighlightChange,
+  themeSpectrumSliders = false,
+  onThemeSpectrumSlidersChange,
+  themeSliderStopTicks = false,
+  onThemeSliderStopTicksChange,
   panelTogglesUseFills = false,
   onPanelTogglesUseFillsChange,
   ribbonIconSize = 24,
@@ -576,6 +586,36 @@ export default function InteractionSettingsPanel({
               </div>
             </>
           ) : null}
+          <div className={css.row}>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={themeSpectrumSliders}
+              aria-label="Theme spectrum sliders"
+              className={`${css.checkboxBtn} ${themeSpectrumSliders ? css.checkboxBtnChecked : ''}`}
+              onClick={() => onThemeSpectrumSlidersChange?.(!themeSpectrumSliders)}
+            >
+              {themeSpectrumSliders ? (
+                <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+              ) : null}
+            </button>
+            <span className={css.label}>Theme spectrum sliders</span>
+          </div>
+          <div className={css.row}>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={themeSliderStopTicks}
+              aria-label="Slider stop ticks"
+              className={`${css.checkboxBtn} ${themeSliderStopTicks ? css.checkboxBtnChecked : ''}`}
+              onClick={() => onThemeSliderStopTicksChange?.(!themeSliderStopTicks)}
+            >
+              {themeSliderStopTicks ? (
+                <Check size={10} strokeWidth={2.75} className={css.checkboxMark} aria-hidden />
+              ) : null}
+            </button>
+            <span className={css.label}>Slider stop ticks</span>
+          </div>
         </div>
           </div>
         ) : null}

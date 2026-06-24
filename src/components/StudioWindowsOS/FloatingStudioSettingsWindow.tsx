@@ -29,6 +29,11 @@ export default function FloatingStudioSettingsWindow({
   onStudioColorThemeChange,
   themePreset,
   onThemePresetChange,
+  themeModified,
+  onThemeModifiedChange,
+  themePresetOverrides,
+  onThemePresetOverridesChange,
+  themeSliderStopTicks,
 }: FloatingStudioSettingsWindowProps) {
   const { positionStyle, onDragHandlePointerDown } = useFloatingDocumentDrag({
     frameRef,
@@ -86,6 +91,11 @@ export default function FloatingStudioSettingsWindow({
             onStudioColorThemeChange={onStudioColorThemeChange}
             themePreset={themePreset}
             onThemePresetChange={onThemePresetChange}
+            themeModified={themeModified}
+            onThemeModifiedChange={onThemeModifiedChange}
+            themePresetOverrides={themePresetOverrides}
+            onThemePresetOverridesChange={onThemePresetOverridesChange}
+            themeSliderStopTicks={themeSliderStopTicks}
           />
         </div>
         <div

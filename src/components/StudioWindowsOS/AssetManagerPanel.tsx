@@ -8,7 +8,6 @@ import {
   Search,
   SquareArrowOutUpRight,
 } from 'lucide-react'
-import { publicAssetUrl } from '../../publicAssetUrl'
 import {
   type AssetCatalogRow,
   SKYLINE_DRIFT_ASSETS,
@@ -16,6 +15,7 @@ import {
   skylineDriftPlaceRows,
 } from './assetManagerCatalog'
 import { droneRacerGame } from './workspaceModel/workspaceConfig'
+import { PanelCloseIcon } from './documentTabIcons'
 import css from './AssetManagerPanel.module.css'
 
 type AssetRow = AssetCatalogRow
@@ -200,7 +200,7 @@ export default function AssetManagerPanel({
               aria-label="Close panel"
               onClick={onClose}
             >
-              <img src={publicAssetUrl('assets/panel-close.svg')} alt="" />
+              <PanelCloseIcon />
             </button>
           </div>
         </header>

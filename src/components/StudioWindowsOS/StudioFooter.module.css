@@ -119,8 +119,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--content-default);
-  font-size: var(--font-size-sans);
-  line-height: var(--line-height-mono);
+  font: 400 var(--font-size-sans) / 16px var(--font-sans);
   cursor: default;
   white-space: nowrap;
 }
@@ -217,9 +216,7 @@
   background: transparent;
   color: var(--content-default);
   --footer-icon-fg: var(--content-default);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
+  font: 600 var(--font-size-sans) / 16px var(--font-sans);
   letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;

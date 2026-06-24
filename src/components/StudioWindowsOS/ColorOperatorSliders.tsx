@@ -19,6 +19,7 @@ import {
   applyThemeOperatorsToSliders,
   type ThemeSliderElements,
 } from './themeColorOperators'
+import { sliderStopPercent } from './themeOperatorMapping'
 
 type OperatorNumberInputProps = {
   inputRef: RefObject<HTMLInputElement | null>
@@ -34,6 +35,74 @@ function roundToStep(value: number, step: number): number {
   const decimals = String(step).includes('.') ? String(step).split('.')[1]?.length ?? 0 : 0
   const rounded = Math.round(value / step) * step
   return Number(rounded.toFixed(decimals))
+}
+
+function sliderIntervalTicks(min: number, max: number, step: number): number[] {
+  const decimals = String(step).includes('.') ? String(step).split('.')[1]?.length ?? 0 : 0
+  let value = roundToStep(min, step)
+  const end = roundToStep(max, step)
+  const ticks: number[] = []
+  while (value <= end + step / 2) {
+    ticks.push(Number(value.toFixed(decimals)))
+    value = Number((value + step).toFixed(decimals))
+  }
+  return ticks
+}
+
+type SliderWithTicksProps = {
+  sliderRef: RefObject<HTMLInputElement | null>
+  id: string
+  className: string
+  min: number
+  max: number
+  step: number
+  defaultValue: number
+  stops: number[]
+  showStopTicks: boolean
+  tabIndex?: number
+  ariaHidden?: boolean
+}
+
+function SliderWithTicks({
+  sliderRef,
+  id,
+  className,
+  min,
+  max,
+  step,
+  defaultValue,
+  stops,
+  showStopTicks,
+  tabIndex,
+  ariaHidden,
+}: SliderWithTicksProps) {
+  return (
+    <div className={css.sliderTrackWrap}>
+      {showStopTicks && stops.length > 0 ? (
+        <div className={css.sliderTicks} aria-hidden>
+          {stops.map((stop) => (
+            <span
+              key={stop}
+              className={css.sliderTick}
+              style={{ left: `${sliderStopPercent(stop, min, max)}%` }}
+            />
+          ))}
+        </div>
+      ) : null}
+      <input
+        ref={sliderRef}
+        type="range"
+        id={id}
+        className={className}
+        min={min}
+        max={max}
+        step={step}
+        defaultValue={defaultValue}
+        tabIndex={tabIndex}
+        aria-hidden={ariaHidden}
+      />
+    </div>
+  )
 }
 
 function OperatorNumberInput({
@@ -161,6 +230,8 @@ export type ColorOperatorSlidersProps = {
   /** Contrast multiplier bounds. Default 0.5–1.5 (prototype); Studio Settings uses a tighter range. */
   contrastMin?: number
   contrastMax?: number
+  /** Tick marks at each slider step (whole numbers or tenths). */
+  showStopTicks?: boolean
 }
 
 const DEFAULT_CONTRAST_MIN = 0.5
@@ -176,6 +247,7 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
       satMax = DEFAULT_SAT_MAX,
       contrastMin = DEFAULT_CONTRAST_MIN,
       contrastMax = DEFAULT_CONTRAST_MAX,
+      showStopTicks = false,
     },
     ref,
   ) {
@@ -230,6 +302,11 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
     const showLightness = visibleOperators.includes('lightness')
     const showContrast = visibleOperators.includes('contrast')
 
+    const hueStops = sliderIntervalTicks(HUE_OPERATOR_MIN, HUE_OPERATOR_MAX, 1)
+    const satStops = sliderIntervalTicks(satMin, satMax, 0.1)
+    const lightStops = sliderIntervalTicks(-10, 10, 1)
+    const contrastStops = sliderIntervalTicks(contrastMin, contrastMax, 0.1)
+
     return (
       <div className={`${css.sliders} ${className ?? ''}`.trim()}>
         {showHue ? (
@@ -245,15 +322,16 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
             </StudioTooltip>
             <div className={css.sliderValueGroup}>
               <div className={css.sliderControl}>
-                <input
-                  ref={hueSliderRef}
-                  type="range"
+                <SliderWithTicks
+                  sliderRef={hueSliderRef}
                   id={hueId}
                   className={css.slider}
                   min={HUE_OPERATOR_MIN}
                   max={HUE_OPERATOR_MAX}
                   step={1}
                   defaultValue={0}
+                  stops={hueStops}
+                  showStopTicks={showStopTicks}
                 />
               </div>
               <OperatorNumberInput
@@ -294,15 +372,16 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
             </StudioTooltip>
             <div className={css.sliderValueGroup}>
               <div className={css.sliderControl}>
-                <input
-                  ref={satSliderRef}
-                  type="range"
+                <SliderWithTicks
+                  sliderRef={satSliderRef}
                   id={satId}
                   className={css.slider}
                   min={satMin}
                   max={satMax}
                   step={0.01}
                   defaultValue={1}
+                  stops={satStops}
+                  showStopTicks={showStopTicks}
                 />
               </div>
               <OperatorNumberInput
@@ -343,15 +422,16 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
             </StudioTooltip>
             <div className={css.sliderValueGroup}>
               <div className={css.sliderControl}>
-                <input
-                  ref={lightSliderRef}
-                  type="range"
+                <SliderWithTicks
+                  sliderRef={lightSliderRef}
                   id={lightId}
                   className={css.slider}
                   min={-10}
                   max={10}
                   step={1}
                   defaultValue={0}
+                  stops={lightStops}
+                  showStopTicks={showStopTicks}
                 />
               </div>
               <OperatorNumberInput
@@ -392,15 +472,16 @@ const ColorOperatorSliders = forwardRef<ColorOperatorSlidersHandle, ColorOperato
             </StudioTooltip>
             <div className={css.sliderValueGroup}>
               <div className={css.sliderControl}>
-                <input
-                  ref={contrastSliderRef}
-                  type="range"
+                <SliderWithTicks
+                  sliderRef={contrastSliderRef}
                   id={contrastId}
                   className={css.slider}
                   min={contrastMin}
                   max={contrastMax}
                   step={0.01}
                   defaultValue={1}
+                  stops={contrastStops}
+                  showStopTicks={showStopTicks}
                 />
               </div>
               <OperatorNumberInput

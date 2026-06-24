@@ -78,6 +78,10 @@ export const PROTOTYPE_SETTINGS_DEFAULTS = {
   assetManagerPanelOpen: true,
   /** When on, row-selection highlight washes follow theme color operators. */
   linkSelectionHighlight: false,
+  /** Theme spectrum sliders — sat/contrast use named theme stops and tighter ranges. */
+  themeSpectrumSliders: false,
+  /** Tick marks on Studio Settings color sliders at each step (whole number or tenth). */
+  themeSliderStopTicks: false,
   /** Ribbon panel toggles — off icons use content-default only; on uses emphasis + muted-blue fill. */
   panelTogglesUseFills: false,
   /** Toolbar icon stack size inside each ribbon tool button (px). */
